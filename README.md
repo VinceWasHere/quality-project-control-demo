@@ -53,28 +53,6 @@ La contraseña de todos es `1234`.
 | Gerencia | `gerencia@codelpa.demo` |
 | Presidencia | `presidente@codelpa.demo` |
 
-## Publicación en GitHub Pages
-
-Sube el contenido de esta carpeta a la raíz del repositorio:
-
-```text
-index.html
-styles.css
-app.js
-README.md
-SOURCE_NOTES.md
-data/
-assets/
-```
-
-No necesitas subir un archivo `.nojekyll`.
-
-Luego configura:
-
-```text
-Settings → Pages → Deploy from a branch → main → /(root)
-```
-
 ## Limitaciones del demo estático
 
 Este proyecto utiliza `localStorage`.
