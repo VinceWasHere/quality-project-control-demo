@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Quality Project Control — CODELPA</title>
+  <style>
+    :root{
+      --navy:#0b2545;
+      --navy-2:#163a63;
+      --blue:#1f5f99;
+      --red:#c62828;
+      --green:#15803d;
+      --yellow:#b7791f;
+      --gray-50:#f7f9fc;
+      --gray-100:#eef2f6;
+      --gray-200:#d9e1ea;
+      --gray-500:#667085;
+      --gray-700:#344054;
+      --gray-900:#101828;
+      --white:#ffffff;
+      --shadow:0 8px 24px rgba(11,37,69,.08);
+      --radius:16px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter,Segoe UI,Arial,sans-serif;
+      background:var(--gray-50);
+      color:var(--gray-900);
+    }
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .app{min-height:100vh;display:grid;grid-template-columns:260px 1fr}
+    .sidebar{
+      background:var(--navy);
+      color:white;
+      padding:22px 16px;
+      position:sticky;
+      top:0;
+      height:100vh;
+      overflow:auto;
+    }
+    .brand{
+      display:flex;align-items:center;gap:12px;margin-bottom:22px;
+      padding:0 6px 18px;border-bottom:1px solid rgba(255,255,255,.16)
+    }
+    .brand-mark{
+      width:42px;height:42px;border-radius:10px;background:white;color:var(--navy);
+      display:grid;place-items:center;font-weight:800;letter-spacing:-1px
+    }
+    .brand strong{display:block;font-size:15px}
+    .brand span{display:block;font-size:12px;color:#c9d6e5;margin-top:3px}
+    .demo-banner{
+      background:rgba(198,40,40,.18);
+      border:1px solid rgba(255,255,255,.12);
+      padding:10px;border-radius:12px;font-size:12px;line-height:1.4;margin-bottom:16px
+    }
+    .nav-section{margin-top:18px}
+    .nav-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:#9fb2c9;margin:0 10px 8px}
+    .nav-btn{
+      width:100%;border:0;background:transparent;color:white;border-radius:10px;
+      padding:11px 12px;text-align:left;display:flex;gap:10px;align-items:center;margin:3px 0
+    }
+    .nav-btn:hover,.nav-btn.active{background:rgba(255,255,255,.12)}
+    .nav-btn .ico{width:22px;text-align:center}
+    .main{min-width:0}
+    .topbar{
+      background:white;border-bottom:1px solid var(--gray-200);
+      display:flex;align-items:center;justify-content:space-between;
+      padding:14px 24px;position:sticky;top:0;z-index:10
+    }
+    .topbar-left{display:flex;align-items:center;gap:12px}
+    .mobile-menu{display:none;border:0;background:var(--gray-100);border-radius:10px;padding:8px 11px}
+    .topbar h1{font-size:18px;margin:0}
+    .topbar p{font-size:12px;color:var(--gray-500);margin:4px 0 0}
+    .profile-switch{display:flex;align-items:center;gap:10px}
+    .profile-switch select{
+      border:1px solid var(--gray-200);border-radius:10px;padding:9px 12px;background:white;max-width:240px
+    }
+    .avatar{
+      width:38px;height:38px;border-radius:50%;display:grid;place-items:center;
+      background:var(--navy);color:white;font-weight:700
+    }
+    .content{padding:24px;max-width:1500px;margin:0 auto}
+    .page-header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:22px}
+    .page-header h2{margin:0;font-size:26px}
+    .page-header p{margin:6px 0 0;color:var(--gray-500)}
+    .btn{
+      border:0;border-radius:10px;padding:10px 14px;font-weight:700;display:inline-flex;
+      align-items:center;justify-content:center;gap:8px
+    }
+    .btn-primary{background:var(--navy);color:white}
+    .btn-secondary{background:var(--gray-100);color:var(--gray-900)}
+    .btn-danger{background:#fee4e2;color:#b42318}
+    .btn-success{background:#dcfae6;color:#067647}
+    .btn-warning{background:#fef0c7;color:#93370d}
+    .btn-outline{background:white;color:var(--navy);border:1px solid var(--gray-200)}
+    .btn-lg{padding:14px 18px;font-size:16px}
+    .grid{display:grid;gap:16px}
+    .grid-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card{
+      background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:18px;
+      box-shadow:var(--shadow)
+    }
+    .metric-label{font-size:13px;color:var(--gray-500)}
+    .metric-value{font-size:30px;font-weight:800;margin-top:6px}
+    .metric-foot{font-size:12px;color:var(--gray-500);margin-top:6px}
+    .metric-positive{color:var(--green)}
+    .metric-warning{color:var(--yellow)}
+    .metric-critical{color:var(--red)}
+    .quick-actions .card{min-height:130px;display:flex;flex-direction:column;justify-content:space-between}
+    .quick-actions h3{margin:0;font-size:18px}
+    .quick-actions p{margin:8px 0;color:var(--gray-500);font-size:14px}
+    .section-title{display:flex;justify-content:space-between;align-items:center;margin:28px 0 12px}
+    .section-title h3{margin:0;font-size:18px}
+    .table-wrap{overflow:auto;border:1px solid var(--gray-200);border-radius:14px;background:white}
+    table{width:100%;border-collapse:collapse;min-width:900px}
+    th,td{padding:12px 14px;border-bottom:1px solid var(--gray-200);text-align:left;font-size:13px}
+    th{background:var(--gray-50);color:var(--gray-700);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+    tr:last-child td{border-bottom:0}
+    .badge{
+      display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:700
+    }
+    .badge-blue{background:#e8f1fb;color:#175cd3}
+    .badge-green{background:#dcfae6;color:#067647}
+    .badge-yellow{background:#fef0c7;color:#93370d}
+    .badge-red{background:#fee4e2;color:#b42318}
+    .badge-gray{background:var(--gray-100);color:var(--gray-700)}
+    .wizard{display:grid;grid-template-columns:250px 1fr;gap:20px}
+    .steps{background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px;height:max-content}
+    .step{
+      display:flex;gap:12px;padding:12px;border-radius:12px;margin-bottom:6px;color:var(--gray-500)
+    }
+    .step.active{background:#eef5fc;color:var(--navy);font-weight:700}
+    .step.done{color:var(--green)}
+    .step-num{
+      width:28px;height:28px;border-radius:50%;background:var(--gray-100);display:grid;place-items:center;font-weight:700;flex:none
+    }
+    .step.active .step-num{background:var(--navy);color:white}
+    .step.done .step-num{background:#dcfae6;color:var(--green)}
+    .form-card{background:white;border:1px solid var(--gray-200);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+    .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .field label{display:block;font-size:13px;font-weight:700;margin-bottom:7px;color:var(--gray-700)}
+    .field input,.field select,.field textarea{
+      width:100%;border:1px solid var(--gray-200);border-radius:10px;padding:11px 12px;background:white
+    }
+    .field textarea{min-height:100px;resize:vertical}
+    .field.full{grid-column:1/-1}
+    .checklist{display:grid;gap:10px}
+    .check-row{
+      display:flex;gap:10px;align-items:flex-start;border:1px solid var(--gray-200);border-radius:12px;padding:12px
+    }
+    .check-row input{margin-top:4px}
+    .form-actions{display:flex;justify-content:space-between;gap:12px;margin-top:22px}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+    .tab{
+      border:1px solid var(--gray-200);background:white;border-radius:999px;padding:8px 12px;font-weight:700;font-size:13px
+    }
+    .tab.active{background:var(--navy);color:white;border-color:var(--navy)}
+    .criteria{display:grid;gap:14px}
+    .criterion{
+      background:white;border:1px solid var(--gray-200);border-radius:14px;padding:16px
+    }
+    .criterion-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+    .criterion h4{margin:0;font-size:15px}
+    .criterion .meta{color:var(--gray-500);font-size:12px;margin-top:5px}
+    .options{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+    .option-btn{
+      border:1px solid var(--gray-200);background:white;border-radius:10px;padding:9px 12px
+    }
+    .option-btn.selected{background:var(--navy);color:white;border-color:var(--navy)}
+    .option-btn.block-selected{background:#fee4e2;color:#b42318;border-color:#fda29b}
+    .criterion textarea{width:100%;border:1px solid var(--gray-200);border-radius:10px;padding:10px;min-height:72px}
+    .score-panel{position:sticky;top:92px}
+    .score-big{font-size:42px;font-weight:800}
+    .progress{height:10px;background:var(--gray-100);border-radius:999px;overflow:hidden}
+    .progress > span{display:block;height:100%;background:var(--navy);border-radius:999px}
+    .traffic{display:flex;align-items:center;gap:10px;font-weight:800}
+    .light{width:16px;height:16px;border-radius:50%}
+    .light.green{background:#22c55e}
+    .light.yellow{background:#f59e0b}
+    .light.red{background:#ef4444}
+    .timeline{position:relative;margin-left:10px}
+    .timeline:before{
+      content:"";position:absolute;left:11px;top:8px;bottom:8px;width:2px;background:var(--gray-200)
+    }
+    .timeline-item{position:relative;padding:0 0 18px 34px}
+    .timeline-dot{
+      position:absolute;left:3px;top:3px;width:18px;height:18px;border-radius:50%;background:var(--navy);border:4px solid white;
+      box-shadow:0 0 0 1px var(--gray-200)
+    }
+    .timeline-item strong{font-size:13px}
+    .timeline-item p{font-size:12px;color:var(--gray-500);margin:4px 0 0}
+    .bars{display:grid;gap:14px}
+    .bar-row{display:grid;grid-template-columns:180px 1fr 70px;align-items:center;gap:12px;font-size:13px}
+    .bar-track{height:10px;background:var(--gray-100);border-radius:999px;overflow:hidden}
+    .bar-fill{height:100%;background:var(--navy);border-radius:999px}
+    .alert{
+      border-radius:12px;padding:12px 14px;font-size:13px;margin-bottom:14px
+    }
+    .alert-info{background:#eef5fc;color:#19496e;border:1px solid #cfe2f3}
+    .alert-warning{background:#fffaeb;color:#7a2e0e;border:1px solid #fedf89}
+    .alert-danger{background:#fff1f0;color:#912018;border:1px solid #fecdca}
+    .hidden{display:none!important}
+    .role-scope{font-size:12px;color:var(--gray-500)}
+    .mobile-overlay{display:none}
+    @media(max-width:1100px){
+      .grid-4{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .grid-3{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .wizard{grid-template-columns:1fr}
+      .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+      .step{padding:9px;display:block;text-align:center}
+      .step-num{margin:0 auto 6px}
+      .step span:last-child{font-size:11px}
+    }
+    @media(max-width:800px){
+      .app{grid-template-columns:1fr}
+      .sidebar{position:fixed;left:-280px;z-index:30;width:260px;transition:.2s}
+      .sidebar.open{left:0}
+      .mobile-menu{display:block}
+      .mobile-overlay{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:20}
+      .topbar{padding:12px 14px}
+      .profile-switch select{max-width:150px}
+      .content{padding:16px}
+      .page-header{display:block}
+      .page-header .btn{margin-top:14px}
+      .grid-4,.grid-3,.grid-2{grid-template-columns:1fr}
+      .form-grid{grid-template-columns:1fr}
+      .steps{grid-template-columns:1fr 1fr}
+      .bar-row{grid-template-columns:1fr}
+      .score-panel{position:static}
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand-mark">C</div>
+      <div>
+        <strong>QUALITY PROJECT CONTROL</strong>
+        <span>CODELPA</span>
+      </div>
+    </div>
+    <div class="demo-banner">MODO DEMOSTRACIÓN<br>Los datos no son registros reales de CODELPA.</div>
+
+    <div class="nav-section">
+      <div class="nav-label">Principal</div>
+      <button class="nav-btn active" data-view="home"><span class="ico">⌂</span>Inicio</button>
+      <button class="nav-btn" data-view="request"><span class="ico">＋</span>Solicitar inspección</button>
+      <button class="nav-btn" data-view="qualityQueue"><span class="ico">☷</span>Bandeja de Calidad</button>
+      <button class="nav-btn" data-view="inspection"><span class="ico">✓</span>Planilla digital</button>
+      <button class="nav-btn" data-view="result"><span class="ico">◉</span>Resultado y liberación</button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Seguimiento</div>
+      <button class="nav-btn" data-view="dashboard"><span class="ico">▥</span>Dashboard</button>
+      <button class="nav-btn" data-view="package"><span class="ico">▦</span>Paquete de liberación</button>
+    </div>
+
+    <div class="nav-section">
+      <div class="nav-label">Recorrido sugerido</div>
+      <div style="font-size:12px;line-height:1.55;color:#c9d6e5;padding:0 10px">
+        1. Solicita una inspección.<br>
+        2. Cambia a Calidad.<br>
+        3. Toma la inspección.<br>
+        4. Completa la planilla.<br>
+        5. Revisa el resultado.<br>
+        6. Abre el dashboard.
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="mobile-menu" id="menuBtn">☰</button>
+        <div>
+          <h1 id="topTitle">Inicio</h1>
+          <p id="topSubtitle">Proyecto Lopesan La Ceiba</p>
+        </div>
+      </div>
+      <div class="profile-switch">
+        <div class="role-scope" id="roleScope">Vista operativa</div>
+        <select id="profileSelect" aria-label="Perfil demostrativo">
+          <option>Ingeniero de Ejecución</option>
+          <option>Ingeniero de Calidad</option>
+          <option>Coordinador de Calidad</option>
+          <option>Gerente de Proyecto</option>
+          <option>Vicepresidente</option>
+          <option>Presidente</option>
+        </select>
+        <div class="avatar" id="avatar">IE</div>
+      </div>
+    </header>
+
+    <div class="content">
+      <section id="home" class="view"></section>
+      <section id="request" class="view hidden"></section>
+      <section id="qualityQueue" class="view hidden"></section>
+      <section id="inspection" class="view hidden"></section>
+      <section id="result" class="view hidden"></section>
+      <section id="dashboard" class="view hidden"></section>
+      <section id="package" class="view hidden"></section>
+    </div>
+  </main>
+</div>
+<div id="overlay" class="mobile-overlay hidden"></div>
+
+<script>
+const state = {
+  profile: "Ingeniero de Ejecución",
+  currentView: "home",
+  wizardStep: 1,
+  requestSent: false,
+  requestTaken: false,
+  inspectionStarted: false,
+  decision: null,
+  criteria: {
+    "DEM-001": null,
+    "DEM-002": null,
+    "DEM-003": null,
+    "DEM-004": null,
+    "DEM-005": null
+  },
+  observations: {},
+  management: {
+    area: 100,
+    docs: 100,
+    schedule: 100,
+    support: 100
+  }
+};
+
+const profiles = {
+  "Ingeniero de Ejecución": { initials:"IE", scope:"Vista personal de ejecución" },
+  "Ingeniero de Calidad": { initials:"IC", scope:"Operación de inspecciones" },
+  "Coordinador de Calidad": { initials:"CC", scope:"Monitoreo del equipo" },
+  "Gerente de Proyecto": { initials:"GP", scope:"Consulta del proyecto" },
+  "Vicepresidente": { initials:"VP", scope:"Comparación multiproyecto" },
+  "Presidente": { initials:"PR", scope:"Resumen ejecutivo global" }
+};
+
+const requestRows = [
+  {code:"INSP-LCE-2026-0001",time:"8:00 AM",activity:"Control de Mampostería",location:"Hab. 2101",exec:"Ing. Ejecución Demo",contractor:"Contratista Demo A",ready:true,state:"Disponible"},
+  {code:"INSP-LCE-2026-0002",time:"8:00 AM",activity:"Control de Pañete",location:"Pasillo N02",exec:"Ing. Ejecución Demo",contractor:"Contratista Demo A",ready:true,state:"Disponible"},
+  {code:"INSP-LCE-2026-0003",time:"8:20 AM",activity:"Colocación de Pisos",location:"Hab. 2102",exec:"Ing. Ejecución Demo",contractor:"Contratista Demo B",ready:false,state:"No confirmada"},
+  {code:"INSP-LCE-2026-0004",time:"2:00 PM",activity:"Control de Pintura",location:"Hab. 2105",exec:"Ing. Ejecución Demo",contractor:"Contratista Demo A",ready:true,state:"Disponible anticipadamente"}
+];
+
+function go(view){
+  state.currentView = view;
+  document.querySelectorAll(".view").forEach(v=>v.classList.add("hidden"));
+  document.getElementById(view).classList.remove("hidden");
+  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active", b.dataset.view===view));
+  const titles={
+    home:"Inicio",request:"Solicitar inspección",qualityQueue:"Bandeja de Calidad",
+    inspection:"Planilla digital",result:"Resultado y liberación",dashboard:"Dashboard",
+    package:"Paquete de liberación"
+  };
+  document.getElementById("topTitle").textContent=titles[view];
+  renderCurrent();
+  closeMenu();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+
+function roleChanged(){
+  state.profile=document.getElementById("profileSelect").value;
+  const p=profiles[state.profile];
+  document.getElementById("avatar").textContent=p.initials;
+  document.getElementById("roleScope").textContent=p.scope;
+  if(["Gerente de Proyecto","Vicepresidente","Presidente"].includes(state.profile)) go("dashboard");
+  else go("home");
+}
+
+function renderCurrent(){
+  renderHome();
+  renderRequest();
+  renderQueue();
+  renderInspection();
+  renderResult();
+  renderDashboard();
+  renderPackage();
+}
+
+function renderHome(){
+  const execution = `
+    <div class="page-header">
+      <div><h2>Hola, Ing. Ejecución Demo</h2><p>Gestione sus solicitudes y correcciones del proyecto Lopesan La Ceiba.</p></div>
+      <button class="btn btn-primary btn-lg" onclick="go('request')">＋ Solicitar inspección</button>
+    </div>
+    <div class="grid grid-4">
+      ${metric("Solicitudes pendientes","2","En espera de Calidad")}
+      ${metric("Inspección programada","1","Hoy, 10:30 AM")}
+      ${metric("Con observaciones","1","Requiere corrección","warning")}
+      ${metric("Calificación mensual","91%","Objetivo de gestión: 90%","positive")}
+    </div>
+    <div class="section-title"><h3>Acciones rápidas</h3></div>
+    <div class="grid grid-4 quick-actions">
+      ${quick("Solicitar inspección","Registre una nueva solicitud de forma guiada.","request")}
+      ${quick("Mis solicitudes","Revise estados, devoluciones y programaciones.","home")}
+      ${quick("Correcciones pendientes","Cargue evidencias y solicite reinspección.","package")}
+      ${quick("Documentos e instructivos","Consulte los documentos vigentes por actividad.","package")}
+    </div>
+    <div class="section-title"><h3>Solicitudes recientes</h3></div>
+    ${recentRequestsTable()}
+  `;
+  const quality = `
+    <div class="page-header">
+      <div><h2>${state.profile}</h2><p>Controle la cola operativa y las inspecciones asignadas.</p></div>
+      <button class="btn btn-primary" onclick="go('qualityQueue')">Abrir bandeja de Calidad</button>
+    </div>
+    <div class="grid grid-4">
+      ${metric("Disponibles para tomar","4","2 para las 8:00 AM")}
+      ${metric("Mis inspecciones","3","1 actualmente en proceso")}
+      ${metric("Pendientes de cierre","2","Requieren validación")}
+      ${metric("Resultado promedio","92.4%","Periodo actual","positive")}
+    </div>
+    <div class="section-title"><h3>Prioridad operativa</h3></div>
+    <div class="card">
+      <div class="alert alert-info">La cola prioriza áreas listas, fecha, prioridad técnica, hora solicitada y orden de envío.</div>
+      ${queueTable(true)}
+    </div>
+  `;
+  const executive = `
+    <div class="page-header">
+      <div><h2>${state.profile}</h2><p>${profiles[state.profile].scope}</p></div>
+      <button class="btn btn-outline" onclick="go('dashboard')">Ver dashboard completo</button>
+    </div>
+    <div class="grid grid-4">
+      ${metric("Cumplimiento general","92.4%","+1.8 puntos vs. mes anterior","positive")}
+      ${metric("Proyectos activos","6","1 en alerta preventiva")}
+      ${metric("Actividades críticas","3","Requieren seguimiento","warning")}
+      ${metric("NC abiertas","4","2 próximas a vencer","critical")}
+    </div>
+    <div class="section-title"><h3>Resumen ejecutivo</h3></div>
+    <div class="grid grid-2">
+      <div class="card"><h3 style="margin-top:0">Proyectos con atención</h3>${barsExecutive()}</div>
+      <div class="card"><h3 style="margin-top:0">Hallazgos relevantes</h3>
+        <div class="timeline">
+          ${timelineItem("Mampostería por debajo del objetivo","Proyecto Caribe Norte · 88.2%")}
+          ${timelineItem("Improcedencias recurrentes","Lopesan La Ceiba · 4 casos")}
+          ${timelineItem("Acciones próximas a vencer","2 acciones correctivas con menos de 72 horas")}
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById("home").innerHTML =
+    state.profile==="Ingeniero de Ejecución" ? execution :
+    ["Ingeniero de Calidad","Coordinador de Calidad"].includes(state.profile) ? quality : executive;
+}
+
+function metric(label,value,foot,tone=""){
+  return `<div class="card"><div class="metric-label">${label}</div><div class="metric-value ${tone?`metric-${tone}`:""}">${value}</div><div class="metric-foot">${foot}</div></div>`;
+}
+function quick(title,desc,view){
+  return `<div class="card"><div><h3>${title}</h3><p>${desc}</p></div><button class="btn btn-outline" onclick="go('${view}')">Abrir</button></div>`;
+}
+function recentRequestsTable(){
+  return `<div class="table-wrap"><table><thead><tr><th>Código</th><th>Actividad</th><th>Ubicación</th><th>Hora</th><th>Estado</th></tr></thead><tbody>
+    <tr><td>INSP-LCE-2026-0001</td><td>Mampostería</td><td>Hab. 2101</td><td>8:00 AM</td><td><span class="badge badge-blue">${state.requestSent?"Solicitada":"Borrador"}</span></td></tr>
+    <tr><td>INSP-LCE-2026-0008</td><td>Pañete</td><td>Pasillo N02</td><td>10:30 AM</td><td><span class="badge badge-green">Programada</span></td></tr>
+    <tr><td>INSP-LCE-2026-0004</td><td>Pintura</td><td>Hab. 2105</td><td>2:00 PM</td><td><span class="badge badge-yellow">Con observaciones</span></td></tr>
+  </tbody></table></div>`;
+}
+
+function renderRequest(){
+  const step = state.wizardStep;
+  const contents = {
+    1:`<div class="form-grid">
+        ${selectField("Proyecto",["Lopesan La Ceiba"])}
+        ${selectField("Bloque",["D1","D2"])}
+        ${selectField("Nivel",["Nivel 02","Nivel 01"])}
+        ${selectField("Habitación o área",["Habitación 2101","Pasillo Nivel 02","Losa Sector A"])}
+      </div>`,
+    2:`<div class="form-grid">
+        ${selectField("Actividad",["Control de Mampostería","Control de Pañete","Colocación de Pisos","Control de Pintura"])}
+        ${selectField("Contratista",["Contratista Demo A","Contratista Demo B"])}
+        ${selectField("Paquete de liberación",["PL-D1-N02-MAMP-H2101-001"])}
+        ${inputField("Descripción del alcance","Muro interior de habitación, paño completo")}
+      </div>`,
+    3:`<div class="checklist">
+        ${check("El trabajo está terminado para el alcance solicitado.")}
+        ${check("El área está limpia y accesible.")}
+        ${check("Los planos o referencias están disponibles.")}
+        ${check("Las correcciones anteriores fueron ejecutadas.")}
+        ${check("Las evidencias requeridas fueron preparadas.")}
+        ${check("El responsable estará disponible.")}
+      </div>`,
+    4:`<div class="form-grid">
+        ${fileFake("Fotografías previas","foto_area_2101.jpg")}
+        ${fileFake("Plano de referencia","ARQ-D1-N02-REV05.pdf")}
+        ${fileFake("Mapeo del área","mapeo_hab_2101.png")}
+        ${inputField("Código y versión del plano","ARQ-D1-N02 · Rev. 05")}
+        <div class="field full"><label>Observaciones</label><textarea>Área lista para inspección de mampostería.</textarea></div>
+      </div>`,
+    5:`<div class="form-grid">
+        <div class="field"><label>Fecha propuesta</label><input type="date" value="2026-07-22"></div>
+        <div class="field"><label>Hora propuesta</label><input type="time" value="08:00"></div>
+        <div class="field full">
+          <div class="alert alert-info"><strong>Resumen:</strong> Control de Mampostería · Bloque D1 · Nivel 02 · Habitación 2101 · Contratista Demo A.</div>
+          ${check("Confirmo que la información suministrada es correcta y el área está lista.")}
+        </div>
+      </div>`
+  };
+  document.getElementById("request").innerHTML=`
+    <div class="page-header"><div><h2>Nueva solicitud de inspección</h2><p>Complete los cinco pasos. El flujo fue simplificado para uso en campo.</p></div></div>
+    ${state.requestSent?`<div class="alert alert-info">Solicitud INSP-LCE-2026-0001 enviada correctamente a Calidad.</div>`:""}
+    <div class="wizard">
+      <aside class="steps">
+        ${wizardStep(1,"Ubicación",step)}
+        ${wizardStep(2,"Actividad",step)}
+        ${wizardStep(3,"Área lista",step)}
+        ${wizardStep(4,"Evidencias",step)}
+        ${wizardStep(5,"Fecha y envío",step)}
+      </aside>
+      <div class="form-card">
+        <h3 style="margin-top:0">Paso ${step}: ${["","Ubicación","Trabajo a inspeccionar","Confirmación de área lista","Evidencias","Fecha, hora y envío"][step]}</h3>
+        ${contents[step]}
+        <div class="form-actions">
+          <button class="btn btn-secondary" ${step===1?"disabled":""} onclick="prevStep()">← Anterior</button>
+          ${step<5?`<button class="btn btn-primary" onclick="nextStep()">Continuar →</button>`:
+          `<button class="btn btn-primary" onclick="sendRequest()">Enviar a Calidad</button>`}
+        </div>
+      </div>
+    </div>`;
+}
+function wizardStep(n,label,current){
+  const cls=n===current?"active":n<current?"done":"";
+  return `<div class="step ${cls}"><div class="step-num">${n<current?"✓":n}</div><span>${label}</span></div>`;
+}
+function selectField(label,opts){
+  return `<div class="field"><label>${label}</label><select>${opts.map(o=>`<option>${o}</option>`).join("")}</select></div>`;
+}
+function inputField(label,val){
+  return `<div class="field"><label>${label}</label><input value="${val}"></div>`;
+}
+function check(label){
+  return `<label class="check-row"><input type="checkbox" checked><span>${label}</span></label>`;
+}
+function fileFake(label,name){
+  return `<div class="field"><label>${label}</label><div style="border:1px dashed var(--gray-200);border-radius:12px;padding:16px;background:var(--gray-50)">
+    <strong>${name}</strong><div style="font-size:12px;color:var(--gray-500);margin-top:4px">Archivo simulado</div>
+  </div></div>`;
+}
+function nextStep(){ if(state.wizardStep<5){state.wizardStep++;renderRequest();}}
+function prevStep(){ if(state.wizardStep>1){state.wizardStep--;renderRequest();}}
+function sendRequest(){state.requestSent=true;renderRequest();setTimeout(()=>go("qualityQueue"),650)}
+
+function renderQueue(){
+  document.getElementById("qualityQueue").innerHTML=`
+    <div class="page-header">
+      <div><h2>Bandeja de Calidad</h2><p>Cola operativa organizada por disponibilidad real y hora solicitada.</p></div>
+      <button class="btn btn-secondary" onclick="document.getElementById('profileSelect').value='Ingeniero de Calidad';roleChanged()">Usar perfil de Calidad</button>
+    </div>
+    ${!["Ingeniero de Calidad","Coordinador de Calidad"].includes(state.profile)?`<div class="alert alert-warning">Esta vista corresponde al equipo de Calidad. Cambie el perfil para demostrar la operación.</div>`:""}
+    <div class="tabs">
+      <button class="tab active">Disponibles para tomar</button>
+      <button class="tab">Mis inspecciones</button>
+      <button class="tab">Todas las del proyecto</button>
+      <button class="tab">Cerradas recientemente</button>
+    </div>
+    <div class="grid grid-4" style="margin-bottom:16px">
+      ${metric("Disponibles","4","2 listas para las 8:00")}
+      ${metric("Tomadas por mí",state.requestTaken?"1":"0","Calidad Demo 1")}
+      ${metric("No confirmadas","1","No bloquea la cola","warning")}
+      ${metric("Tiempo medio de espera","18 min","Periodo actual")}
+    </div>
+    ${queueTable(false)}
+  `;
+}
+function queueTable(compact=false){
+  const rows=requestRows.map((r,i)=>{
+    let action = i===0
+      ? state.requestTaken
+        ? `<button class="btn btn-success" onclick="startInspection()">Iniciar inspección</button>`
+        : `<button class="btn btn-primary" onclick="takeInspection()">Tomar inspección</button>`
+      : `<button class="btn btn-outline">Ver detalle</button>`;
+    return `<tr>
+      <td>${r.code}</td><td>${r.time}</td><td>${r.activity}</td><td>${r.location}</td>
+      <td>${r.exec}</td><td>${r.contractor}</td>
+      <td><span class="badge ${r.ready?"badge-green":"badge-gray"}">${r.ready?"Área lista":"No confirmada"}</span></td>
+      <td><span class="badge ${i===0&&state.requestTaken?"badge-blue":r.ready?"badge-green":"badge-gray"}">${i===0&&state.requestTaken?"Tomada por Calidad":r.state}</span></td>
+      ${compact?"":`<td>${action}</td>`}
+    </tr>`;
+  }).join("");
+  return `<div class="table-wrap"><table><thead><tr><th>Código</th><th>Hora</th><th>Actividad</th><th>Ubicación</th><th>Ejecución</th><th>Contratista</th><th>Disponibilidad</th><th>Estado</th>${compact?"":"<th>Acción</th>"}</tr></thead><tbody>${rows}</tbody></table></div>`;
+}
+function takeInspection(){state.requestTaken=true;renderQueue()}
+function startInspection(){state.inspectionStarted=true;go("inspection")}
+
+function renderInspection(){
+  const blocks = [
+    {id:"DEM-001",section:"Documentación",q:"¿La referencia técnica requerida está disponible?",weight:10,opts:["Cumple","No cumple"]},
+    {id:"DEM-002",section:"Documentación",q:"¿El alcance coincide con el mapeo presentado?",weight:15,opts:["Cumple","Parcial","No cumple"]},
+    {id:"DEM-003",section:"Ejecución",q:"¿El trabajo cumple visualmente con el criterio configurado?",weight:30,opts:["Cumple","Parcial","No cumple"]},
+    {id:"DEM-004",section:"Ejecución",q:"¿Existe una condición crítica que impida continuar?",weight:25,opts:["No","Sí"],block:true},
+    {id:"DEM-005",section:"Terminación",q:"¿El área está limpia y lista para el siguiente proceso?",weight:20,opts:["Cumple","No cumple","No aplica"]}
+  ];
+  document.getElementById("inspection").innerHTML=`
+    <div class="page-header"><div><h2>Planilla digital</h2><p>INSP-LCE-2026-0001 · Control de Mampostería · Habitación 2101</p></div></div>
+    <div class="alert alert-warning">PLANILLA DEMOSTRATIVA — Pendiente de sustituir por los criterios oficiales de CODELPA.</div>
+    <div class="grid grid-2" style="grid-template-columns:minmax(0,2fr) minmax(280px,1fr)">
+      <div>
+        <div class="card" style="margin-bottom:16px">
+          <div class="grid grid-3">
+            <div><div class="metric-label">Paquete</div><strong>PL-D1-N02-MAMP-H2101-001</strong></div>
+            <div><div class="metric-label">Solicitada</div><strong>8:00 AM</strong></div>
+            <div><div class="metric-label">Inicio real</div><strong>8:17 AM</strong></div>
+            <div><div class="metric-label">Solicitante</div><strong>Ing. Ejecución Demo</strong></div>
+            <div><div class="metric-label">Inspector</div><strong>Calidad Demo 1</strong></div>
+            <div><div class="metric-label">Visita</div><strong>1 de 2</strong></div>
+          </div>
+        </div>
+        <div class="criteria">
+          ${blocks.map(c=>criterionHTML(c)).join("")}
+        </div>
+        <div class="card" style="margin-top:16px">
+          <div class="field"><label>Observación general</label><textarea placeholder="Escriba observaciones generales de la visita..."></textarea></div>
+          <div class="form-actions">
+            <button class="btn btn-secondary">Guardar borrador</button>
+            <button class="btn btn-primary" onclick="finishInspection()">Calcular y finalizar visita</button>
+          </div>
+        </div>
+      </div>
+      <aside class="card score-panel">
+        <div class="metric-label">Resultado técnico preliminar</div>
+        <div class="score-big">${calculate().technical.toFixed(1)}%</div>
+        <div class="progress"><span style="width:${calculate().technical}%"></span></div>
+        <div style="margin-top:18px" class="traffic">${trafficHTML(calculate().final)}</div>
+        <hr style="border:0;border-top:1px solid var(--gray-200);margin:18px 0">
+        <div class="metric-label">Objetivo de Mampostería</div>
+        <div style="font-size:24px;font-weight:800;margin-top:4px">90%</div>
+        <div class="metric-foot">Técnico 80% · Gestión 20%</div>
+        ${calculate().blocked?`<div class="alert alert-danger" style="margin-top:16px">Existe un criterio bloqueante fallido.</div>`:""}
+      </aside>
+    </div>`;
+}
+function criterionHTML(c){
+  const val=state.criteria[c.id];
+  return `<article class="criterion">
+    <div class="criterion-head">
+      <div><span class="badge badge-blue">${c.section}</span><h4 style="margin-top:10px">${c.id} · ${c.q}</h4>
+      <div class="meta">Peso: ${c.weight}% ${c.block?"· Criterio bloqueante":""}</div></div>
+      ${c.id==="DEM-003"?`<span class="badge badge-gray">Foto simulada</span>`:""}
+    </div>
+    <div class="options">
+      ${c.opts.map(o=>`<button class="option-btn ${val===o?(c.block&&o==="Sí"?"block-selected":"selected"):""}" onclick="selectCriterion('${c.id}','${o}')">${o}</button>`).join("")}
+    </div>
+    <textarea placeholder="Observación del criterio...">${state.observations[c.id]||""}</textarea>
+  </article>`;
+}
+function selectCriterion(id,val){state.criteria[id]=val;renderInspection()}
+function scoreValue(id,val){
+  if(val===null)return null;
+  if(id==="DEM-004") return val==="No"?100:0;
+  if(val==="Cumple")return 100;
+  if(val==="Parcial")return 50;
+  if(val==="No cumple")return 0;
+  if(val==="No aplica")return null;
+  return 0;
+}
+function calculate(){
+  const weights={"DEM-001":10,"DEM-002":15,"DEM-003":30,"DEM-004":25,"DEM-005":20};
+  let sum=0,den=0;
+  Object.entries(weights).forEach(([id,w])=>{
+    const s=scoreValue(id,state.criteria[id]);
+    if(s!==null){sum+=s*w;den+=w}
+  });
+  const technical=den?sum/den:0;
+  const management=(state.management.area+state.management.docs+state.management.schedule+state.management.support)/4;
+  const final=technical*.8+management*.2;
+  return {technical,management,final,blocked:state.criteria["DEM-004"]==="Sí"};
+}
+function trafficHTML(score){
+  if(score>=90)return `<span class="light green"></span> Verde · Cumple`;
+  if(score>=85)return `<span class="light yellow"></span> Amarillo · Alerta preventiva`;
+  return `<span class="light red"></span> Rojo · Crítico`;
+}
+function finishInspection(){go("result")}
+
+function renderResult(){
+  const r=calculate();
+  const diff=r.final-90;
+  document.getElementById("result").innerHTML=`
+    <div class="page-header"><div><h2>Resultado y liberación</h2><p>La decisión final permanece bajo criterio del Departamento de Calidad.</p></div></div>
+    <div class="grid grid-4">
+      ${metric("Resultado técnico",r.technical.toFixed(1)+"%","Planilla demostrativa")}
+      ${metric("Resultado de gestión",r.management.toFixed(1)+"%","Área, documentos y programación")}
+      ${metric("Resultado final",r.final.toFixed(1)+"%","Ponderación 80/20")}
+      ${metric("Objetivo","90%",`Diferencia: ${diff>=0?"+":""}${diff.toFixed(1)} puntos`,diff>=0?"positive":diff>=-5?"warning":"critical")}
+    </div>
+    <div class="grid grid-2" style="margin-top:16px">
+      <div class="card">
+        <h3 style="margin-top:0">Decisión de Calidad</h3>
+        <div class="traffic" style="font-size:18px;margin:14px 0">${trafficHTML(r.final)}</div>
+        ${r.blocked?`<div class="alert alert-danger"><strong>Liberación bloqueada:</strong> DEM-004 indica una condición crítica.</div>`:""}
+        ${state.decision?`<div class="alert alert-info">Decisión registrada en el demo: <strong>${state.decision}</strong>.</div>`:""}
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button class="btn btn-success" ${r.blocked?"disabled":""} onclick="decision('Liberada')">Liberar</button>
+          <button class="btn btn-warning" onclick="decision('Con observaciones')">Dejar con observaciones</button>
+          <button class="btn btn-danger" onclick="decision('No liberada')">No liberar</button>
+          <button class="btn btn-outline" onclick="decision('Corrección solicitada')">Solicitar corrección</button>
+          <button class="btn btn-outline" onclick="decision('Reinspección creada')">Crear reinspección</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Participación y visitas</h3>
+        <div class="timeline">
+          ${timelineItem("Solicitada por","Ing. Ejecución Demo · 7:42 AM")}
+          ${timelineItem("Tomada por","Calidad Demo 1 · 8:12 AM")}
+          ${timelineItem("Iniciada por","Calidad Demo 1 · 8:17 AM")}
+          ${timelineItem("Continuada por","Calidad Demo 2 · Visita 2")}
+          ${timelineItem("Cerrada por",state.decision?"Calidad Demo 2 · "+state.decision:"Pendiente de decisión")}
+        </div>
+      </div>
+    </div>
+    <div class="section-title"><h3>Detalle de criterios</h3></div>
+    <div class="table-wrap"><table><thead><tr><th>Criterio</th><th>Respuesta</th><th>Peso</th><th>Resultado</th></tr></thead><tbody>
+      ${["DEM-001","DEM-002","DEM-003","DEM-004","DEM-005"].map((id,i)=>{
+        const w=[10,15,30,25,20][i],v=state.criteria[id]||"Sin responder",s=scoreValue(id,state.criteria[id]);
+        return `<tr><td>${id}</td><td>${v}</td><td>${w}%</td><td>${s===null?"No aplica":s+"%"}</td></tr>`
+      }).join("")}
+    </tbody></table></div>`;
+}
+function decision(value){state.decision=value;renderResult()}
+function timelineItem(title,text){return `<div class="timeline-item"><span class="timeline-dot"></span><strong>${title}</strong><p>${text}</p></div>`}
+
+function renderDashboard(){
+  const executive=state.profile==="Presidente"||state.profile==="Vicepresidente";
+  const title=state.profile==="Presidente"?"Resumen ejecutivo global":
+              state.profile==="Vicepresidente"?"Comparativo multiproyecto":
+              state.profile==="Gerente de Proyecto"?"Dashboard del proyecto":"Dashboard de Calidad";
+  document.getElementById("dashboard").innerHTML=`
+    <div class="page-header"><div><h2>${title}</h2><p>${executive?"Datos consolidados simulados para presentación":"Proyecto Lopesan La Ceiba · periodo actual"}</p></div></div>
+    <div class="grid grid-4">
+      ${metric(executive?"Cumplimiento general":"Solicitudes recibidas",executive?"92.4%":"18",executive?"+1.8 vs. mes anterior":"Periodo actual","positive")}
+      ${metric(executive?"Proyectos activos":"Inspecciones ejecutadas",executive?"6":"12",executive?"1 en alerta":"8 liberadas")}
+      ${metric(executive?"Actividades críticas":"Improcedentes",executive?"3":"1",executive?"Seguimiento requerido":"5.6% de solicitudes","warning")}
+      ${metric(executive?"NC abiertas":"Liberadas primera visita",executive?"4":"67%",executive?"2 próximas a vencer":"8 de 12")}
+    </div>
+    <div class="grid grid-2" style="margin-top:16px">
+      <div class="card">
+        <h3 style="margin-top:0">${executive?"Cumplimiento por proyecto":"Resultado por actividad"}</h3>
+        <div class="bars">
+          ${(executive?[
+            ["Lopesan La Ceiba",92.4],["Caribe Norte",88.2],["Residencial Central",95.1]
+          ]:[
+            ["Mampostería",91],["Pañete",96],["Pisos",94],["Pintura",88],["Drywall",93]
+          ]).map(([n,v])=>bar(n,v)).join("")}
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">${executive?"Alertas ejecutivas":"Carga del equipo de Calidad"}</h3>
+        ${executive?`
+          <div class="timeline">
+            ${timelineItem("Actividad crítica","Pintura · 88.0%")}
+            ${timelineItem("Contratista con menor resultado","Contratista Demo B · 86.7%")}
+            ${timelineItem("Improcedencias recurrentes","4 áreas declaradas listas sin estarlo")}
+          </div>`:
+          `<div class="bars">
+            ${bar("Calidad Demo 1",78)}
+            ${bar("Calidad Demo 2",62)}
+            ${bar("Coordinador Demo",35)}
+          </div>`}
+      </div>
+    </div>
+    <div class="section-title"><h3>Inspecciones recientes</h3></div>
+    <div class="table-wrap"><table><thead><tr><th>Código</th><th>Actividad</th><th>Ubicación</th><th>Resultado</th><th>Semáforo</th><th>Estado</th></tr></thead><tbody>
+      <tr><td>INSP-LCE-2026-0001</td><td>Mampostería</td><td>Hab. 2101</td><td>${calculate().final.toFixed(1)}%</td><td><span class="badge ${calculate().final>=90?"badge-green":calculate().final>=85?"badge-yellow":"badge-red"}">${calculate().final>=90?"Verde":calculate().final>=85?"Amarillo":"Rojo"}</span></td><td>${state.decision||"En evaluación"}</td></tr>
+      <tr><td>INSP-LCE-2026-0002</td><td>Pañete</td><td>Pasillo N02</td><td>96.0%</td><td><span class="badge badge-green">Verde</span></td><td>Liberada</td></tr>
+      <tr><td>INSP-LCE-2026-0004</td><td>Pintura</td><td>Hab. 2105</td><td>88.0%</td><td><span class="badge badge-yellow">Amarillo</span></td><td>Con observaciones</td></tr>
+    </tbody></table></div>`;
+}
+function bar(name,value){
+  return `<div class="bar-row"><strong>${name}</strong><div class="bar-track"><div class="bar-fill" style="width:${value}%"></div></div><strong>${value}%</strong></div>`;
+}
+function barsExecutive(){return `<div class="bars">${bar("Lopesan La Ceiba",92.4)}${bar("Caribe Norte",88.2)}${bar("Residencial Central",95.1)}</div>`}
+
+function renderPackage(){
+  document.getElementById("package").innerHTML=`
+    <div class="page-header"><div><h2>PL-D1-N02-MAMP-H2101-001</h2><p>Expediente digital del paquete de liberación.</p></div><span class="badge ${state.decision==="Liberada"?"badge-green":"badge-blue"}">${state.decision||"En proceso"}</span></div>
+    <div class="grid grid-3">
+      <div class="card"><div class="metric-label">Actividad</div><div style="font-size:18px;font-weight:800;margin-top:6px">Control de Mampostería</div></div>
+      <div class="card"><div class="metric-label">Ubicación</div><div style="font-size:18px;font-weight:800;margin-top:6px">D1 · N02 · Hab. 2101</div></div>
+      <div class="card"><div class="metric-label">Contratista</div><div style="font-size:18px;font-weight:800;margin-top:6px">Contratista Demo A</div></div>
+    </div>
+    <div class="grid grid-2" style="margin-top:16px">
+      <div class="card">
+        <h3 style="margin-top:0">Trazabilidad</h3>
+        <div class="timeline">
+          ${timelineItem("Solicitud creada","Ing. Ejecución Demo · 7:42 AM")}
+          ${timelineItem("Área confirmada como lista","7:45 AM")}
+          ${timelineItem("Inspección tomada","Calidad Demo 1 · 8:12 AM")}
+          ${timelineItem("Visita 1 iniciada","Calidad Demo 1 · 8:17 AM")}
+          ${timelineItem("Observaciones registradas","2 pendientes menores")}
+          ${timelineItem("Visita 2 continuada","Calidad Demo 2 · día siguiente")}
+          ${timelineItem("Cierre del paquete",state.decision||"Pendiente")}
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Documentos y evidencias</h3>
+        <div class="table-wrap"><table style="min-width:0"><thead><tr><th>Tipo</th><th>Archivo</th><th>Estado</th></tr></thead><tbody>
+          <tr><td>Plano</td><td>ARQ-D1-N02-REV05.pdf</td><td><span class="badge badge-green">Vigente</span></td></tr>
+          <tr><td>Mapeo</td><td>mapeo_hab_2101.png</td><td><span class="badge badge-blue">Adjunto</span></td></tr>
+          <tr><td>Foto previa</td><td>foto_area_2101.jpg</td><td><span class="badge badge-blue">Adjunto</span></td></tr>
+          <tr><td>Planilla</td><td>Planilla demostrativa V0</td><td><span class="badge badge-yellow">Demo</span></td></tr>
+        </tbody></table></div>
+      </div>
+    </div>`;
+}
+
+function closeMenu(){
+  document.getElementById("sidebar").classList.remove("open");
+  document.getElementById("overlay").classList.add("hidden");
+}
+
+document.querySelectorAll(".nav-btn").forEach(btn=>btn.addEventListener("click",()=>go(btn.dataset.view)));
+document.getElementById("profileSelect").addEventListener("change",roleChanged);
+document.getElementById("menuBtn").addEventListener("click",()=>{
+  document.getElementById("sidebar").classList.add("open");
+  document.getElementById("overlay").classList.remove("hidden");
+});
+document.getElementById("overlay").addEventListener("click",closeMenu);
+
+renderCurrent();
+</script>
+</body>
+</html>
