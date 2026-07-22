@@ -1,22 +1,57 @@
-# Notas sobre la importación de planillas
+# Notas de fuente y reglas funcionales
 
-- Se importaron 40 hojas.
-- Se identificaron 414 criterios calificables.
-- Los tipos de respuesta compatibles son:
-  - Sí / No / N/A.
-  - Escala de 1 a 5.
-  - Escala de 1 a 3.
-  - Escala de 1 a 2.
-- `N/A` se excluye del denominador.
-- Los criterios denominados `Listo para inspección` se clasifican como criterios de visita/preparación.
-- El resultado de la planilla se calcula como:
+## Planillas
 
-```text
-Puntos obtenidos / puntos aplicables × 100
-```
+El catálogo de 40 planillas y sus criterios proviene de:
 
-- La aplicación conserva por separado:
-  - Resultado técnico.
-  - Resultado de visita/preparación.
-  - Resultado final de la planilla.
-- El semáforo utiliza el objetivo configurado por actividad.
+`Rev. Planillas SAP V01 (1).xlsx`
+
+Las etapas preservadas son:
+
+- General;
+- Liberación;
+- Seguimiento;
+- Terminación.
+
+En la interfaz, Terminación se presenta también como **Terminación / cierre** para hacer explícita su función operativa.
+
+## Visitas
+
+Cada visita conserva un registro independiente con:
+
+- número de visita;
+- etapa y versión de planilla;
+- respuestas;
+- observaciones;
+- resultado técnico;
+- resultado de preparación / visitas;
+- resultado final;
+- inspector;
+- fecha;
+- decisión.
+
+La calificación vigente de la inspección es la de la visita más reciente, pero las visitas anteriores no se eliminan.
+
+## Periodo semanal
+
+La semana de Calidad se calcula desde el jueves hasta el miércoles siguiente, ambos inclusive.
+
+## Puntos débiles
+
+Para el periodo mensual, los talleres cuyo promedio esté por debajo de su objetivo generan una tabla con:
+
+- criterio fallado;
+- etapa;
+- cantidad de fallos;
+- cantidad de evaluaciones;
+- frecuencia de incumplimiento;
+- puntos perdidos acumulados.
+
+## Ingenieros de Ejecución
+
+La comparación se divide entre:
+
+- Estructura;
+- Terminación.
+
+La meta comparativa inicial es 95%, configurable en el código mediante `ENGINEER_TARGET`.

@@ -1,86 +1,88 @@
-# Quality Project Control — CODELPA
+# Quality Project Control — CODELPA V4
 
-Demo funcional estático preparado para publicarse en **GitHub Pages**.
+Proyecto estático funcional preparado para publicarse en **GitHub Pages**.
 
-## Funciones incluidas
+## Mejoras de esta versión
 
-- Inicio de sesión y vistas diferenciadas por rol.
-- Dashboard personal para ingenieros de Ejecución.
-- Calificación mensual, promedio técnico y preparación/visitas.
-- Historial de todas las inspecciones colocadas por cada ingeniero.
-- Solicitud de inspección seleccionando una planilla y un mapeo existente.
-- Biblioteca de instructivos por código, versión y actividad.
-- Biblioteca de mapeos versionados con archivos SVG de demostración.
-- Bandeja operativa para Calidad.
-- Asignación de inspecciones a un ingeniero de Calidad.
-- Evaluación dinámica usando las **40 planillas y 414 criterios** extraídos de `Rev. Planillas SAP V01 (1).xlsx`.
-- Cálculo separado de criterios técnicos y criterios de visita/preparación.
-- Resultado final según puntos obtenidos entre puntos aplicables.
-- Semáforo contra el objetivo de cada actividad.
-- Decisión manual de liberar, dejar con observaciones o no liberar.
-- Calificaciones semanales y mensuales por taller y por ingeniero de Ejecución.
-- Identificación de puntos débiles recurrentes.
-- Exportaciones CSV compatibles con Excel:
-  - Inspecciones realizadas.
-  - Detalle de criterios.
-  - Calificaciones por taller.
-  - Calificaciones por ingeniero.
-- Respaldo completo en JSON.
+- Dashboard individual del ingeniero de Ejecución.
+- Historial completo de inspecciones y visitas.
+- Desglose visible de cada criterio donde se descontaron puntos:
+  - respuesta registrada;
+  - peso;
+  - puntos obtenidos;
+  - puntos descontados;
+  - observación de Calidad.
+- Múltiples visitas dentro de una misma inspección.
+- Cada visita conserva su propia planilla, etapa, criterios, inspector y calificación.
+- Calidad puede registrar una segunda visita y aumentar o reducir la calificación sin borrar la visita anterior.
+- Soporte para etapas del Excel:
+  - Liberación;
+  - Seguimiento;
+  - Terminación / cierre.
+- Periodos semanales de **jueves a miércoles, ambos inclusive**.
+- Tablas mensuales de puntos débiles para talleres que no alcanzan su objetivo.
+- Identificación de los criterios que más fallaron en el mes.
+- Gráficos de barras comparativos de ingenieros de Ejecución:
+  - separados entre Estructura y Terminación;
+  - meta requerida de 95%;
+  - media general del grupo.
+- Mapeos seleccionados desde la biblioteca.
+- Herramienta para colorear, rayar y marcar el alcance sobre el mapeo.
+- El mapeo marcado queda asociado a la solicitud.
+- El inspector de Calidad asignado puede abrir:
+  - mapeo original;
+  - mapeo marcado;
+  - fotografías;
+  - planos y otros archivos adjuntos;
+  - instructivos vinculados, cuando el archivo esté cargado.
+- Exportaciones CSV por visita, etapa, criterio y puntos descontados.
 
 ## Usuarios de demostración
 
 La contraseña de todos es `1234`.
 
-| Rol | Correo |
+| Rol / área | Correo |
 |---|---|
-| Ejecución A | `ejecucion1@codelpa.demo` |
-| Ejecución B | `ejecucion2@codelpa.demo` |
-| Ejecución C | `ejecucion3@codelpa.demo` |
+| Ejecución · Terminación | `ejecucion1@codelpa.demo` |
+| Ejecución · Estructura | `ejecucion2@codelpa.demo` |
+| Ejecución · Terminación | `ejecucion3@codelpa.demo` |
+| Ejecución · Estructura | `ejecucion4@codelpa.demo` |
 | Calidad 1 | `calidad1@codelpa.demo` |
 | Calidad 2 | `calidad2@codelpa.demo` |
 | Coordinación de Calidad | `coordinador@codelpa.demo` |
 | Gerencia | `gerencia@codelpa.demo` |
 | Presidencia | `presidente@codelpa.demo` |
 
-## Publicar en GitHub Pages
+## Publicación en GitHub Pages
 
-1. Crea un repositorio público.
-2. Sube **todo el contenido de esta carpeta** a la raíz del repositorio.
-3. Ve a `Settings → Pages`.
-4. Selecciona `Deploy from a branch`.
-5. Selecciona `main` y `/(root)`.
-6. Guarda y espera a que GitHub publique el sitio.
-
-La estructura debe conservarse así:
+Sube el contenido de esta carpeta a la raíz del repositorio:
 
 ```text
 index.html
 styles.css
 app.js
-data/catalogos.js
-assets/mapeos/*.svg
-.nojekyll
+README.md
+SOURCE_NOTES.md
+data/
+assets/
 ```
 
-## Limitaciones del demo
+No necesitas subir un archivo `.nojekyll`.
 
-Este proyecto funciona completamente en el navegador mediante `localStorage`.
+Luego configura:
 
-Por tanto:
+```text
+Settings → Pages → Deploy from a branch → main → /(root)
+```
 
-- No es una autenticación segura de producción.
-- Dos equipos diferentes no comparten datos.
-- Los archivos fotográficos no se almacenan en un servidor.
-- Los permisos están aplicados en la interfaz, no en un backend seguro.
-- Los instructivos PDF todavía deben cargarse al repositorio o a un almacenamiento corporativo.
-- Los mapeos incluidos son archivos demostrativos.
+## Limitaciones del demo estático
 
-Para convertirlo en una aplicación operativa multiusuario será necesario conectar un backend, autenticación segura, base de datos y almacenamiento de evidencias.
+Este proyecto utiliza `localStorage`.
 
-## Fuente de las planillas
+- Los datos no se comparten entre computadoras.
+- La autenticación es demostrativa, no segura para producción.
+- Los archivos se guardan localmente y tienen límites de tamaño.
+- GitHub Pages no sustituye una base de datos ni almacenamiento corporativo.
+- Los permisos deben migrarse a un backend antes de uso real.
 
-El catálogo de planillas fue extraído del archivo:
-
-`Rev. Planillas SAP V01 (1).xlsx`
-
-Las 40 hojas y sus criterios quedaron incorporadas en `data/catalogos.js`. Antes de uso corporativo se recomienda validar títulos, descripciones, ponderaciones y referencias documentales con Coordinación de Calidad.
+La próxima etapa operativa requiere autenticación real, base de datos compartida y almacenamiento seguro de documentos.
