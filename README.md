@@ -53,3 +53,22 @@
 ## Problemas conocidos
 - Los formatos que el navegador no puede representar se ofrecen para descarga desde el visor.
 - En MAIN, las credenciales de nuevos usuarios deben ser creadas mediante Supabase Auth/Admin; no se incluye una service role key en el navegador por seguridad.
+
+
+---
+
+# Versión 6.10 — 23 de julio de 2026
+
+## Cambios comunes
+
+- Los puntos débiles ahora se calculan y muestran tanto para periodos semanales como mensuales.
+- El título cambia automáticamente entre **Puntos débiles semanales** y **Puntos débiles mensuales**.
+- Se eliminó el mensaje que obligaba a seleccionar un mes para consultar los puntos débiles.
+- Se amplió el visor interno para imágenes, PDF, video, audio, archivos de texto y cualquier otro tipo de documento.
+- Los formatos que el navegador no puede representar de manera nativa permanecen dentro del modal y ofrecen descarga directa, sin enviar al usuario automáticamente a una pestaña nueva.
+- Los enlaces antiguos configurados para abrir archivos en otra pestaña son interceptados y enviados al visor interno.
+
+## Cambios exclusivos de DEMO-GITHUB
+
+- Se conserva el login local, los usuarios demo y la información de ejemplo.
+- El visor trabaja con los archivos estáticos y los datos almacenados localmente.
