@@ -149,3 +149,40 @@ Fecha: 23 de julio de 2026.
 - Esperar a que Vercel termine el despliegue.
 - Realizar una recarga sin caché o abrir una ventana privada.
 - En MAIN no se requiere ejecutar un script SQL para estas correcciones.
+
+
+---
+
+# Versión 6.13 — Estabilización del inicio de sesión en MAIN
+
+Fecha: 23 de julio de 2026.
+
+## Correcciones
+
+- Se eliminó la condición de carrera por la cual `bootstrap()` podía ejecutarse antes de que cargaran los módulos de corrección posteriores.
+- El arranque de la aplicación ahora se ejecuta una sola vez desde `v613.js`, después de cargar `v5.js`, `v69.js`, `v610.js`, `v611.js` y `v612.js`.
+- Se estabilizó el inicio de sesión de Supabase para el usuario Ingeniero de Ejecución y las demás cuentas autorizadas.
+- Se añadieron límites de espera controlados para autenticación y carga de datos, evitando que el botón permanezca indefinidamente en “Entrando...”.
+- El botón siempre recupera su estado mediante `finally`, incluso si ocurre una excepción inesperada.
+- Se limpian sesiones locales incompletas o correspondientes a otro correo antes de iniciar una nueva autenticación.
+- Se permite recuperar las cuentas demo autenticadas cuando su perfil existe por correo, aunque el UUID enlazado haya quedado desactualizado.
+- Se mantiene Supabase Auth como requisito: el fallback no evita la validación de correo y contraseña.
+- Se actualizó el nombre visible de Coordinador de Calidad a Gerente de Calidad desde el código base para evitar que aparezca temporalmente el nombre anterior.
+
+## Archivos modificados
+
+- `app.js`
+- `index.html`
+- `v613.js`
+- `README.md`
+
+## Despliegue
+
+1. Sustituir todos los archivos del branch `main` con esta versión.
+2. Esperar el despliegue de Vercel.
+3. Abrir la página en una ventana privada o hacer una recarga sin caché.
+4. Probar `ejecucion1@codelpa.demo` con la contraseña `12345678`.
+
+## SQL
+
+Esta versión no requiere ejecutar SQL adicional.

@@ -25,7 +25,7 @@ let data = null;
 const ROLE_LABELS = {
   EJECUCION: 'Ingeniero de Ejecución',
   CALIDAD: 'Ingeniero de Calidad',
-  COORDINADOR_CALIDAD: 'Coordinador de Calidad',
+  COORDINADOR_CALIDAD: 'Gerente de Calidad',
   GERENCIA: 'Gerente de Proyecto',
   PRESIDENTE: 'Presidente'
 };
@@ -625,4 +625,5 @@ async function bootstrap(){
     setTimeout(()=>toast('No se pudo conectar con Supabase: '+(error.message||String(error))),50);
   }
 }
-bootstrap();
+// El arranque se ejecuta en v613.js después de cargar todos los módulos.
+
