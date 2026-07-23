@@ -203,7 +203,7 @@ function render(){
 function renderLogin(){
   return `<div class="login-shell">
     <section class="login-brand"><div><div class="brand-lockup"><div class="logo">C</div><div><strong>QUALITY PROJECT CONTROL</strong><div style="font-size:13px;color:#c9d9e8">CODELPA</div></div></div><h1>Inspecciones, visitas, planillas y calificaciones con trazabilidad completa.</h1><p>Esta versión permite ver exactamente dónde se descontaron puntos, registrar calificaciones distintas por visita, marcar mapeos y generar análisis semanales de jueves a miércoles.</p><div class="feature-grid"><div class="feature">✓ Desglose de puntos por criterio y visita</div><div class="feature">✓ Liberación, seguimiento y terminación</div><div class="feature">✓ Semanas de jueves a miércoles</div><div class="feature">✓ Puntos débiles y comparación de ingenieros</div></div></div><div class="login-note">Demo funcional conectada a Supabase. Las sesiones y los datos se comparten entre usuarios autorizados.</div></section>
-    <section class="login-panel"><div class="login-card"><h2>Iniciar sesión</h2><p>El sistema identifica el rol y el área de cada usuario.</p><div id="loginError"></div><div class="field"><label>Correo electrónico</label><input id="loginEmail" type="email" placeholder="usuario@codelpa.demo" autocomplete="username"></div><div class="field" style="margin-top:14px"><label>Contraseña</label><input id="loginPassword" type="password" placeholder="••••" autocomplete="current-password"></div><button id="loginBtn" class="btn btn-primary btn-lg" style="width:100%;margin-top:18px">Entrar</button><div class="demo-users"><h3>Usuarios de demostración</h3>${USERS.filter(u=>['exec-1','quality-1','coord-1','manager-1','president-1'].includes(u.id)).map(u=>`<div class="demo-user"><div><strong>${escapeHtml(ROLE_LABELS[u.role])}</strong><br>${escapeHtml(u.email)}</div><button data-demo-email="${escapeHtml(u.email)}">Usar</button></div>`).join('')}<div class="helper">Contraseña para todos: <strong>12345678</strong></div></div></div></section>
+    <section class="login-panel"><div class="login-card"><h2>Iniciar sesión</h2><p>El sistema identifica el rol y el área de cada usuario.</p><div id="loginError"></div><div class="field"><label>Correo electrónico</label><input id="loginEmail" type="email" placeholder="usuario@codelpa.demo" autocomplete="username"></div><div class="field" style="margin-top:14px"><label>Contraseña</label><input id="loginPassword" type="password" placeholder="••••" autocomplete="current-password"></div><button id="loginBtn" class="btn btn-primary btn-lg" style="width:100%;margin-top:18px">Entrar</button><div class="demo-users"><h3>Usuarios de demostración</h3><div class="helper" style="margin-bottom:10px">Selecciona un usuario para completar automáticamente sus credenciales.</div>${USERS.filter(u=>['exec-1','quality-1','coord-1','manager-1','president-1'].includes(u.id)).map(u=>`<div class="demo-user"><div><strong>${escapeHtml(ROLE_LABELS[u.role])}</strong><br><span>${escapeHtml(u.email)}</span><br><span>Contraseña: <strong>12345678</strong></span></div><button data-demo-email="${escapeHtml(u.email)}">Usar</button></div>`).join('')}</div></div></section>
   </div>`;
 }
 function navItems(user){
@@ -424,6 +424,14 @@ async function login(){
     document.getElementById('loginError').innerHTML='<div class="login-error">Correo o contraseña incorrectos.</div>';
     button.disabled=false;button.textContent='Entrar';return;
   }
+  try{
+    await loadRemoteData();
+  }catch(loadError){
+    console.error(loadError);
+    await supabaseClient.auth.signOut();
+    document.getElementById('loginError').innerHTML='<div class="login-error">Se autenticó el usuario, pero no se pudieron cargar los datos.</div>';
+    button.disabled=false;button.textContent='Entrar';return;
+  }
   const profile=data.users.find(u=>u.authId===authData.user.id);
   if(!profile){
     await supabaseClient.auth.signOut();
@@ -498,14 +506,23 @@ function downloadCSV(filename,headers,rows){const csv='\ufeff'+[headers,...rows]
 async function bootstrap(){
   document.getElementById('app').innerHTML='<div class="loading-screen">Conectando con Supabase...</div>';
   try{
-    await loadRemoteData();
-    const {data: sessionData}=await supabaseClient.auth.getSession();
+    const {data: sessionData,error: sessionError}=await supabaseClient.auth.getSession();
+    if(sessionError) throw sessionError;
     const authId=sessionData.session?.user?.id;
-    authenticatedUser=authId?data.users.find(u=>u.authId===authId)||null:null;
+    if(!authId){
+      data=initialData();
+      data.users=USERS.map(u=>({...u}));
+      authenticatedUser=null;
+      render();
+      return;
+    }
+    await loadRemoteData();
+    authenticatedUser=data.users.find(u=>u.authId===authId)||null;
+    if(!authenticatedUser) await supabaseClient.auth.signOut();
     render();
   }catch(error){
     console.error(error);
-    document.getElementById('app').innerHTML='<div class="login-shell"><section class="login-panel"><div class="login-card"><h2>Error de conexión</h2><p>No se pudo conectar con Supabase. Verifica la tabla app_state y las políticas RLS.</p><pre style="white-space:pre-wrap">'+escapeHtml(error.message||String(error))+'</pre></div></section></div>';
+    document.getElementById('app').innerHTML='<div class="login-shell"><section class="login-panel"><div class="login-card"><h2>Error de conexión</h2><p>No se pudo conectar con Supabase después de autenticar la sesión.</p><pre style="white-space:pre-wrap">'+escapeHtml(error.message||String(error))+'</pre></div></section></div>';
   }
 }
 bootstrap();
