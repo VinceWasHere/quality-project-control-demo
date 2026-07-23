@@ -508,7 +508,21 @@ async function bootstrap(){
   try{
     const {data: sessionData,error: sessionError}=await supabaseClient.auth.getSession();
     if(sessionError) throw sessionError;
-    const authId=sessionData.session?.user?.id;
+    let session=sessionData.session;
+
+    // Una sesión vieja guardada por el navegador puede existir, pero tener el JWT vencido.
+    // Intentamos renovarla antes de consultar tablas protegidas por RLS.
+    if(session){
+      const {data: refreshed,error: refreshError}=await supabaseClient.auth.refreshSession();
+      if(!refreshError && refreshed.session) session=refreshed.session;
+      else if(refreshError){
+        console.warn('Sesión antigua descartada:',refreshError.message);
+        await supabaseClient.auth.signOut({scope:'local'});
+        session=null;
+      }
+    }
+
+    const authId=session?.user?.id;
     if(!authId){
       data=initialData();
       data.users=USERS.map(u=>({...u}));
@@ -516,13 +530,40 @@ async function bootstrap(){
       render();
       return;
     }
-    await loadRemoteData();
+
+    try{
+      await loadRemoteData();
+    }catch(syncError){
+      // Si Supabase rechaza una sesión guardada, regresamos al login en vez de bloquear la página.
+      if(/row-level security|jwt|session|permission|not authenticated/i.test(syncError.message||'')){
+        console.warn('Sesión inválida o sin permisos; regresando al login:',syncError);
+        await supabaseClient.auth.signOut({scope:'local'});
+        data=initialData();
+        data.users=USERS.map(u=>({...u}));
+        authenticatedUser=null;
+        render();
+        setTimeout(()=>toast('La sesión anterior venció. Inicia sesión nuevamente.'),50);
+        return;
+      }
+      throw syncError;
+    }
+
     authenticatedUser=data.users.find(u=>u.authId===authId)||null;
-    if(!authenticatedUser) await supabaseClient.auth.signOut();
+    if(!authenticatedUser){
+      await supabaseClient.auth.signOut({scope:'local'});
+      data=initialData();
+      data.users=USERS.map(u=>({...u}));
+      render();
+      return;
+    }
     render();
   }catch(error){
     console.error(error);
-    document.getElementById('app').innerHTML='<div class="login-shell"><section class="login-panel"><div class="login-card"><h2>Error de conexión</h2><p>No se pudo conectar con Supabase después de autenticar la sesión.</p><pre style="white-space:pre-wrap">'+escapeHtml(error.message||String(error))+'</pre></div></section></div>';
+    data=initialData();
+    data.users=USERS.map(u=>({...u}));
+    authenticatedUser=null;
+    render();
+    setTimeout(()=>toast('No se pudo conectar con Supabase: '+(error.message||String(error))),50);
   }
 }
 bootstrap();
