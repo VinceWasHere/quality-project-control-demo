@@ -73,3 +73,42 @@
 - Se agregó el logo blanco de CODELPA en el panel principal del login.
 - Se agregó el logo rojo de CODELPA sobre el formulario de acceso.
 - Se conserva Supabase Auth y la visualización de adjuntos privados mediante URLs firmadas.
+
+---
+
+# Versión 6.11 — MAIN (Supabase)
+
+## Fecha
+23 de julio de 2026.
+
+## Correcciones y mejoras
+
+- Se corrigió la terminología de los puntos débiles: la meta de cada taller se identifica como **objetivo asignado**, no como objetivo mensual.
+- El mensaje de cumplimiento ahora se adapta al periodo seleccionado:
+  - periodo semanal;
+  - periodo mensual.
+- La identificación de talleres bajo objetivo utiliza correctamente el periodo seleccionado.
+- Las tablas muestran la columna **Objetivo asignado**.
+- Se restauró en la pantalla de acceso de MAIN el recuadro con los usuarios de demostración.
+- Se muestran los cinco correos demo y un botón **Usar** para completar automáticamente el correo.
+- La contraseña visible para las cuentas demo de MAIN es `12345678`.
+- Se mantienen los logos de CODELPA en la pantalla de acceso.
+
+## Usuarios demo visibles en MAIN
+
+- Ingeniero de Ejecución: `ejecucion1@codelpa.demo`
+- Ingeniero de Calidad: `calidad1@codelpa.demo`
+- Gerente de Calidad: `coordinador@codelpa.demo`
+- Gerente de Proyecto: `gerencia@codelpa.demo`
+- Presidente: `presidente@codelpa.demo`
+
+Contraseña común: `12345678`.
+
+## Archivos añadidos
+
+- `v611.js`
+
+## Archivos modificados
+
+- `index.html`
+- `README.md`
