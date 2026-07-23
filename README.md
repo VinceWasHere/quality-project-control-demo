@@ -1,143 +1,55 @@
 # Quality Project Control
-## DEMO-GITHUB
-Versión: 6.8
-Estado: Demo estática
 
----
+## Historial acumulativo
 
-# Descripción
+### V6.0–V6.5
+- Migración inicial de la rama MAIN hacia Supabase Auth y sincronización remota.
+- Conservación de una rama estática independiente para demostración.
+- Correcciones progresivas de autenticación, sesión y compatibilidad con claves publicables.
 
-Esta rama corresponde a la versión demostrativa del sistema.
+### V6.6
+- El personal de Calidad puede consultar fotografías y documentos adjuntos desde la bandeja y el detalle de inspección.
 
-No utiliza Supabase.
+### V6.7
+- Preparación de Supabase Storage para adjuntos en MAIN.
+- DEMO-GITHUB conserva archivos en Base64 y almacenamiento local.
 
-Toda la información permanece almacenada localmente.
+### V6.8
+- Mejoras responsive para planillas, tarjetas, formularios, botones y navegación móvil.
 
-Conserva usuarios e inspecciones de ejemplo.
+### V6.9 — 23 de julio de 2026
+- “Coordinador de Calidad” pasa a mostrarse como “Gerente de Calidad”.
+- Gerencia y Presidencia obtienen acceso a Exportaciones.
+- Administración de usuarios: Calidad, Gerencia y Presidencia pueden agregar ingenieros de Ejecución; el Gerente de Calidad puede editar Calidad y Ejecución, proyectos, estado y permisos.
+- Los puntos débiles se exportan por periodo semanal o mensual.
+- Verificación de equipos permite agregar, editar y eliminar registros directamente, además de importar y reemplazar.
+- Calidad puede agregar, modificar, reemplazar y borrar instructivos.
+- Exportaciones agrupadas por categoría, con opciones CSV y PDF en un único recuadro desplegable.
+- Visor interno para imágenes, PDF, planos, adjuntos, mapeos e instructivos.
+- MAIN elimina el botón “Restablecer demo”.
+- Logos CODELPA restaurados en la interfaz principal.
+- Selector de proyecto disponible en la barra lateral.
+- Ajustes responsive adicionales para visor, exportaciones y administración.
 
----
+## Rama
+**DEMO-GITHUB — Estática**
 
-# Tecnologías
+## Arquitectura de esta rama
+- Aplicación completamente estática y desconectada de Supabase.
+- Conserva usuarios, inspecciones y recursos de ejemplo.
+- Los cambios se guardan en el navegador.
 
-- HTML
-- CSS
-- JavaScript
+## Despliegue
+1. Sustituir los archivos del branch correspondiente.
+2. Confirmar el commit y esperar el despliegue de Vercel/GitHub Pages.
+3. Abrir en una ventana privada o recargar sin caché.
 
-Sin backend.
+## Archivos principales modificados en V6.9
+- `index.html`
+- `styles.css`
+- `v69.js`
+- `README.md`
 
----
-
-# Funcionalidades
-
-## Login
-
-Login local.
-
-Usuarios demo.
-
-Contraseña:
-
-1234
-
----
-
-## Inspecciones
-
-- Crear inspecciones
-- Ejemplos
-- Varias visitas
-- Puntajes
-- Historial
-
----
-
-## Planillas
-
-- Planillas digitales
-- N/A
-- Puntaje automático
-- Observaciones
-
----
-
-## Documentos
-
-- Fotografías
-- PDF
-- Documentos
-
-Todos almacenados localmente.
-
----
-
-## Calidad
-
-Puede visualizar
-
-- fotografías
-
-- PDF
-
-- documentos
-
-antes de tomar la inspección.
-
----
-
-## Dashboard
-
-Datos de ejemplo.
-
----
-
-## Responsive
-
-Versión 6.8
-
-Mejoras
-
-- adaptación móvil
-- tarjetas
-- botones
-- formularios
-
-Pendiente
-
-- optimización completa para teléfonos.
-
----
-
-# Base de datos
-
-No utiliza.
-
-Toda la información se almacena mediante JavaScript.
-
----
-
-# Archivos
-
-Se almacenan mediante Base64.
-
-Con límite para evitar sobrecargar el navegador.
-
----
-
-# Objetivo
-
-Esta rama existe para:
-
-- realizar demostraciones
-- publicar en GitHub
-- compartir el sistema
-- mostrar ejemplos
-
-sin depender de Supabase.
-
----
-
-# Próximas versiones
-
-Se mantendrá funcionalmente idéntica a MAIN.
-
-La única diferencia será que continuará siendo completamente estática.
+## Problemas conocidos
+- Los formatos que el navegador no puede representar se ofrecen para descarga desde el visor.
+- En MAIN, las credenciales de nuevos usuarios deben ser creadas mediante Supabase Auth/Admin; no se incluye una service role key en el navegador por seguridad.
