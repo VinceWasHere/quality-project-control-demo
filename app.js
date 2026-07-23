@@ -4,7 +4,17 @@ const MAPEOS = window.QPC_MAPEOS || [];
 
 const STORAGE_KEY = 'qpc_supabase_v6_cache';
 const REMOTE_STATE_ID = 'main';
-const supabaseClient = window.supabase.createClient(window.QPC_SUPABASE_URL, window.QPC_SUPABASE_PUBLISHABLE_KEY);
+if (!window.supabase?.createClient) {
+  throw new Error('No cargó la librería oficial de Supabase.');
+}
+if (!window.QPC_SUPABASE_URL || !window.QPC_SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error('Faltan la URL o la Publishable Key de Supabase.');
+}
+const supabaseClient = window.supabase.createClient(
+  window.QPC_SUPABASE_URL,
+  window.QPC_SUPABASE_PUBLISHABLE_KEY,
+  { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }
+);
 let authenticatedUser = null;
 let saveTimer = null;
 const ENGINEER_TARGET = 95;
@@ -421,7 +431,9 @@ async function login(){
   button.disabled=true;button.textContent='Entrando...';
   const {data: authData,error}=await supabaseClient.auth.signInWithPassword({email,password});
   if(error){
-    document.getElementById('loginError').innerHTML='<div class="login-error">Correo o contraseña incorrectos.</div>';
+    console.error('Error real de Supabase Auth:', error);
+    const detail = escapeHtml(error.message || error.code || 'Error desconocido');
+    document.getElementById('loginError').innerHTML=`<div class="login-error"><strong>No se pudo iniciar sesión.</strong><br><span>${detail}</span></div>`;
     button.disabled=false;button.textContent='Entrar';return;
   }
   try{
