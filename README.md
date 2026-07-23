@@ -153,7 +153,7 @@ Fecha: 23 de julio de 2026.
 
 ---
 
-# Versión 6.13 — Estabilización del inicio de sesión en MAIN
+# Versión 6.14 — Estabilización del inicio de sesión en MAIN
 
 Fecha: 23 de julio de 2026.
 
@@ -186,3 +186,28 @@ Fecha: 23 de julio de 2026.
 ## SQL
 
 Esta versión no requiere ejecutar SQL adicional.
+
+---
+
+## V6.14 — Corrección de acceso de Ingeniero de Ejecución
+
+### Fecha
+23 de julio de 2026
+
+### Correcciones
+- Se corrigió el error `Cannot read properties of undefined (reading 'decision')` que ocurría después de autenticar al usuario de Ejecución.
+- El problema no estaba en la fila del usuario dentro de `profiles`; el perfil de `ejecucion1@codelpa.demo` está activo, tiene el rol `EJECUCION`, el área `TERMINACION` y el proyecto `LCE` correctamente asignados.
+- El fallo se producía en el cálculo de indicadores del inicio, donde se intentaba leer `record.visit.decision` aun cuando algunos registros agregados no incluían un objeto `visit`.
+- El cálculo ahora usa acceso seguro y toma como respaldo `inspection.decision`.
+- La misma protección se aplicó al cálculo del porcentaje de primeras visitas liberadas por taller.
+- No requiere cambios SQL ni recrear usuarios.
+
+### Archivos modificados
+- `app.js`
+- `README.md`
+
+### Validación esperada
+1. Abrir la aplicación en una ventana privada.
+2. Seleccionar `ejecucion1@codelpa.demo`.
+3. Introducir la contraseña `12345678`.
+4. El usuario debe entrar al inicio sin mostrar el error relacionado con `decision`.
