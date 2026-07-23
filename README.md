@@ -72,3 +72,28 @@
 
 - Se conserva el login local, los usuarios demo y la información de ejemplo.
 - El visor trabaja con los archivos estáticos y los datos almacenados localmente.
+
+---
+
+# Versión 6.11 — DEMO-GITHUB (estática)
+
+## Fecha
+23 de julio de 2026.
+
+## Correcciones y mejoras
+
+- Se corrigió la terminología de los puntos débiles: la meta de cada taller se identifica como **objetivo asignado**, no como objetivo mensual.
+- El mensaje de cumplimiento ahora se adapta al periodo semanal o mensual seleccionado.
+- La identificación de talleres bajo objetivo utiliza correctamente el periodo seleccionado.
+- Las tablas muestran la columna **Objetivo asignado**.
+- Se conserva el acceso local, los usuarios demo y la contraseña `1234`.
+- La rama continúa completamente desconectada de Supabase.
+
+## Archivos añadidos
+
+- `v611.js`
+
+## Archivos modificados
+
+- `index.html`
+- `README.md`
