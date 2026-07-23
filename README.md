@@ -134,3 +134,33 @@ Fecha: 23 de julio de 2026.
 - Esperar a que Vercel termine el despliegue.
 - Realizar una recarga sin caché o abrir una ventana privada.
 - En MAIN no se requiere ejecutar un script SQL para estas correcciones.
+
+
+---
+
+# Versión 6.14 — Sincronización de versiones
+
+Fecha: 23 de julio de 2026.
+
+## Estado de DEMO-GITHUB
+
+- La rama continúa completamente desconectada de Supabase.
+- El inicio de sesión local y los datos de ejemplo se conservan sin cambios funcionales porque el problema corregido en MAIN corresponde exclusivamente al arranque de Supabase Auth.
+- Se mantiene la numeración paralela con MAIN y el README acumulativo.
+- No requiere SQL ni configuración externa.
+
+---
+
+## V6.14 — Protección adicional de registros agregados
+
+### Fecha
+23 de julio de 2026
+
+### Cambios
+- Se añadió la misma lectura segura de la decisión de una visita utilizada en la rama `main`.
+- La demo continúa desconectada de Supabase y conserva todos los ejemplos y usuarios locales.
+- El cambio evita errores si se crean registros locales incompletos o sin una visita finalizada.
+
+### Archivos modificados
+- `app.js`
+- `README.md`

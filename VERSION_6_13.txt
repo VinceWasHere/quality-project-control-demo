@@ -1,0 +1,2 @@
+Quality Project Control DEMO-GITHUB V6.13
+Sin cambios funcionales de autenticación; versión paralela a MAIN V6.13.
