@@ -1,166 +1,38 @@
-# Quality Project Control
+# Quality Project Control — DEMO-GITHUB
 
-## Historial acumulativo
+## Versión 7.0
 
-### V6.0–V6.5
-- Migración inicial de la rama MAIN hacia Supabase Auth y sincronización remota.
-- Conservación de una rama estática independiente para demostración.
-- Correcciones progresivas de autenticación, sesión y compatibilidad con claves publicables.
+Rama estática desconectada de Supabase. Conserva datos y usuarios de ejemplo, pero recibe las mismas mejoras funcionales compatibles con almacenamiento local.
 
-### V6.6
-- El personal de Calidad puede consultar fotografías y documentos adjuntos desde la bandeja y el detalle de inspección.
+### Cambios V7.0
 
-### V6.7
-- Preparación de Supabase Storage para adjuntos en MAIN.
-- DEMO-GITHUB conserva archivos en Base64 y almacenamiento local.
+- Login con campo buscable tipo dropdown usando usuarios locales registrados.
+- Se elimina el recuadro de usuarios demo; queda solo la nota: cuentas `.demo` usan contraseña `1234`.
+- Administración local de usuarios con contraseña inicial/restauración local.
+- Perfil personal editable: nombre visible e imagen ligera.
+- Ejecución solo solicita liberación; Calidad inicia seguimiento y cierre.
+- Exportaciones PDF se previsualizan en el visor interno antes de descargar.
+- PDF con formato visual corporativo simplificado.
+- Equipos se editan en la misma fila.
+- Estado de equipos calculado por frecuencia y fechas.
+- Instructivos con actividad relacionada como dropdown y estado automático.
+- Resaltador de mapeos translúcido y legible.
+- Proyectos con nombre completo y creación local.
+- Código de inspección `I-LLC-260724` y código de cierre por proyecto/inspector `VP0001`.
+- Código optimizado mediante módulo V7 sin dependencia de Supabase.
 
-### V6.8
-- Mejoras responsive para planillas, tarjetas, formularios, botones y navegación móvil.
+### Historial acumulado
 
-### V6.9 — 23 de julio de 2026
-- “Coordinador de Calidad” pasa a mostrarse como “Gerente de Calidad”.
-- Gerencia y Presidencia obtienen acceso a Exportaciones.
-- Administración de usuarios: Calidad, Gerencia y Presidencia pueden agregar ingenieros de Ejecución; el Gerente de Calidad puede editar Calidad y Ejecución, proyectos, estado y permisos.
-- Los puntos débiles se exportan por periodo semanal o mensual.
-- Verificación de equipos permite agregar, editar y eliminar registros directamente, además de importar y reemplazar.
-- Calidad puede agregar, modificar, reemplazar y borrar instructivos.
-- Exportaciones agrupadas por categoría, con opciones CSV y PDF en un único recuadro desplegable.
-- Visor interno para imágenes, PDF, planos, adjuntos, mapeos e instructivos.
-- MAIN elimina el botón “Restablecer demo”.
-- Logos CODELPA restaurados en la interfaz principal.
-- Selector de proyecto disponible en la barra lateral.
-- Ajustes responsive adicionales para visor, exportaciones y administración.
+Este README conserva el historial de la rama y debe continuar ampliándose en cada versión futura.
 
-## Rama
-**DEMO-GITHUB — Estática**
+## Versiones previas
 
-## Arquitectura de esta rama
-- Aplicación completamente estática y desconectada de Supabase.
-- Conserva usuarios, inspecciones y recursos de ejemplo.
-- Los cambios se guardan en el navegador.
-
-## Despliegue
-1. Sustituir los archivos del branch correspondiente.
-2. Confirmar el commit y esperar el despliegue de Vercel/GitHub Pages.
-3. Abrir en una ventana privada o recargar sin caché.
-
-## Archivos principales modificados en V6.9
-- `index.html`
-- `styles.css`
-- `v69.js`
-- `README.md`
-
-## Problemas conocidos
-- Los formatos que el navegador no puede representar se ofrecen para descarga desde el visor.
-- En MAIN, las credenciales de nuevos usuarios deben ser creadas mediante Supabase Auth/Admin; no se incluye una service role key en el navegador por seguridad.
-
-
----
-
-# Versión 6.10 — 23 de julio de 2026
-
-## Cambios comunes
-
-- Los puntos débiles ahora se calculan y muestran tanto para periodos semanales como mensuales.
-- El título cambia automáticamente entre **Puntos débiles semanales** y **Puntos débiles mensuales**.
-- Se eliminó el mensaje que obligaba a seleccionar un mes para consultar los puntos débiles.
-- Se amplió el visor interno para imágenes, PDF, video, audio, archivos de texto y cualquier otro tipo de documento.
-- Los formatos que el navegador no puede representar de manera nativa permanecen dentro del modal y ofrecen descarga directa, sin enviar al usuario automáticamente a una pestaña nueva.
-- Los enlaces antiguos configurados para abrir archivos en otra pestaña son interceptados y enviados al visor interno.
-
-## Cambios exclusivos de DEMO-GITHUB
-
-- Se conserva el login local, los usuarios demo y la información de ejemplo.
-- El visor trabaja con los archivos estáticos y los datos almacenados localmente.
-
----
-
-# Versión 6.11 — DEMO-GITHUB (estática)
-
-## Fecha
-23 de julio de 2026.
-
-## Correcciones y mejoras
-
-- Se corrigió la terminología de los puntos débiles: la meta de cada taller se identifica como **objetivo asignado**, no como objetivo mensual.
-- El mensaje de cumplimiento ahora se adapta al periodo semanal o mensual seleccionado.
-- La identificación de talleres bajo objetivo utiliza correctamente el periodo seleccionado.
-- Las tablas muestran la columna **Objetivo asignado**.
-- Se conserva el acceso local, los usuarios demo y la contraseña `1234`.
-- La rama continúa completamente desconectada de Supabase.
-
-## Archivos añadidos
-
-- `v611.js`
-
-## Archivos modificados
-
-- `index.html`
-- `README.md`
-
-
----
-
-# Versión 6.12 — DEMO-GITHUB (estática)
-
-Fecha: 23 de julio de 2026.
-
-## Correcciones y cambios funcionales
-
-- Se corrigió la apertura de la sección **Calificaciones** mediante una agrupación tolerante a inspecciones incompletas, borradores y visitas que todavía no poseen una decisión final.
-- Se normalizan las colecciones y propiedades del estado antes de renderizar o guardar, evitando el error `Cannot read properties of undefined (reading 'decision')`.
-- En **Verificación de equipos**, los registros vencidos muestran la fila completa en rojo, no solamente la insignia de estado. Los equipos próximos a vencer reciben una señal visual amarilla tenue.
-- La sección **Usuarios y permisos** queda visible únicamente para:
-  - Gerente de Calidad.
-  - Gerente de Proyecto.
-  - Presidencia.
-- Los ingenieros de Calidad ya no ven la sección Usuarios y permisos.
-- Gerencia de Proyecto y Presidencia pueden administrar ingenieros de Ejecución, pero no modificar usuarios de Calidad.
-- El Gerente de Calidad conserva la administración de ingenieros de Calidad y de Ejecución.
-- **Instructivos** y **Mapeos** se retiraron del menú de Gerencia de Proyecto y Presidencia.
-- Se añadió una validación para impedir el acceso directo por URL o por una vista guardada a módulos que no correspondan al rol.
-- Al iniciar sesión se corrigen automáticamente estructuras antiguas o incompletas almacenadas en la aplicación, facilitando el acceso de las cuentas demo, incluido el Ingeniero de Ejecución.
-
-## Archivos agregados o modificados
-
-- `v612.js`: correcciones funcionales, normalización y permisos por rol.
-- `styles.css`: semáforo de fila completa en Verificación de equipos.
-- `index.html`: carga de `v612.js`.
-- `README.md`: historial acumulativo actualizado.
-
-## Consideraciones de despliegue
-
-- Reemplazar todos los archivos del branch correspondiente.
-- Esperar a que Vercel termine el despliegue.
-- Realizar una recarga sin caché o abrir una ventana privada.
-- En MAIN no se requiere ejecutar un script SQL para estas correcciones.
-
-
----
-
-# Versión 6.14 — Sincronización de versiones
-
-Fecha: 23 de julio de 2026.
-
-## Estado de DEMO-GITHUB
-
-- La rama continúa completamente desconectada de Supabase.
-- El inicio de sesión local y los datos de ejemplo se conservan sin cambios funcionales porque el problema corregido en MAIN corresponde exclusivamente al arranque de Supabase Auth.
-- Se mantiene la numeración paralela con MAIN y el README acumulativo.
-- No requiere SQL ni configuración externa.
-
----
-
-## V6.14 — Protección adicional de registros agregados
-
-### Fecha
-23 de julio de 2026
-
-### Cambios
-- Se añadió la misma lectura segura de la decisión de una visita utilizada en la rama `main`.
-- La demo continúa desconectada de Supabase y conserva todos los ejemplos y usuarios locales.
-- El cambio evita errores si se crean registros locales incompletos o sin una visita finalizada.
-
-### Archivos modificados
-- `app.js`
-- `README.md`
+- V6.14: protección de lectura `decision`.
+- V6.13: versión sincronizada con MAIN.
+- V6.12: permisos, calificaciones robustas y equipos por fila.
+- V6.11: puntos débiles con objetivo asignado.
+- V6.10: visor universal y puntos débiles semanales.
+- V6.9: administración, exportaciones agrupadas, equipos CRUD, instructivos y visor.
+- V6.8: responsive móvil.
+- V6.7: demo estática con adjuntos locales.
+- V6.6: adjuntos visibles para Calidad.
