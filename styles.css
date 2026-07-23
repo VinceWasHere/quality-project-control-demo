@@ -137,3 +137,53 @@ a{color:inherit;text-decoration:none}
 
 @media(max-width:1050px){.resource-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.comparison-row{grid-template-columns:155px minmax(140px,1fr) 58px}}
 @media(max-width:840px){.resource-grid{grid-template-columns:1fr}.visit-head,.comparison-head{display:block}.visit-score{margin-top:10px}.comparison-row{grid-template-columns:1fr}.comparison-value{text-align:left}.compact-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ===== V5 · Identidad CODELPA, gráficos y responsive ===== */
+:root{
+  --navy:#123c56;
+  --navy-2:#1e6687;
+  --blue:#1e6687;
+  --red:#c8102e;
+  --green:#1b6f2a;
+  --yellow:#9a6700;
+  --bg:#f7f7f7;
+}
+.sidebar{background:linear-gradient(180deg,#a90e27 0%,#c8102e 44%,#851022 100%)}
+.btn-primary{background:#c8102e}.btn-primary:hover{background:#a60d25}
+.nav-btn:hover,.nav-btn.active{background:rgba(255,255,255,.18)}
+.role-pill{background:#fce7eb;color:#a60d25}.project-pill{background:#e8f1f5;color:#1e6687;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:800}
+.progress span,.bar-fill{background:#1e6687}
+.timeline-dot{background:#c8102e}
+.sidebar-logo{width:104px;height:auto;object-fit:contain;display:block;flex:none}.brand{align-items:center}.brand>div:last-child{min-width:0}
+.login-logo{width:180px;height:auto;display:block}.form-logo{width:145px;height:auto;margin-bottom:24px}.login-brand{background:linear-gradient(135deg,#7f0b20,#c8102e 58%,#8d1228)}
+.logo{display:none}
+.library-admin{border-top:4px solid #c8102e;margin-bottom:16px}
+.chart-card{margin-top:16px}.chart-card h3{text-transform:uppercase;text-align:center;font-size:20px;letter-spacing:.02em}.chart-scroll{overflow-x:auto;overflow-y:hidden;padding-bottom:6px}.chart-holder{height:440px;min-width:720px}.chart-holder.wide{min-width:1050px}
+.weak-row td{background:#fee4e2!important;color:#9f1c16}.weak-row strong{color:#9f1c16}
+.visit-score{font-size:30px;font-weight:900}
+.annotator-toolbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.annotator-toolbar label{font-size:13px;font-weight:800;display:flex;align-items:center;gap:7px}
+.canvas-wrap{overflow:auto;background:#e5e7eb;border-radius:14px;padding:8px}.canvas-wrap canvas{display:block;width:100%;height:auto;touch-action:none;background:#fff;border-radius:8px}
+.equipment-actions{display:flex;gap:8px;flex-wrap:wrap}
+.table-wrap{max-width:100%}
+.login-card select{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:#fff}
+
+@media(max-width:1100px){
+  .chart-holder{min-width:820px;height:400px}.chart-holder.wide{min-width:1150px}
+}
+@media(max-width:820px){
+  .top-right .role-pill{display:none}.top-right{gap:7px}.project-pill{font-size:10px;padding:5px 7px}
+  .sidebar-logo{width:90px}.brand strong{font-size:12px}
+  .page-head h2{font-size:23px}.content{padding:14px}
+  .chart-card{padding:12px}.chart-card h3{font-size:16px;text-align:left}.chart-holder{height:360px;min-width:760px}.chart-holder.wide{min-width:1100px}
+  .table-wrap{border-radius:10px}.table-wrap table{min-width:850px}
+  .grid-4.compact-metrics{grid-template-columns:1fr 1fr}
+  .form-actions{align-items:stretch}.form-actions>.button-row{width:100%}.form-actions .btn{flex:1}
+  .visit-head{align-items:flex-start;gap:10px}.visit-score{font-size:25px}
+}
+@media(max-width:480px){
+  .login-brand{padding:24px 20px}.login-brand h1{font-size:27px}.login-logo{width:145px}.login-panel{padding:20px 14px}.form-logo{width:125px}
+  .topbar{height:62px}.topbar h1{font-size:16px}.topbar p{max-width:180px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .grid-4.compact-metrics{grid-template-columns:1fr}
+  .chart-holder{height:330px}
+  .btn{padding:9px 11px}
+}
