@@ -257,3 +257,13 @@ a{color:inherit;text-decoration:none}
 .universal-audio{width:min(680px,100%)}
 .file-meta{display:flex;flex-direction:column;gap:4px;padding:12px;border:1px solid var(--border);border-radius:10px;margin:12px 0;overflow-wrap:anywhere}
 @media(max-width:640px){.universal-file-viewer header{align-items:flex-start}.universal-file-viewer header .button-row{width:100%}.universal-file-viewer header .button-row>*{flex:1}.file-viewer-body iframe{min-height:65vh}}
+
+/* V6.12 - semáforo completo en filas de equipos */
+.table-wrap tbody tr.equipment-row-expired > td {
+  background:#ffe1e5 !important;
+  color:#7f0017;
+  border-color:#f3a6b2;
+}
+.table-wrap tbody tr.equipment-row-expired:hover > td { background:#ffd2d9 !important; }
+.table-wrap tbody tr.equipment-row-expired td:first-child { box-shadow:inset 5px 0 0 #c8102e; }
+.table-wrap tbody tr.equipment-row-soon > td { background:#fff8df; }
