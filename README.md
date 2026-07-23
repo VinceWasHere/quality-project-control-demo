@@ -1,213 +1,52 @@
-# Quality Project Control
+# Quality Project Control — MAIN
 
-## Historial acumulativo
+## Versión 7.0
 
-### V6.0–V6.5
-- Migración inicial de la rama MAIN hacia Supabase Auth y sincronización remota.
-- Conservación de una rama estática independiente para demostración.
-- Correcciones progresivas de autenticación, sesión y compatibilidad con claves publicables.
+Rama principal conectada a Supabase. Esta versión parte de V6.14 y agrega un refactor incremental para administración real de usuarios, proyectos, documentos, equipos, mapeos, exportaciones y flujo de inspecciones.
 
-### V6.6
-- El personal de Calidad puede consultar fotografías y documentos adjuntos desde la bandeja y el detalle de inspección.
+### Cambios V7.0
 
-### V6.7
-- Preparación de Supabase Storage para adjuntos en MAIN.
-- DEMO-GITHUB conserva archivos en Base64 y almacenamiento local.
+- Login con campo buscable tipo dropdown usando los correos registrados.
+- Se elimina el recuadro de usuarios demo; queda solo la nota: cuentas `.demo` usan contraseña `12345678`.
+- Administración de usuarios con contraseña inicial o restablecimiento mediante Edge Function segura.
+- Perfil personal editable: nombre visible e imagen de perfil ligera.
+- Cambio/restauración de contraseña reservado a cuentas autorizadas del Departamento de Calidad.
+- Ejecución solo solicita liberación; seguimiento y cierre son iniciados por Calidad.
+- Exportaciones PDF ahora se abren primero en el visor integrado; el usuario descarga después de revisar.
+- Exportables PDF con estructura visual corporativa: logo CODELPA, código FO, encabezados y tablas limpias inspiradas en FO-CP-10/FO-CP-11.
+- Equipos, instructivos, mapeos y proyectos quedan dentro del estado compartido de Supabase (`app_state`) y sus archivos se mantienen en Storage/Base según flujo existente.
+- Equipos se editan en la misma fila, sin saltar al inicio de la página.
+- Estado de equipos se calcula con fecha de verificación/calibración + frecuencia.
+- Instructivos calculan estado automáticamente: `Pendiente de cargar` si no hay archivo; `Disponible` si hay archivo.
+- Actividad relacionada de instructivos ahora es dropdown de talleres disponibles.
+- Resaltador de mapeos usa baja opacidad y composición que conserva legibilidad.
+- Proyectos muestran nombre completo; códigos cortos quedan internos para codificación.
+- Calidad y gerentes pueden crear proyectos.
+- Código de inspección: `I-LLC-260724`.
+- Código secuencial de cierre por proyecto e inspector: ejemplo `VP0001`.
+- Limpieza de código mediante módulo V7 centralizado, normalización de estado y eliminación de nuevos `scrollTo` en editables.
 
-### V6.8
-- Mejoras responsive para planillas, tarjetas, formularios, botones y navegación móvil.
+### SQL requerido V7.0
 
-### V6.9 — 23 de julio de 2026
-- “Coordinador de Calidad” pasa a mostrarse como “Gerente de Calidad”.
-- Gerencia y Presidencia obtienen acceso a Exportaciones.
-- Administración de usuarios: Calidad, Gerencia y Presidencia pueden agregar ingenieros de Ejecución; el Gerente de Calidad puede editar Calidad y Ejecución, proyectos, estado y permisos.
-- Los puntos débiles se exportan por periodo semanal o mensual.
-- Verificación de equipos permite agregar, editar y eliminar registros directamente, además de importar y reemplazar.
-- Calidad puede agregar, modificar, reemplazar y borrar instructivos.
-- Exportaciones agrupadas por categoría, con opciones CSV y PDF en un único recuadro desplegable.
-- Visor interno para imágenes, PDF, planos, adjuntos, mapeos e instructivos.
-- MAIN elimina el botón “Restablecer demo”.
-- Logos CODELPA restaurados en la interfaz principal.
-- Selector de proyecto disponible en la barra lateral.
-- Ajustes responsive adicionales para visor, exportaciones y administración.
+Ejecutar `SUPABASE_V7_SETUP.sql` en Supabase SQL Editor.
 
-## Rama
-**MAIN — Supabase**
+### Edge Function requerida
 
-## Arquitectura de esta rama
-- Supabase Auth, base de datos y Storage.
-- No debe contener datos operativos de ejemplo ni botón para restablecer demo.
-- La creación visual de usuarios guarda el perfil y sus permisos en el estado del sistema; la creación de credenciales de acceso en Supabase Auth requiere una operación administrativa segura.
+Para crear usuarios con contraseña en MAIN, desplegar `supabase/functions/admin-create-user/index.ts` y configurar `SUPABASE_SERVICE_ROLE_KEY` como secreto de la función. Sin esta función, la UI muestra el formulario, pero Supabase no permitirá crear usuarios autenticables desde el navegador.
 
-## Despliegue
-1. Sustituir los archivos del branch correspondiente.
-2. Confirmar el commit y esperar el despliegue de Vercel/GitHub Pages.
-3. Abrir en una ventana privada o recargar sin caché.
+### Historial acumulado
 
-## Archivos principales modificados en V6.9
-- `index.html`
-- `styles.css`
-- `v69.js`
-- `README.md`
+Este README conserva el historial de la rama y debe continuar ampliándose en cada versión futura.
 
-## Problemas conocidos
-- Los formatos que el navegador no puede representar se ofrecen para descarga desde el visor.
-- En MAIN, las credenciales de nuevos usuarios deben ser creadas mediante Supabase Auth/Admin; no se incluye una service role key en el navegador por seguridad.
+## Versiones previas
 
-
----
-
-# Versión 6.10 — 23 de julio de 2026
-
-## Cambios comunes
-
-- Los puntos débiles ahora se calculan y muestran tanto para periodos semanales como mensuales.
-- El título cambia automáticamente entre **Puntos débiles semanales** y **Puntos débiles mensuales**.
-- Se eliminó el mensaje que obligaba a seleccionar un mes para consultar los puntos débiles.
-- Se amplió el visor interno para imágenes, PDF, video, audio, archivos de texto y cualquier otro tipo de documento.
-- Los formatos que el navegador no puede representar de manera nativa permanecen dentro del modal y ofrecen descarga directa, sin enviar al usuario automáticamente a una pestaña nueva.
-- Los enlaces antiguos configurados para abrir archivos en otra pestaña son interceptados y enviados al visor interno.
-
-## Cambios exclusivos de MAIN
-
-- Se agregó el logo blanco de CODELPA en el panel principal del login.
-- Se agregó el logo rojo de CODELPA sobre el formulario de acceso.
-- Se conserva Supabase Auth y la visualización de adjuntos privados mediante URLs firmadas.
-
----
-
-# Versión 6.11 — MAIN (Supabase)
-
-## Fecha
-23 de julio de 2026.
-
-## Correcciones y mejoras
-
-- Se corrigió la terminología de los puntos débiles: la meta de cada taller se identifica como **objetivo asignado**, no como objetivo mensual.
-- El mensaje de cumplimiento ahora se adapta al periodo seleccionado:
-  - periodo semanal;
-  - periodo mensual.
-- La identificación de talleres bajo objetivo utiliza correctamente el periodo seleccionado.
-- Las tablas muestran la columna **Objetivo asignado**.
-- Se restauró en la pantalla de acceso de MAIN el recuadro con los usuarios de demostración.
-- Se muestran los cinco correos demo y un botón **Usar** para completar automáticamente el correo.
-- La contraseña visible para las cuentas demo de MAIN es `12345678`.
-- Se mantienen los logos de CODELPA en la pantalla de acceso.
-
-## Usuarios demo visibles en MAIN
-
-- Ingeniero de Ejecución: `ejecucion1@codelpa.demo`
-- Ingeniero de Calidad: `calidad1@codelpa.demo`
-- Gerente de Calidad: `coordinador@codelpa.demo`
-- Gerente de Proyecto: `gerencia@codelpa.demo`
-- Presidente: `presidente@codelpa.demo`
-
-Contraseña común: `12345678`.
-
-## Archivos añadidos
-
-- `v611.js`
-
-## Archivos modificados
-
-- `index.html`
-- `README.md`
-
-
----
-
-# Versión 6.12 — MAIN (Supabase)
-
-Fecha: 23 de julio de 2026.
-
-## Correcciones y cambios funcionales
-
-- Se corrigió la apertura de la sección **Calificaciones** mediante una agrupación tolerante a inspecciones incompletas, borradores y visitas que todavía no poseen una decisión final.
-- Se normalizan las colecciones y propiedades del estado antes de renderizar o guardar, evitando el error `Cannot read properties of undefined (reading 'decision')`.
-- En **Verificación de equipos**, los registros vencidos muestran la fila completa en rojo, no solamente la insignia de estado. Los equipos próximos a vencer reciben una señal visual amarilla tenue.
-- La sección **Usuarios y permisos** queda visible únicamente para:
-  - Gerente de Calidad.
-  - Gerente de Proyecto.
-  - Presidencia.
-- Los ingenieros de Calidad ya no ven la sección Usuarios y permisos.
-- Gerencia de Proyecto y Presidencia pueden administrar ingenieros de Ejecución, pero no modificar usuarios de Calidad.
-- El Gerente de Calidad conserva la administración de ingenieros de Calidad y de Ejecución.
-- **Instructivos** y **Mapeos** se retiraron del menú de Gerencia de Proyecto y Presidencia.
-- Se añadió una validación para impedir el acceso directo por URL o por una vista guardada a módulos que no correspondan al rol.
-- Al iniciar sesión se corrigen automáticamente estructuras antiguas o incompletas almacenadas en la aplicación, facilitando el acceso de las cuentas demo, incluido el Ingeniero de Ejecución.
-
-## Archivos agregados o modificados
-
-- `v612.js`: correcciones funcionales, normalización y permisos por rol.
-- `styles.css`: semáforo de fila completa en Verificación de equipos.
-- `index.html`: carga de `v612.js`.
-- `README.md`: historial acumulativo actualizado.
-
-## Consideraciones de despliegue
-
-- Reemplazar todos los archivos del branch correspondiente.
-- Esperar a que Vercel termine el despliegue.
-- Realizar una recarga sin caché o abrir una ventana privada.
-- En MAIN no se requiere ejecutar un script SQL para estas correcciones.
-
-
----
-
-# Versión 6.14 — Estabilización del inicio de sesión en MAIN
-
-Fecha: 23 de julio de 2026.
-
-## Correcciones
-
-- Se eliminó la condición de carrera por la cual `bootstrap()` podía ejecutarse antes de que cargaran los módulos de corrección posteriores.
-- El arranque de la aplicación ahora se ejecuta una sola vez desde `v613.js`, después de cargar `v5.js`, `v69.js`, `v610.js`, `v611.js` y `v612.js`.
-- Se estabilizó el inicio de sesión de Supabase para el usuario Ingeniero de Ejecución y las demás cuentas autorizadas.
-- Se añadieron límites de espera controlados para autenticación y carga de datos, evitando que el botón permanezca indefinidamente en “Entrando...”.
-- El botón siempre recupera su estado mediante `finally`, incluso si ocurre una excepción inesperada.
-- Se limpian sesiones locales incompletas o correspondientes a otro correo antes de iniciar una nueva autenticación.
-- Se permite recuperar las cuentas demo autenticadas cuando su perfil existe por correo, aunque el UUID enlazado haya quedado desactualizado.
-- Se mantiene Supabase Auth como requisito: el fallback no evita la validación de correo y contraseña.
-- Se actualizó el nombre visible de Coordinador de Calidad a Gerente de Calidad desde el código base para evitar que aparezca temporalmente el nombre anterior.
-
-## Archivos modificados
-
-- `app.js`
-- `index.html`
-- `v613.js`
-- `README.md`
-
-## Despliegue
-
-1. Sustituir todos los archivos del branch `main` con esta versión.
-2. Esperar el despliegue de Vercel.
-3. Abrir la página en una ventana privada o hacer una recarga sin caché.
-4. Probar `ejecucion1@codelpa.demo` con la contraseña `12345678`.
-
-## SQL
-
-Esta versión no requiere ejecutar SQL adicional.
-
----
-
-## V6.14 — Corrección de acceso de Ingeniero de Ejecución
-
-### Fecha
-23 de julio de 2026
-
-### Correcciones
-- Se corrigió el error `Cannot read properties of undefined (reading 'decision')` que ocurría después de autenticar al usuario de Ejecución.
-- El problema no estaba en la fila del usuario dentro de `profiles`; el perfil de `ejecucion1@codelpa.demo` está activo, tiene el rol `EJECUCION`, el área `TERMINACION` y el proyecto `LCE` correctamente asignados.
-- El fallo se producía en el cálculo de indicadores del inicio, donde se intentaba leer `record.visit.decision` aun cuando algunos registros agregados no incluían un objeto `visit`.
-- El cálculo ahora usa acceso seguro y toma como respaldo `inspection.decision`.
-- La misma protección se aplicó al cálculo del porcentaje de primeras visitas liberadas por taller.
-- No requiere cambios SQL ni recrear usuarios.
-
-### Archivos modificados
-- `app.js`
-- `README.md`
-
-### Validación esperada
-1. Abrir la aplicación en una ventana privada.
-2. Seleccionar `ejecucion1@codelpa.demo`.
-3. Introducir la contraseña `12345678`.
-4. El usuario debe entrar al inicio sin mostrar el error relacionado con `decision`.
+- V6.14: corrección definitiva de lectura segura de `decision` en login/dashboard.
+- V6.13: estabilización del arranque de Supabase Auth.
+- V6.12: permisos de menús, semáforo de equipos por fila y calificaciones robustas.
+- V6.11: puntos débiles con objetivo asignado y login demo restaurado.
+- V6.10: visor universal y puntos débiles semanales.
+- V6.9: administración inicial, exportaciones agrupadas, equipos CRUD, instructivos y visor.
+- V6.8: responsive móvil.
+- V6.7: Supabase Storage para adjuntos.
+- V6.6: adjuntos visibles para Calidad.
+- V6.0–V6.5: conexión inicial a Supabase, autenticación y eliminación de ejemplos en MAIN.

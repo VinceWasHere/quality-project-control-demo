@@ -149,6 +149,6 @@
     }
   };
 
-  // Todos los módulos ya fueron cargados porque v613.js es el último script del documento.
-  qpcBootstrapV613();
+  // V7.0 ejecuta el arranque después de cargar v70.js.
+  window.qpcBootstrapV613Ready = true;
 })();
