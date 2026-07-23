@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760">
+  <rect width="1200" height="760" fill="#ffffff"/>
+  <text x="50" y="55" font-family="Arial" font-size="30" font-weight="700" fill="#c8102e">VILLA CORALES · VILLA 01 · NIVEL 01</text>
+  <rect x="80" y="100" width="1040" height="580" fill="#f8fafc" stroke="#1e6687" stroke-width="5"/>
+  <rect x="120" y="150" width="330" height="220" fill="#ffffff" stroke="#64748b" stroke-width="3"/>
+  <rect x="470" y="150" width="300" height="220" fill="#ffffff" stroke="#64748b" stroke-width="3"/>
+  <rect x="790" y="150" width="290" height="220" fill="#ffffff" stroke="#64748b" stroke-width="3"/>
+  <rect x="120" y="400" width="450" height="220" fill="#ffffff" stroke="#64748b" stroke-width="3"/>
+  <rect x="590" y="400" width="490" height="220" fill="#ffffff" stroke="#64748b" stroke-width="3"/>
+  <text x="235" y="270" font-family="Arial" font-size="24" fill="#334155">HABITACIÓN 1</text>
+  <text x="560" y="270" font-family="Arial" font-size="24" fill="#334155">BAÑO</text>
+  <text x="875" y="270" font-family="Arial" font-size="24" fill="#334155">HABITACIÓN 2</text>
+  <text x="285" y="520" font-family="Arial" font-size="24" fill="#334155">SALA / COMEDOR</text>
+  <text x="770" y="520" font-family="Arial" font-size="24" fill="#334155">TERRAZA</text>
+  <text x="80" y="720" font-family="Arial" font-size="16" fill="#64748b">Mapeo demostrativo. Sustituir por el plano oficial vigente.</text>
+</svg>
