@@ -1,182 +1,55 @@
 # Quality Project Control
-## MAIN BRANCH (SUPABASE)
-Versión: 6.8
-Estado: En desarrollo activo
 
----
+## Historial acumulativo
 
-# Descripción
+### V6.0–V6.5
+- Migración inicial de la rama MAIN hacia Supabase Auth y sincronización remota.
+- Conservación de una rama estática independiente para demostración.
+- Correcciones progresivas de autenticación, sesión y compatibilidad con claves publicables.
 
-Esta rama corresponde a la versión principal del sistema.
+### V6.6
+- El personal de Calidad puede consultar fotografías y documentos adjuntos desde la bandeja y el detalle de inspección.
 
-Su objetivo es convertirse en la versión de producción del sistema de control de calidad utilizado por CODELPA.
+### V6.7
+- Preparación de Supabase Storage para adjuntos en MAIN.
+- DEMO-GITHUB conserva archivos en Base64 y almacenamiento local.
 
-Toda la información se almacena en Supabase.
+### V6.8
+- Mejoras responsive para planillas, tarjetas, formularios, botones y navegación móvil.
 
-No contiene datos de ejemplo.
+### V6.9 — 23 de julio de 2026
+- “Coordinador de Calidad” pasa a mostrarse como “Gerente de Calidad”.
+- Gerencia y Presidencia obtienen acceso a Exportaciones.
+- Administración de usuarios: Calidad, Gerencia y Presidencia pueden agregar ingenieros de Ejecución; el Gerente de Calidad puede editar Calidad y Ejecución, proyectos, estado y permisos.
+- Los puntos débiles se exportan por periodo semanal o mensual.
+- Verificación de equipos permite agregar, editar y eliminar registros directamente, además de importar y reemplazar.
+- Calidad puede agregar, modificar, reemplazar y borrar instructivos.
+- Exportaciones agrupadas por categoría, con opciones CSV y PDF en un único recuadro desplegable.
+- Visor interno para imágenes, PDF, planos, adjuntos, mapeos e instructivos.
+- MAIN elimina el botón “Restablecer demo”.
+- Logos CODELPA restaurados en la interfaz principal.
+- Selector de proyecto disponible en la barra lateral.
+- Ajustes responsive adicionales para visor, exportaciones y administración.
 
-Está preparada para escalar a múltiples proyectos.
+## Rama
+**MAIN — Supabase**
 
----
+## Arquitectura de esta rama
+- Supabase Auth, base de datos y Storage.
+- No debe contener datos operativos de ejemplo ni botón para restablecer demo.
+- La creación visual de usuarios guarda el perfil y sus permisos en el estado del sistema; la creación de credenciales de acceso en Supabase Auth requiere una operación administrativa segura.
 
-# Tecnologías
+## Despliegue
+1. Sustituir los archivos del branch correspondiente.
+2. Confirmar el commit y esperar el despliegue de Vercel/GitHub Pages.
+3. Abrir en una ventana privada o recargar sin caché.
 
-- HTML
-- CSS
-- JavaScript
-- Supabase
-- Supabase Auth
-- Supabase Storage (en implementación)
-- PostgreSQL
+## Archivos principales modificados en V6.9
+- `index.html`
+- `styles.css`
+- `v69.js`
+- `README.md`
 
----
-
-# Funcionalidades actuales
-
-## Autenticación
-
-- Login mediante Supabase Auth.
-- Roles:
-    - Ejecución
-    - Calidad
-    - Coordinador
-    - Gerencia
-    - Presidencia
-
----
-
-## Inspecciones
-
-- Solicitudes de inspección
-- Varias visitas
-- Historial
-- Puntaje por visita
-- Promedio general
-- Estado
-- Bandejas por rol
-
----
-
-## Planillas
-
-- Planillas digitales
-- Puntaje automático
-- N/A
-- Criterios técnicos
-- Observaciones
-- Evidencias
-
----
-
-## Documentación
-
-- Adjuntar fotografías
-- Adjuntar PDF
-- Adjuntar documentos
-
-El personal de Calidad puede visualizar los archivos antes de tomar la inspección.
-
----
-
-## Mapeos
-
-- Mapeos
-- Resaltador
-- Gestión documental
-
----
-
-## Dashboard
-
-- Estadísticas
-- Indicadores
-- Gráficos
-
----
-
-## Responsive
-
-Versión 6.8
-
-Mejoras:
-
-- adaptación móvil
-- tarjetas
-- botones
-- formularios
-- criterios
-- planillas
-
-Pendiente:
-
-- optimización completa para teléfonos.
-
----
-
-# Base de datos
-
-Actualmente utiliza Supabase.
-
-Tablas principales
-
-- profiles
-- projects
-- workshops
-- engineers
-- inspections
-- inspection_visits
-- inspection_results
-- criteria
-
----
-
-# Storage
-
-Migración iniciada hacia Supabase Storage.
-
-Objetivo:
-
-Eliminar completamente Base64.
-
-Los archivos deberán almacenarse como objetos.
-
----
-
-# Archivos
-
-Actualmente soporta
-
-- Fotografías
-- PDF
-- Documentos
-
----
-
-# Seguridad
-
-- Supabase Auth
-- RLS
-- Roles
-- Policies
-
----
-
-# Próximas versiones
-
-## V7
-
-- Storage completo
-- Responsive definitivo
-- Exportación PDF
-- Dashboard avanzado
-- KPIs reales
-- Estadísticas
-- Reportes
-
----
-
-# Observaciones
-
-Esta rama NO contiene ejemplos.
-
-Está diseñada para trabajar únicamente con datos reales almacenados en Supabase.
+## Problemas conocidos
+- Los formatos que el navegador no puede representar se ofrecen para descarga desde el visor.
+- En MAIN, las credenciales de nuevos usuarios deben ser creadas mediante Supabase Auth/Admin; no se incluye una service role key en el navegador por seguridad.
