@@ -52,8 +52,9 @@ function canReadProject(user){ return ['CALIDAD','COORDINADOR_CALIDAD','GERENCIA
 function canConfigure(user){ return user.role==='COORDINADOR_CALIDAD'; }
 function canOpenInspectionResources(user,inspection){
   if(user.role==='EJECUCION')return inspection.createdBy===user.id;
-  if(user.role==='COORDINADOR_CALIDAD')return true;
-  if(user.role==='CALIDAD')return inspection.assignedQualityId===user.id;
+  // Todo el personal de Calidad puede revisar los adjuntos desde la bandeja,
+  // incluso antes de tomar o asignarse la inspección.
+  if(['CALIDAD','COORDINADOR_CALIDAD'].includes(user.role))return true;
   return ['GERENCIA','PRESIDENTE'].includes(user.role);
 }
 function escapeHtml(value=''){ return String(value).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
@@ -328,7 +329,7 @@ function renderLossTable(losses){
 function renderResources(i,m,docs,user){
   if(!canOpenInspectionResources(user,i))return '<div class="alert alert-warning">Los documentos solo están disponibles para el solicitante, el inspector asignado y los roles autorizados.</div>';
   const attachments=(i.attachments||[]).map((a,index)=>typeof a==='string'?{name:a,type:'',dataUrl:null,kind:'Archivo',index}:{...a,index});
-  return `<div class="resource-grid"><article class="resource-item"><strong>Mapeo original</strong><span>${escapeHtml(m?.code||'—')}</span>${m?.file?`<a class="btn btn-outline" href="${escapeHtml(m.file)}" target="_blank">Abrir mapeo</a>`:'<button class="btn btn-secondary" disabled>Sin archivo</button>'}</article>${i.mappingAnnotation?`<article class="resource-item"><strong>Mapeo marcado por Ejecución</strong><span>Alcance señalado en la solicitud</span><button class="btn btn-primary" data-open-annotation="${i.id}">Abrir marcas</button></article>`:''}${attachments.map(a=>`<article class="resource-item"><strong>${escapeHtml(a.kind||'Adjunto')}</strong><span>${escapeHtml(a.name)}</span>${a.dataUrl?`<button class="btn btn-outline" data-open-attachment="${i.id}" data-attachment-index="${a.index}">Abrir archivo</button>`:'<button class="btn btn-secondary" disabled>Solo nombre registrado</button>'}</article>`).join('')}${docs.map(d=>`<article class="resource-item"><strong>${escapeHtml(d.code)} ${escapeHtml(d.version)}</strong><span>${escapeHtml(d.title)}</span>${d.file?`<a class="btn btn-outline" href="${escapeHtml(d.file)}" target="_blank">Abrir instructivo</a>`:'<button class="btn btn-secondary" disabled>Archivo pendiente</button>'}</article>`).join('')}</div>`;
+  return `<div class="resource-grid"><article class="resource-item"><strong>Mapeo original</strong><span>${escapeHtml(m?.code||'—')}</span>${m?.file?`<a class="btn btn-outline" href="${escapeHtml(m.file)}" target="_blank">Abrir mapeo</a>`:'<button class="btn btn-secondary" disabled>Sin archivo</button>'}</article>${i.mappingAnnotation?`<article class="resource-item"><strong>Mapeo marcado por Ejecución</strong><span>Alcance señalado en la solicitud</span><button class="btn btn-primary" data-open-annotation="${i.id}">Abrir marcas</button></article>`:''}${attachments.map(a=>{const isImage=(a.type||'').startsWith('image/');return `<article class="resource-item attachment-resource"><strong>${escapeHtml(a.kind||'Adjunto')}</strong><span>${escapeHtml(a.name)}</span>${a.dataUrl&&isImage?`<button class="attachment-preview" data-open-attachment="${i.id}" data-attachment-index="${a.index}" aria-label="Abrir ${escapeHtml(a.name)}"><img src="${a.dataUrl}" alt="Vista previa de ${escapeHtml(a.name)}"></button>`:''}${a.dataUrl?`<div class="button-row"><button class="btn btn-primary" data-open-attachment="${i.id}" data-attachment-index="${a.index}">${isImage?'Ver fotografía':'Abrir documento'}</button><a class="btn btn-outline" href="${a.dataUrl}" download="${escapeHtml(a.name)}">Descargar</a></div>`:'<button class="btn btn-secondary" disabled>Archivo no almacenado por exceder el límite</button>'}</article>`;}).join('')}${docs.map(d=>`<article class="resource-item"><strong>${escapeHtml(d.code)} ${escapeHtml(d.version)}</strong><span>${escapeHtml(d.title)}</span>${d.file?`<a class="btn btn-outline" href="${escapeHtml(d.file)}" target="_blank">Abrir instructivo</a>`:'<button class="btn btn-secondary" disabled>Archivo pendiente</button>'}</article>`).join('')}</div>`;
 }
 function renderDetail(user){
   const i=data.inspections.find(x=>x.id===ui.selectedId);if(!i)return '<div class="alert alert-danger">Inspección no encontrada.</div>';if(user.role==='EJECUCION'&&i.createdBy!==user.id)return noAccess();
@@ -499,7 +500,17 @@ function initAnnotatorCanvas(){
   document.getElementById('cancelAnnotation').addEventListener('click',()=>{ui.view='newRequest';render();});
   document.getElementById('saveAnnotation').addEventListener('click',()=>{ui.requestDraft.annotationData=canvas.toDataURL('image/png');ui.view='newRequest';toast('Mapeo marcado guardado');render();});
 }
-function openAttachment(inspectionId,index){const i=data.inspections.find(x=>x.id===inspectionId),a=i?.attachments?.[index];if(!a?.dataUrl){toast('El archivo no está almacenado en esta versión del demo.');return;}const win=window.open();win.document.write(`<title>${escapeHtml(a.name)}</title><iframe src="${a.dataUrl}" style="border:0;width:100%;height:100vh"></iframe>`);}
+function openAttachment(inspectionId,index){
+  const i=data.inspections.find(x=>x.id===inspectionId),a=i?.attachments?.[index];
+  if(!a?.dataUrl){toast('El archivo no está almacenado porque excedió el límite permitido.');return;}
+  const win=window.open('','_blank');
+  if(!win){toast('El navegador bloqueó la ventana. Permita ventanas emergentes para abrir el adjunto.');return;}
+  const safeName=escapeHtml(a.name||'Adjunto');
+  const isImage=(a.type||'').startsWith('image/');
+  win.document.open();
+  win.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeName}</title><style>html,body{margin:0;min-height:100%;background:#202124;color:#fff;font-family:Arial,sans-serif}.top{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;background:#111}.top a{color:#fff;border:1px solid #fff;padding:8px 12px;border-radius:6px;text-decoration:none}.viewer{display:flex;justify-content:center;align-items:flex-start;min-height:calc(100vh - 62px)}img{max-width:100%;height:auto;display:block;background:#fff}iframe{border:0;width:100%;height:calc(100vh - 62px);background:#fff}</style></head><body><div class="top"><strong>${safeName}</strong><a href="${a.dataUrl}" download="${safeName}">Descargar</a></div><div class="viewer">${isImage?`<img src="${a.dataUrl}" alt="${safeName}">`:`<iframe src="${a.dataUrl}" title="${safeName}"></iframe>`}</div></body></html>`);
+  win.document.close();
+}
 function openAnnotation(inspectionId){const i=data.inspections.find(x=>x.id===inspectionId);if(!i?.mappingAnnotation)return;const win=window.open();win.document.write(`<title>Mapeo marcado</title><img src="${i.mappingAnnotation}" style="max-width:100%;height:auto;display:block;margin:auto">`);}
 function exportInspections(){
   const headers=['Código inspección','Número de visita','Fecha solicitud','Fecha de visita','Proyecto','Taller','Etapa','Planilla','Versión','Ingeniero de ejecución','Área del ingeniero','Ingeniero de Calidad','Contratista','Ubicación','Mapeo','Paquete','Resultado técnico','Resultado visitas/preparación','Resultado de la visita','Objetivo','Diferencia','Semáforo','Decisión','Es primera visita','Observación general'];
