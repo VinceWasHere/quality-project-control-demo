@@ -1,200 +1,182 @@
-# Quality Project Control — CODELPA V5
+# Quality Project Control
+## MAIN BRANCH (SUPABASE)
+Versión: 6.8
+Estado: En desarrollo activo
 
-Proyecto estático funcional preparado para publicarse en **GitHub Pages**.
+---
 
-## Funciones principales
+# Descripción
 
-### Acceso y proyectos
+Esta rama corresponde a la versión principal del sistema.
 
-- Inicio de sesión por rol.
-- Selector de proyecto en el login:
-  - Lopesan La Ceiba (`HLLC`).
-  - Villa Corales (`HVC`).
-- La navegación, las inspecciones, los mapeos, los instructivos, los equipos y los reportes se filtran por el proyecto activo.
+Su objetivo es convertirse en la versión de producción del sistema de control de calidad utilizado por CODELPA.
 
-### Identificación de inspecciones
+Toda la información se almacena en Supabase.
 
-Formato corto:
+No contiene datos de ejemplo.
 
-```text
-I-[HOTEL]-[AA]-[MM]-[DD]
-```
+Está preparada para escalar a múltiples proyectos.
 
-Ejemplos:
+---
 
-```text
-I-HLLC-26-06-13
-I-HVC-26-07-15
-```
+# Tecnologías
 
-Cuando existe más de una inspección el mismo día se agrega un consecutivo:
+- HTML
+- CSS
+- JavaScript
+- Supabase
+- Supabase Auth
+- Supabase Storage (en implementación)
+- PostgreSQL
 
-```text
-I-HLLC-26-06-13-02
-```
+---
 
-### Ejecución
+# Funcionalidades actuales
 
-- Dashboard individual mensual.
-- Historial de inspecciones creadas por el usuario.
-- Desglose por visita y criterio.
-- Visualización de puntos obtenidos, puntos descontados y observaciones de Calidad.
-- Consulta de instructivos vigentes.
-- Selección de mapeos desde la biblioteca del proyecto.
-- Resaltado semitransparente sobre el mapeo para marcar el alcance solicitado.
+## Autenticación
 
-### Calidad
+- Login mediante Supabase Auth.
+- Roles:
+    - Ejecución
+    - Calidad
+    - Coordinador
+    - Gerencia
+    - Presidencia
 
-- Bandeja operativa.
-- Toma y evaluación de inspecciones.
-- Varias visitas dentro de una misma inspección.
-- Cada visita conserva:
-  - fecha;
-  - inspector;
-  - etapa o planilla;
-  - respuestas;
-  - criterios en `N/A`;
-  - calificación técnica;
-  - calificación de preparación / visitas;
-  - calificación final;
-  - decisión.
-- El puntaje vigente de la inspección es la **media aritmética de todas las visitas finalizadas**.
+---
 
-Ejemplo:
+## Inspecciones
 
-```text
-Visita 1: 100 %
-Visita 2: 90 %
-Promedio de la inspección: 95 %
-```
+- Solicitudes de inspección
+- Varias visitas
+- Historial
+- Puntaje por visita
+- Promedio general
+- Estado
+- Bandejas por rol
 
-`N/A` excluye el criterio del denominador de esa visita. El mismo criterio puede evaluarse normalmente en una visita posterior.
+---
 
-### Mapeos e instructivos
+## Planillas
 
-Los integrantes autorizados de Calidad pueden:
+- Planillas digitales
+- Puntaje automático
+- N/A
+- Criterios técnicos
+- Observaciones
+- Evidencias
 
-- cargar documentos y mapeos;
-- asignar código y versión;
-- modificar su información;
-- actualizar la versión vigente;
-- consultar versiones del proyecto.
+---
 
-En este demo estático los archivos cargados se guardan como datos locales del navegador y están sujetos al límite de `localStorage`.
+## Documentación
 
-### Calificaciones y gráficos
+- Adjuntar fotografías
+- Adjuntar PDF
+- Adjuntar documentos
 
-- Resumen semanal y mensual por taller.
-- Semanas de Calidad de **jueves a miércoles**, ambos días inclusive.
-- Gráfico de talleres con:
-  - barras de puntaje obtenido;
-  - línea de objetivo.
-- Comparativos de ingenieros separados en:
-  - Estructura;
-  - Terminación.
-- Barras por mes.
-- Línea de objetivo.
-- Línea de media general.
-- Tablas de puntos débiles para talleres por debajo de la meta.
-- Todos los puntos evaluados aparecen en la tabla.
-- Los incisos cuyo promedio queda por debajo del objetivo del taller se resaltan en rojo.
+El personal de Calidad puede visualizar los archivos antes de tomar la inspección.
 
-### Exportaciones
+---
 
-- CSV de inspecciones y visitas.
-- CSV de criterios y descuentos.
-- CSV de calificaciones por taller.
-- CSV de calificaciones por ingeniero.
-- CSV de puntos débiles.
-- PDF mensual con tablas y gráficos.
-- PDF de inspecciones.
-- PDF de gráficos comparativos.
-- PDF y CSV de equipos de seguimiento y medición.
+## Mapeos
 
-### Equipos de seguimiento y medición
+- Mapeos
+- Resaltador
+- Gestión documental
 
-- Módulo para importar un Excel compatible con el formulario FO-GC-23.
-- Carga inicial basada en el Excel suministrado para Lopesan La Ceiba.
-- Búsqueda y filtros.
-- Edición de registros.
-- Registro de verificación.
-- Exportación a PDF y CSV.
+---
 
-## Usuarios de demostración
+## Dashboard
 
-La contraseña de todos es `1234`.
+- Estadísticas
+- Indicadores
+- Gráficos
 
-| Rol / área | Correo |
-|---|---|
-| Ejecución · Terminación | `ejecucion1@codelpa.demo` |
-| Ejecución · Estructura | `ejecucion2@codelpa.demo` |
-| Ejecución · Terminación | `ejecucion3@codelpa.demo` |
-| Ejecución · Estructura | `ejecucion4@codelpa.demo` |
-| Calidad 1 | `calidad1@codelpa.demo` |
-| Calidad 2 | `calidad2@codelpa.demo` |
-| Coordinación de Calidad | `coordinador@codelpa.demo` |
-| Gerencia | `gerencia@codelpa.demo` |
-| Presidencia | `presidente@codelpa.demo` |
+---
 
-## Archivos del proyecto
+## Responsive
 
-```text
-index.html
-styles.css
-app.js
-v5.js
-README.md
-SOURCE_NOTES.md
+Versión 6.8
 
-data/
-├── catalogos.js
-├── equipment_seed.js
-└── planillas.json
+Mejoras:
 
-assets/
-├── codelpa_logo_red.png
-├── codelpa_logo_white.png
-└── mapeos/
-```
+- adaptación móvil
+- tarjetas
+- botones
+- formularios
+- criterios
+- planillas
 
-## Publicación en GitHub Pages
+Pendiente:
 
-Suba **el contenido de esta carpeta** a la raíz del repositorio y configure:
+- optimización completa para teléfonos.
 
-```text
-Settings → Pages → Deploy from a branch → main → /(root)
-```
+---
 
-No necesita subir un archivo `.nojekyll`.
+# Base de datos
 
-## Dependencias cargadas por CDN
+Actualmente utiliza Supabase.
 
-Para gráficos, importación de Excel y generación de PDF se utilizan:
+Tablas principales
 
-- Chart.js.
-- SheetJS.
-- jsPDF.
-- jsPDF-AutoTable.
+- profiles
+- projects
+- workshops
+- engineers
+- inspections
+- inspection_visits
+- inspection_results
+- criteria
 
-Estas funciones requieren conexión a internet cuando la página se abre.
+---
 
-## Diseño responsive
+# Storage
 
-La interfaz incluye puntos de quiebre para escritorio, tableta y móvil. En pantallas pequeñas:
+Migración iniciada hacia Supabase Storage.
 
-- el menú se convierte en panel desplegable;
-- las tarjetas se apilan;
-- las tablas y gráficos extensos usan desplazamiento horizontal local;
-- los formularios cambian a una sola columna.
+Objetivo:
 
-## Limitaciones del demo estático
+Eliminar completamente Base64.
 
-Este proyecto todavía usa `localStorage`:
+Los archivos deberán almacenarse como objetos.
 
-- los datos no se comparten entre computadoras o celulares;
-- la autenticación es demostrativa;
-- los permisos se aplican en el navegador, no en un servidor;
-- los archivos grandes no deben guardarse de esta forma;
-- GitHub Pages no sustituye una base de datos ni un repositorio documental.
+---
 
-Para uso operativo real se requiere backend, autenticación segura, base de datos compartida y almacenamiento de archivos.
+# Archivos
+
+Actualmente soporta
+
+- Fotografías
+- PDF
+- Documentos
+
+---
+
+# Seguridad
+
+- Supabase Auth
+- RLS
+- Roles
+- Policies
+
+---
+
+# Próximas versiones
+
+## V7
+
+- Storage completo
+- Responsive definitivo
+- Exportación PDF
+- Dashboard avanzado
+- KPIs reales
+- Estadísticas
+- Reportes
+
+---
+
+# Observaciones
+
+Esta rama NO contiene ejemplos.
+
+Está diseñada para trabajar únicamente con datos reales almacenados en Supabase.
