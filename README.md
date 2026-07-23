@@ -112,3 +112,40 @@ Contraseña común: `12345678`.
 
 - `index.html`
 - `README.md`
+
+
+---
+
+# Versión 6.12 — MAIN (Supabase)
+
+Fecha: 23 de julio de 2026.
+
+## Correcciones y cambios funcionales
+
+- Se corrigió la apertura de la sección **Calificaciones** mediante una agrupación tolerante a inspecciones incompletas, borradores y visitas que todavía no poseen una decisión final.
+- Se normalizan las colecciones y propiedades del estado antes de renderizar o guardar, evitando el error `Cannot read properties of undefined (reading 'decision')`.
+- En **Verificación de equipos**, los registros vencidos muestran la fila completa en rojo, no solamente la insignia de estado. Los equipos próximos a vencer reciben una señal visual amarilla tenue.
+- La sección **Usuarios y permisos** queda visible únicamente para:
+  - Gerente de Calidad.
+  - Gerente de Proyecto.
+  - Presidencia.
+- Los ingenieros de Calidad ya no ven la sección Usuarios y permisos.
+- Gerencia de Proyecto y Presidencia pueden administrar ingenieros de Ejecución, pero no modificar usuarios de Calidad.
+- El Gerente de Calidad conserva la administración de ingenieros de Calidad y de Ejecución.
+- **Instructivos** y **Mapeos** se retiraron del menú de Gerencia de Proyecto y Presidencia.
+- Se añadió una validación para impedir el acceso directo por URL o por una vista guardada a módulos que no correspondan al rol.
+- Al iniciar sesión se corrigen automáticamente estructuras antiguas o incompletas almacenadas en la aplicación, facilitando el acceso de las cuentas demo, incluido el Ingeniero de Ejecución.
+
+## Archivos agregados o modificados
+
+- `v612.js`: correcciones funcionales, normalización y permisos por rol.
+- `styles.css`: semáforo de fila completa en Verificación de equipos.
+- `index.html`: carga de `v612.js`.
+- `README.md`: historial acumulativo actualizado.
+
+## Consideraciones de despliegue
+
+- Reemplazar todos los archivos del branch correspondiente.
+- Esperar a que Vercel termine el despliegue.
+- Realizar una recarga sin caché o abrir una ventana privada.
+- En MAIN no se requiere ejecutar un script SQL para estas correcciones.
