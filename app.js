@@ -2,8 +2,11 @@ const TEMPLATES = window.QPC_TEMPLATES || [];
 const INSTRUCTIVOS = window.QPC_INSTRUCTIVOS || [];
 const MAPEOS = window.QPC_MAPEOS || [];
 
-const STORAGE_KEY = 'qpc_github_v4_data';
-const SESSION_KEY = 'qpc_github_v4_session';
+const STORAGE_KEY = 'qpc_supabase_v6_cache';
+const REMOTE_STATE_ID = 'main';
+const supabaseClient = window.supabase.createClient(window.QPC_SUPABASE_URL, window.QPC_SUPABASE_PUBLISHABLE_KEY);
+let authenticatedUser = null;
+let saveTimer = null;
 const ENGINEER_TARGET = 95;
 const MAX_ATTACHMENT_BYTES = 1200000;
 const MAX_TOTAL_ATTACHMENT_BYTES = 3500000;
@@ -23,23 +26,17 @@ const AREA_LABELS = {
 };
 
 const USERS = [
-  {id:'exec-1',name:'Ing. Ejecución Demo A',email:'ejecucion1@codelpa.demo',password:'1234',role:'EJECUCION',executionArea:'TERMINACION',projectIds:['LCE']},
-  {id:'exec-2',name:'Ing. Ejecución Demo B',email:'ejecucion2@codelpa.demo',password:'1234',role:'EJECUCION',executionArea:'ESTRUCTURA',projectIds:['LCE']},
-  {id:'exec-3',name:'Ing. Ejecución Demo C',email:'ejecucion3@codelpa.demo',password:'1234',role:'EJECUCION',executionArea:'TERMINACION',projectIds:['LCE']},
-  {id:'exec-4',name:'Ing. Ejecución Demo D',email:'ejecucion4@codelpa.demo',password:'1234',role:'EJECUCION',executionArea:'ESTRUCTURA',projectIds:['LCE']},
-  {id:'exec-5',name:'Ing. Ejecución Demo E',email:'ejecucion5@codelpa.demo',password:'1234',role:'EJECUCION',executionArea:'TERMINACION',projectIds:['LCE']},
-  {id:'exec-6',name:'Ing. Ejecución Demo F',email:'ejecucion6@codelpa.demo',password:'1234',role:'EJECUCION',executionArea:'ESTRUCTURA',projectIds:['LCE']},
-  {id:'quality-1',name:'Ing. Calidad Demo 1',email:'calidad1@codelpa.demo',password:'1234',role:'CALIDAD',projectIds:['LCE']},
-  {id:'quality-2',name:'Ing. Calidad Demo 2',email:'calidad2@codelpa.demo',password:'1234',role:'CALIDAD',projectIds:['LCE']},
-  {id:'coord-1',name:'Coordinador Calidad Demo',email:'coordinador@codelpa.demo',password:'1234',role:'COORDINADOR_CALIDAD',projectIds:['LCE']},
-  {id:'manager-1',name:'Gerente de Proyecto Demo',email:'gerencia@codelpa.demo',password:'1234',role:'GERENCIA',projectIds:['LCE']},
-  {id:'president-1',name:'Presidente Demo',email:'presidente@codelpa.demo',password:'1234',role:'PRESIDENTE',projectIds:['LCE','CN','RC']}
+  {id:'exec-1',name:'Ing. Ejecución Demo A',email:'ejecucion1@codelpa.demo',role:'EJECUCION',executionArea:'TERMINACION',projectIds:['LCE']},
+  {id:'quality-1',name:'Ing. Calidad Demo 1',email:'calidad1@codelpa.demo',role:'CALIDAD',projectIds:['LCE']},
+  {id:'coord-1',name:'Coordinador Calidad Demo',email:'coordinador@codelpa.demo',role:'COORDINADOR_CALIDAD',projectIds:['LCE']},
+  {id:'manager-1',name:'Gerente de Proyecto Demo',email:'gerencia@codelpa.demo',role:'GERENCIA',projectIds:['LCE']},
+  {id:'president-1',name:'Presidente Demo',email:'presidente@codelpa.demo',role:'PRESIDENTE',projectIds:['LCE','VC','CN','RC']}
 ];
 
 function templateById(id){ return TEMPLATES.find(t=>t.id===id); }
 function mappingById(id){ return [...MAPEOS,...(data?.customMappings||[])].find(m=>m.id===id); }
 function userById(id){ return data.users.find(u=>u.id===id); }
-function currentUser(){ const s=JSON.parse(localStorage.getItem(SESSION_KEY)||'null'); return s?userById(s.userId):null; }
+function currentUser(){ return authenticatedUser; }
 function canOperateQuality(user){ return ['CALIDAD','COORDINADOR_CALIDAD'].includes(user.role); }
 function canReadProject(user){ return ['CALIDAD','COORDINADOR_CALIDAD','GERENCIA','PRESIDENTE'].includes(user.role); }
 function canConfigure(user){ return user.role==='COORDINADOR_CALIDAD'; }
@@ -154,36 +151,47 @@ function seedCompleted(id,createdBy,activity,stage,date,qualityId,mappingId,weak
   };
 }
 function initialData(){
-  const completed=[
-    seedCompleted('s01','exec-1','Mampostería','General','2026-06-18','quality-1','MAP-LCE-D1-N02-H2101',['Espesor y llenado de Juntas'],2,2),
-    seedCompleted('s02','exec-1','Pintura','Liberación','2026-06-25','quality-2','MAP-LCE-D1-N02-H2102',['Proteccion de accesorios y recortes'],1,1),
-    seedCompleted('s03','exec-1','Pintura','Seguimiento','2026-07-02','quality-1','MAP-LCE-D1-N02-H2101',['Cobertura de pared completa y en orden'],2,2),
-    seedCompleted('s04','exec-3','Pañete','Liberación','2026-07-09','quality-1','MAP-LCE-D1-N02-PASILLO',['Limpieza del area general'],1,1),
-    seedCompleted('s05','exec-3','Colocación de Pisos','Terminación','2026-07-16','quality-2','MAP-LCE-D1-N02-H2102',['Limpieza de piezas y juntas'],1,2),
-    seedCompleted('s06','exec-5','Drywall - Muros','Seguimiento','2026-07-21','quality-1','MAP-LCE-D1-N02-PASILLO',['Separacion de tornillos'],2,1),
-    seedCompleted('s07','exec-2','Acero - Losas Estructurales','General','2026-06-19','quality-1','MAP-LCE-EST-LOSA-A',['Espesor de losa y recubrimiento'],1,1),
-    seedCompleted('s08','exec-2','Hormigonado','General','2026-06-27','quality-2','MAP-LCE-EST-LOSA-A',['Limpieza General?'],1,1),
-    seedCompleted('s09','exec-4','Encofrado - Losas y Vigas','General','2026-07-04','quality-1','MAP-LCE-EST-LOSA-A',['Apoyo y amarre de puntales'],2,2),
-    seedCompleted('s10','exec-4','Post Hormigonado','General','2026-07-11','quality-2','MAP-LCE-EST-LOSA-A',['Curado'],1,1),
-    seedCompleted('s11','exec-6','Acero - Columnas y Muros','General','2026-07-18','quality-1','MAP-LCE-EST-LOSA-A',['Dimension y separacion de Acero Transversal?'],1,2),
-    seedCompleted('s12','exec-6','Encofrado - Columnas y Muros','General','2026-07-22','quality-2','MAP-LCE-EST-LOSA-A',['Plomo del elemento'],2,1)
-  ];
-  const pending=[
-    {id:'p01',code:'INSP-LCE-2026-0101',projectId:'LCE',createdBy:'exec-1',templateId:findTemplate('Mampostería','General').id,mappingId:'MAP-LCE-D1-N02-H2101',contractor:'Contratista Terminación Demo',location:'D1 · Nivel 02 · Habitación 2101',packageCode:'PL-D1-N02-MAMP-101',scope:'Muro interior completo según mapeo marcado',requestedDate:'2026-07-24',requestedTime:'08:00',ready:true,status:'SOLICITADA',assignedQualityId:null,createdAt:'2026-07-23T15:30:00',technicalScore:null,visitScore:null,finalScore:null,objective:90,traffic:null,decision:null,visitsCount:0,firstVisit:false,weakCriteria:[],visitEvaluations:[],activeVisitId:null,attachments:[],mappingAnnotation:null,audit:[{at:'2026-07-23T15:30:00',userId:'exec-1',action:'Solicitud enviada a Calidad'}]},
-    {id:'p02',code:'INSP-LCE-2026-0102',projectId:'LCE',createdBy:'exec-2',templateId:findTemplate('Hormigonado','General').id,mappingId:'MAP-LCE-EST-LOSA-A',contractor:'Contratista Estructura Demo',location:'Estructura · Losa Sector A',packageCode:'PL-EST-LOSA-HORM-102',scope:'Vaciado de losa sector A',requestedDate:'2026-07-24',requestedTime:'08:20',ready:true,status:'SOLICITADA',assignedQualityId:null,createdAt:'2026-07-23T15:35:00',technicalScore:null,visitScore:null,finalScore:null,objective:95,traffic:null,decision:null,visitsCount:0,firstVisit:false,weakCriteria:[],visitEvaluations:[],activeVisitId:null,attachments:[],mappingAnnotation:null,audit:[{at:'2026-07-23T15:35:00',userId:'exec-2',action:'Solicitud enviada a Calidad'}]},
-    {id:'p03',code:'INSP-LCE-2026-0103',projectId:'LCE',createdBy:'exec-3',templateId:findTemplate('Pintura','Terminación').id,mappingId:'MAP-LCE-D1-N02-H2102',contractor:'Contratista Terminación Demo',location:'D1 · Nivel 02 · Habitación 2102',packageCode:'PL-D1-N02-PINT-103',scope:'Terminación de pintura interior',requestedDate:'2026-07-24',requestedTime:'14:00',ready:false,status:'BORRADOR',assignedQualityId:null,createdAt:'2026-07-23T15:40:00',technicalScore:null,visitScore:null,finalScore:null,objective:95,traffic:null,decision:null,visitsCount:0,firstVisit:false,weakCriteria:[],visitEvaluations:[],activeVisitId:null,attachments:[],mappingAnnotation:null,audit:[{at:'2026-07-23T15:40:00',userId:'exec-3',action:'Borrador creado'}]}
-  ];
-  return {version:4,users:USERS,inspections:[...pending,...completed],customMappings:[],customDocuments:[]};
+  return {version:6,users:[],inspections:[],customMappings:[],customDocuments:[]};
 }
-function loadData(){
-  try{
-    const raw=localStorage.getItem(STORAGE_KEY);
-    if(!raw){const d=initialData();localStorage.setItem(STORAGE_KEY,JSON.stringify(d));return d;}
-    const d=JSON.parse(raw);if(d.version!==4){const fresh=initialData();localStorage.setItem(STORAGE_KEY,JSON.stringify(fresh));return fresh;}return d;
-  }catch{const d=initialData();localStorage.setItem(STORAGE_KEY,JSON.stringify(d));return d;}
+function profileToUser(profile){
+  return {
+    id: profile.legacy_id,
+    authId: profile.id,
+    name: profile.full_name,
+    email: profile.email,
+    role: profile.role,
+    executionArea: profile.execution_area || null,
+    projectIds: profile.project_ids || ['LCE'],
+    isActive: profile.is_active !== false
+  };
 }
-function saveData(){ localStorage.setItem(STORAGE_KEY,JSON.stringify(data)); }
-data=loadData();
+async function loadProfiles(){
+  const {data: profiles,error}=await supabaseClient.from('profiles').select('*').eq('is_active',true);
+  if(error) throw error;
+  data.users=(profiles||[]).map(profileToUser);
+}
+async function loadRemoteData(){
+  const {data: row,error}=await supabaseClient.from('app_state').select('payload').eq('id',REMOTE_STATE_ID).maybeSingle();
+  if(error) throw error;
+  const remote=row?.payload;
+  data=remote&&remote.version===6?remote:initialData();
+  await loadProfiles();
+  if(!row){
+    const {error: insertError}=await supabaseClient.from('app_state').insert({id:REMOTE_STATE_ID,payload:data});
+    if(insertError) throw insertError;
+  }
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+}
+function saveData(){
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(async()=>{
+    const payload={...data,users:[]};
+    const {error}=await supabaseClient.from('app_state').upsert({id:REMOTE_STATE_ID,payload,updated_at:new Date().toISOString()});
+    if(error){console.error(error);toast('No se pudo sincronizar con Supabase');}
+  },250);
+}
+data=initialData();
 let ui={
   view:'home',selectedId:null,queueTab:'DISPONIBLES',reportMode:'month',reportValue:'2026-07',docSearch:'',mapSearch:'',templateFilter:'',
   requestDraft:{templateId:'',mappingId:MAPEOS[0]?.id||'',contractor:'Contratista Terminación Demo',date:'2026-07-24',time:'08:00',scope:'Área completa según el mapeo seleccionado.',ready:true,annotationData:null},
@@ -194,8 +202,8 @@ function render(){
 }
 function renderLogin(){
   return `<div class="login-shell">
-    <section class="login-brand"><div><div class="brand-lockup"><div class="logo">C</div><div><strong>QUALITY PROJECT CONTROL</strong><div style="font-size:13px;color:#c9d9e8">CODELPA</div></div></div><h1>Inspecciones, visitas, planillas y calificaciones con trazabilidad completa.</h1><p>Esta versión permite ver exactamente dónde se descontaron puntos, registrar calificaciones distintas por visita, marcar mapeos y generar análisis semanales de jueves a miércoles.</p><div class="feature-grid"><div class="feature">✓ Desglose de puntos por criterio y visita</div><div class="feature">✓ Liberación, seguimiento y terminación</div><div class="feature">✓ Semanas de jueves a miércoles</div><div class="feature">✓ Puntos débiles y comparación de ingenieros</div></div></div><div class="login-note">Demo funcional para GitHub Pages. Los datos se guardan únicamente en el navegador.</div></section>
-    <section class="login-panel"><div class="login-card"><h2>Iniciar sesión</h2><p>El sistema identifica el rol y el área de cada usuario.</p><div id="loginError"></div><div class="field"><label>Correo electrónico</label><input id="loginEmail" type="email" placeholder="usuario@codelpa.demo" autocomplete="username"></div><div class="field" style="margin-top:14px"><label>Contraseña</label><input id="loginPassword" type="password" placeholder="••••" autocomplete="current-password"></div><button id="loginBtn" class="btn btn-primary btn-lg" style="width:100%;margin-top:18px">Entrar</button><div class="demo-users"><h3>Usuarios de demostración</h3>${USERS.filter(u=>['exec-1','quality-1','coord-1','manager-1','president-1'].includes(u.id)).map(u=>`<div class="demo-user"><div><strong>${escapeHtml(ROLE_LABELS[u.role])}</strong><br>${escapeHtml(u.email)}</div><button data-demo-email="${escapeHtml(u.email)}">Usar</button></div>`).join('')}<div class="helper">Contraseña para todos: <strong>1234</strong></div></div></div></section>
+    <section class="login-brand"><div><div class="brand-lockup"><div class="logo">C</div><div><strong>QUALITY PROJECT CONTROL</strong><div style="font-size:13px;color:#c9d9e8">CODELPA</div></div></div><h1>Inspecciones, visitas, planillas y calificaciones con trazabilidad completa.</h1><p>Esta versión permite ver exactamente dónde se descontaron puntos, registrar calificaciones distintas por visita, marcar mapeos y generar análisis semanales de jueves a miércoles.</p><div class="feature-grid"><div class="feature">✓ Desglose de puntos por criterio y visita</div><div class="feature">✓ Liberación, seguimiento y terminación</div><div class="feature">✓ Semanas de jueves a miércoles</div><div class="feature">✓ Puntos débiles y comparación de ingenieros</div></div></div><div class="login-note">Demo funcional conectada a Supabase. Las sesiones y los datos se comparten entre usuarios autorizados.</div></section>
+    <section class="login-panel"><div class="login-card"><h2>Iniciar sesión</h2><p>El sistema identifica el rol y el área de cada usuario.</p><div id="loginError"></div><div class="field"><label>Correo electrónico</label><input id="loginEmail" type="email" placeholder="usuario@codelpa.demo" autocomplete="username"></div><div class="field" style="margin-top:14px"><label>Contraseña</label><input id="loginPassword" type="password" placeholder="••••" autocomplete="current-password"></div><button id="loginBtn" class="btn btn-primary btn-lg" style="width:100%;margin-top:18px">Entrar</button><div class="demo-users"><h3>Usuarios de demostración</h3>${USERS.filter(u=>['exec-1','quality-1','coord-1','manager-1','president-1'].includes(u.id)).map(u=>`<div class="demo-user"><div><strong>${escapeHtml(ROLE_LABELS[u.role])}</strong><br>${escapeHtml(u.email)}</div><button data-demo-email="${escapeHtml(u.email)}">Usar</button></div>`).join('')}<div class="helper">Contraseña para todos: <strong>12345678</strong></div></div></div></section>
   </div>`;
 }
 function navItems(user){
@@ -375,11 +383,11 @@ function exportCard(title,desc,id,label){return `<div class="card export-card"><
 function renderUsers(user){if(!canConfigure(user))return noAccess();return `<div class="page-head"><div><h2>Usuarios y permisos</h2><p>Clasificación por rol, proyecto y área de ejecución.</p></div></div><div class="table-wrap"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Área</th><th>Proyecto</th><th>Permisos principales</th></tr></thead><tbody>${data.users.map(u=>`<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.email)}</td><td><span class="badge ${u.role==='EJECUCION'?'badge-blue':u.role.includes('CALIDAD')?'badge-green':'badge-gray'}">${escapeHtml(ROLE_LABELS[u.role])}</span></td><td>${escapeHtml(AREA_LABELS[u.executionArea]||'—')}</td><td>${escapeHtml(u.projectIds.join(', '))}</td><td>${escapeHtml(permissionSummary(u.role))}</td></tr>`).join('')}</tbody></table></div>`;}
 function permissionSummary(role){return {EJECUCION:'Solicitar, marcar mapeos, abrir sus adjuntos y consultar descuentos por visita',CALIDAD:'Abrir recursos, calificar por visita, exportar y analizar puntos débiles',COORDINADOR_CALIDAD:'Permisos de Calidad, monitoreo y configuración',GERENCIA:'Consulta del proyecto y calificaciones',PRESIDENTE:'Consulta ejecutiva global'}[role]||'Consulta';}
 function bindGlobal(){
-  document.querySelectorAll('[data-demo-email]').forEach(b=>b.addEventListener('click',()=>{document.getElementById('loginEmail').value=b.dataset.demoEmail;document.getElementById('loginPassword').value='1234';}));
+  document.querySelectorAll('[data-demo-email]').forEach(b=>b.addEventListener('click',()=>{document.getElementById('loginEmail').value=b.dataset.demoEmail;document.getElementById('loginPassword').value='12345678';}));
   document.getElementById('loginBtn')?.addEventListener('click',login);['loginEmail','loginPassword'].forEach(id=>document.getElementById(id)?.addEventListener('keydown',e=>{if(e.key==='Enter')login();}));
   document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.nav)));
-  document.getElementById('logoutBtn')?.addEventListener('click',()=>{localStorage.removeItem(SESSION_KEY);ui.view='home';render();});
-  document.getElementById('resetBtn')?.addEventListener('click',()=>{if(confirm('¿Restablecer todos los datos del demo?')){data=initialData();saveData();toast('Demo restablecido');navigate('home');}});
+  document.getElementById('logoutBtn')?.addEventListener('click',async()=>{await supabaseClient.auth.signOut();authenticatedUser=null;ui.view='home';render();});
+  document.getElementById('resetBtn')?.addEventListener('click',()=>{if(confirm('¿Eliminar todas las inspecciones y datos creados? Los usuarios permanecerán.')){const users=data.users;data=initialData();data.users=users;saveData();toast('Datos operativos eliminados');navigate('home');}});
   document.getElementById('menuBtn')?.addEventListener('click',()=>{document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.remove('hidden');});document.getElementById('overlay')?.addEventListener('click',closeDrawer);
 }
 function bindView(user){
@@ -406,7 +414,24 @@ function bindView(user){
   document.getElementById('exportMode')?.addEventListener('change',e=>{ui.reportMode=e.target.value;ui.reportValue=e.target.value==='week'?availableWeekStarts()[0]:'2026-07';render();});document.getElementById('exportValue')?.addEventListener('change',e=>{ui.reportValue=e.target.value;render();});
   document.getElementById('exportInspections')?.addEventListener('click',exportInspections);document.getElementById('exportCriteria')?.addEventListener('click',exportCriteria);document.getElementById('exportWorkshops')?.addEventListener('click',exportWorkshops);document.getElementById('exportEngineers')?.addEventListener('click',exportEngineers);document.getElementById('exportWeakPoints')?.addEventListener('click',exportWeakPoints);document.getElementById('exportBackup')?.addEventListener('click',()=>downloadFile('quality_project_control_respaldo_v4.json',JSON.stringify(data,null,2),'application/json'));
 }
-function login(){const email=document.getElementById('loginEmail').value.trim().toLowerCase(),password=document.getElementById('loginPassword').value;const user=data.users.find(u=>u.email.toLowerCase()===email&&u.password===password);if(!user){document.getElementById('loginError').innerHTML='<div class="login-error">Correo o contraseña incorrectos.</div>';return;}localStorage.setItem(SESSION_KEY,JSON.stringify({userId:user.id}));ui.view='home';render();}
+async function login(){
+  const email=document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password=document.getElementById('loginPassword').value;
+  const button=document.getElementById('loginBtn');
+  button.disabled=true;button.textContent='Entrando...';
+  const {data: authData,error}=await supabaseClient.auth.signInWithPassword({email,password});
+  if(error){
+    document.getElementById('loginError').innerHTML='<div class="login-error">Correo o contraseña incorrectos.</div>';
+    button.disabled=false;button.textContent='Entrar';return;
+  }
+  const profile=data.users.find(u=>u.authId===authData.user.id);
+  if(!profile){
+    await supabaseClient.auth.signOut();
+    document.getElementById('loginError').innerHTML='<div class="login-error">El usuario no tiene un perfil activo.</div>';
+    button.disabled=false;button.textContent='Entrar';return;
+  }
+  authenticatedUser=profile;ui.view='home';render();
+}
 function navigate(view){if(ui.view==='newRequest')captureRequestDraft();ui.view=view;if(!['detail','evaluate'].includes(view))ui.selectedId=null;render();closeDrawer();window.scrollTo({top:0});}
 function closeDrawer(){document.getElementById('sidebar')?.classList.remove('open');document.getElementById('overlay')?.classList.add('hidden');}
 async function filesToAttachments(fileLists){
@@ -470,4 +495,17 @@ function exportWeakPoints(){
   if(ui.reportMode!=='month'){toast('Los puntos débiles se generan para periodos mensuales.');return;}const records=evaluationRecords().filter(r=>periodMatches(r.completedDate,'month',ui.reportValue)),groups=groupRatings(records,'activity').filter(g=>g.average<g.objective),rows=[];groups.forEach(g=>weaknessStats(records,g.activity).forEach(s=>rows.push([ui.reportValue,g.activity,round1(g.average),g.objective,stageDisplay(s.stage),s.id,s.name,s.failed,s.evaluated,round1(s.frequency),s.pointsLost])));downloadCSV(`puntos_debiles_${ui.reportValue}.csv`,['Mes','Taller','Promedio mensual','Objetivo','Etapa','Código criterio','Punto débil','Fallos','Evaluaciones','Frecuencia (%)','Puntos perdidos acumulados'],rows);
 }
 function downloadCSV(filename,headers,rows){const csv='\ufeff'+[headers,...rows].map(r=>r.map(csvEscape).join(',')).join('\n');downloadFile(filename,csv);toast('Archivo generado');}
-render();
+async function bootstrap(){
+  document.getElementById('app').innerHTML='<div class="loading-screen">Conectando con Supabase...</div>';
+  try{
+    await loadRemoteData();
+    const {data: sessionData}=await supabaseClient.auth.getSession();
+    const authId=sessionData.session?.user?.id;
+    authenticatedUser=authId?data.users.find(u=>u.authId===authId)||null:null;
+    render();
+  }catch(error){
+    console.error(error);
+    document.getElementById('app').innerHTML='<div class="login-shell"><section class="login-panel"><div class="login-card"><h2>Error de conexión</h2><p>No se pudo conectar con Supabase. Verifica la tabla app_state y las políticas RLS.</p><pre style="white-space:pre-wrap">'+escapeHtml(error.message||String(error))+'</pre></div></section></div>';
+  }
+}
+bootstrap();
