@@ -301,3 +301,25 @@ a{color:inherit;text-decoration:none}
 .permission-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:9px 4px;border-bottom:1px solid #edf1f5;cursor:pointer}
 .permission-item:last-child{border-bottom:0}.permission-item input{width:18px;height:18px}.permission-item span{display:flex;flex-direction:column;min-width:0}.permission-item small{color:#64748b;margin-top:2px}.permission-origin{font-size:.72rem;font-style:normal;font-weight:800;border-radius:999px;padding:4px 7px;white-space:nowrap}.origin-role{background:#e9f1f7;color:#34546a}.origin-override{background:#fff1c7;color:#805b00}.permission-readonly{opacity:.7;cursor:not-allowed}.permission-it-callout{margin-bottom:12px;background:#e4f5ec;border:1px solid #b9e7cd;color:#12633a}.v80-save-row{position:sticky;bottom:0;background:#f8fafc;padding:12px 0 0;z-index:2}
 @media(max-width:850px){.permission-groups{grid-template-columns:1fr}.permission-panel-head{flex-direction:column}.permission-item{grid-template-columns:auto minmax(0,1fr)}.permission-origin{grid-column:2;justify-self:start}}
+
+/* MAIN V8.1 · Fase 2 */
+.p2-project-editor{display:grid;gap:18px}
+.p2-structure-editor{border-top:1px solid var(--border,#d7e0ea);padding-top:16px}
+.p2-section-head,.p2-row-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.p2-section-head h4,.p2-row-head strong{margin:0}
+.p2-section-head p{margin:4px 0 0;color:var(--muted,#667085)}
+.p2-block-list,.p2-level-list,.p2-area-list{display:grid;gap:12px}
+.p2-block{border:1px solid var(--border,#d7e0ea);border-radius:14px;padding:14px;background:#fff}
+.p2-level{border-left:4px solid #d10f32;background:#f8fafc;border-radius:10px;padding:12px;display:grid;gap:10px}
+.p2-area{display:grid;grid-template-columns:minmax(90px,.55fr) minmax(160px,1.2fr) minmax(130px,1fr) auto;gap:8px;align-items:center}
+.p2-area input{min-width:0}
+.p2-compact-grid{margin-top:10px}
+.btn-compact{padding:7px 10px;min-height:auto;font-size:13px}
+.p2-save-row{position:sticky;bottom:0;background:rgba(255,255,255,.96);padding:12px 0 2px;border-top:1px solid var(--border,#d7e0ea);z-index:2}
+.permission-it-callout{font-weight:700}
+@media(max-width:760px){
+  .p2-area{grid-template-columns:1fr}
+  .p2-area .btn{justify-self:start}
+  .p2-block,.p2-level{padding:10px}
+  .p2-save-row{position:static}
+}

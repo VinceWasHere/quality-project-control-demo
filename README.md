@@ -250,3 +250,82 @@ Esta versión inicia la refactorización estructural sin eliminar todavía las p
 - Conversión completa a módulos ES/Vite/TypeScript.
 - RLS granular en todos los módulos operativos.
 - Motor corporativo de exportaciones PDF.
+
+---
+
+## V8.1.0 · Fase 2 — Proyectos, ubicaciones, membresías y auditoría
+
+Fecha: 24 de julio de 2026.
+
+Esta fase migra la configuración de proyectos fuera del JSON compartido hacia tablas relacionales dedicadas. La información operativa restante continúa temporalmente en `app_state` hasta las fases posteriores.
+
+### Corrección crítica de Tecnología (IT)
+
+- Tecnología (IT) puede abrir **Usuarios y permisos** sin ser bloqueado por validaciones heredadas.
+- El acceso de IT se resuelve antes de ejecutar las guardas antiguas de navegación.
+- `user_has_permission_for()` devuelve siempre `true` para un perfil IT activo.
+- Todos los permisos actuales y futuros se vuelven a asignar automáticamente al rol IT al ejecutar la migración.
+- IT recibe membresía automática en todos los proyectos existentes y nuevos.
+
+### Proyectos relacionales
+
+Se agregan las tablas:
+
+- `qpc_projects`
+- `qpc_project_blocks`
+- `qpc_project_levels`
+- `qpc_project_areas`
+
+Las tablas utilizan los identificadores existentes (`LCE`, `VC`, etc.) para no romper las referencias todavía almacenadas en `app_state`.
+
+### Administración de proyectos
+
+- Crear proyectos con nombre completo, ID interno y abreviatura.
+- Modificar descripción y zona horaria.
+- Archivar y restaurar sin borrar físicamente.
+- Crear, modificar y retirar bloques.
+- Crear, modificar y retirar niveles.
+- Crear, modificar y retirar áreas.
+- Edición contextual debajo de la fila seleccionada.
+- Guardado atómico mediante la Edge Function `admin-project-management`.
+- Auditoría de creación, modificación, archivo y restauración.
+
+### Interconexión
+
+- El selector general de proyecto usa los proyectos relacionales accesibles para el usuario.
+- Las asignaciones se leen desde `project_members`.
+- Los usuarios IT ven todos los proyectos.
+- Los usuarios comunes solo ven proyectos asignados, salvo que tengan `projects.view_all`.
+- La estructura queda disponible mediante `qpcGetProjectStructure()` y `qpcGetLocationPath()` para las próximas migraciones de inspecciones, equipos y mapeos.
+
+### Auditoría
+
+- Nueva vista **Auditoría** para usuarios con `audit.view`.
+- Muestra las últimas 250 acciones visibles del proyecto seleccionado.
+- Respeta RLS y acceso por proyecto.
+
+### Migración desde app_state
+
+La migración intenta importar automáticamente:
+
+- proyectos;
+- bloques;
+- niveles;
+- áreas.
+
+No elimina ni modifica el JSON original. `app_state` se mantiene como respaldo durante la transición.
+
+### Despliegue requerido
+
+1. Ejecutar `supabase/migrations/20260724_002_projects_locations_and_it_access.sql` en Supabase SQL Editor.
+2. Crear la Edge Function `admin-project-management` con `supabase/functions/admin-project-management/index.ts`.
+3. Volver a desplegar `admin-user-management` con la versión incluida; ahora valida proyectos relacionales y asigna automáticamente todos los proyectos a IT.
+4. Configurar ambas funciones con `verify_jwt = false`; el código valida explícitamente el token de sesión.
+5. Subir esta carpeta al branch `main` y esperar el despliegue de Vercel.
+
+### Alcance que continúa pendiente
+
+- Las inspecciones, visitas y respuestas siguen en `app_state`.
+- Equipos, instructivos y mapeos aún deben migrarse a tablas relacionales.
+- Los dropdowns estructurados se conectarán a cada formulario operativo durante sus respectivas fases.
+- El bundle continúa siendo único y determinista, pero la conversión final a Vite/TypeScript modular permanece pendiente.

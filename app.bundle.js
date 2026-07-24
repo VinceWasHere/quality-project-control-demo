@@ -2561,3 +2561,312 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     }
   },true);
 })();
+
+/* Quality Project Control MAIN V8.1 · Fase 2
+   Proyectos relacionales, bloques/niveles/áreas, auditoría y corrección definitiva
+   del acceso de Tecnología (IT) a Usuarios y permisos.
+*/
+(function(){
+  'use strict';
+  const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL && typeof supabaseClient!=='undefined');
+  if(!MAIN_MODE)return;
+
+  const phase2={loaded:false,loading:null,audit:[],auditLoaded:false,auditLoading:null};
+  const list=value=>Array.isArray(value)?value:[];
+  const text=value=>String(value??'').trim();
+  const deepClone=value=>JSON.parse(JSON.stringify(value));
+  const has=(user,permission)=>Boolean(user&&(user.role==='IT'||window.qpcHasPermission?.(user,permission)));
+  const projectPermission=user=>Boolean(user&&(user.role==='IT'||has(user,'projects.view_all')||has(user,'projects.view_assigned')||has(user,'projects.create')||has(user,'projects.edit')||has(user,'projects.structure.manage')));
+  const currentActor=()=>typeof currentUser==='function'?currentUser():null;
+  window.qpcPhase2=phase2;
+
+  function normalizeNestedProject(project){
+    return {
+      id:text(project.id).toUpperCase(),
+      name:text(project.name)||text(project.id),
+      shortCode:text(project.shortCode||project.short_code||project.id).toUpperCase(),
+      description:text(project.description),
+      timezone:text(project.timezone)||'America/Santo_Domingo',
+      isActive:project.isActive!==false&&project.is_active!==false,
+      blocks:list(project.blocks).map((block,blockIndex)=>({
+        dbId:block.dbId||block.db_id||null,
+        id:text(block.id||block.code||`B${blockIndex+1}`).toUpperCase(),
+        code:text(block.code||block.id||`B${blockIndex+1}`).toUpperCase(),
+        name:text(block.name)||`Bloque ${text(block.code||block.id||blockIndex+1)}`,
+        sortOrder:Number(block.sortOrder??block.sort_order??((blockIndex+1)*10)),
+        isActive:block.isActive!==false&&block.is_active!==false,
+        levels:list(block.levels).map((level,levelIndex)=>({
+          dbId:level.dbId||level.db_id||null,
+          id:text(level.id||level.code||`N${String(levelIndex+1).padStart(2,'0')}`).toUpperCase(),
+          code:text(level.code||level.id||`N${String(levelIndex+1).padStart(2,'0')}`).toUpperCase(),
+          name:text(level.name)||`Nivel ${String(levelIndex+1).padStart(2,'0')}`,
+          sortOrder:Number(level.sortOrder??level.sort_order??((levelIndex+1)*10)),
+          isActive:level.isActive!==false&&level.is_active!==false,
+          areas:list(level.areas).map((area,areaIndex)=>({
+            dbId:area.dbId||area.db_id||null,
+            id:text(area.id||area.code||`A${areaIndex+1}`).toUpperCase(),
+            code:text(area.code||area.id||`A${areaIndex+1}`).toUpperCase(),
+            name:text(area.name)||`Área ${areaIndex+1}`,
+            areaType:text(area.areaType||area.area_type),
+            sortOrder:Number(area.sortOrder??area.sort_order??((areaIndex+1)*10)),
+            isActive:area.isActive!==false&&area.is_active!==false,
+          }))
+        }))
+      }))
+    };
+  }
+
+  async function loadProjectsV81(force=false){
+    if(phase2.loaded&&!force)return data.projects;
+    if(phase2.loading&&!force)return phase2.loading;
+    phase2.loading=(async()=>{
+      const {data:projectRows,error:projectError}=await supabaseClient.rpc('qpc_projects_for_current_user');
+      if(projectError)throw projectError;
+      const projects=list(projectRows).map(normalizeNestedProject);
+      if(projects.length)data.projects=projects;
+      data.version='8.1';
+
+      const actor=currentActor();
+      const {data:memberRows,error:memberError}=await supabaseClient.from('project_members').select('project_id,user_id,is_active').eq('is_active',true);
+      if(memberError)throw memberError;
+      const memberMap=new Map();
+      list(memberRows).forEach(row=>{
+        if(!memberMap.has(row.user_id))memberMap.set(row.user_id,[]);
+        memberMap.get(row.user_id).push(row.project_id);
+      });
+      list(data.users).forEach(user=>{
+        const ids=memberMap.get(user.authId||user.id);
+        if(ids)user.projectIds=ids;
+        if(user.role==='IT')user.projectIds=list(data.projects).map(project=>project.id);
+      });
+      if(actor?.role==='IT')actor.projectIds=list(data.projects).map(project=>project.id);
+
+      const available=list(data.projects).filter(project=>project.isActive!==false);
+      const allowedIds=new Set(actor?.role==='IT'?available.map(project=>project.id):list(actor?.projectIds));
+      const selected=typeof projectId==='function'?projectId():null;
+      if(!selected||(!allowedIds.has(selected)&&actor?.role!=='IT')){
+        const first=available.find(project=>actor?.role==='IT'||allowedIds.has(project.id))||available[0];
+        if(first)ui.projectId=first.id;
+      }
+      phase2.loaded=true;
+      phase2.loading=null;
+      return data.projects;
+    })().catch(error=>{phase2.loading=null;console.error('No se cargaron los proyectos relacionales',error);throw error;});
+    return phase2.loading;
+  }
+  window.qpcLoadProjects=loadProjectsV81;
+  window.qpcGetProjectStructure=id=>list(data.projects).find(project=>project.id===id)||null;
+  window.qpcGetLocationPath=(projectIdValue,blockCode,levelCode,areaCode)=>{
+    const project=window.qpcGetProjectStructure(projectIdValue);
+    const block=list(project?.blocks).find(item=>item.id===blockCode||item.code===blockCode);
+    const level=list(block?.levels).find(item=>item.id===levelCode||item.code===levelCode||item.name===levelCode);
+    const area=list(level?.areas).find(item=>item.id===areaCode||item.code===areaCode||item.name===areaCode);
+    return {project,block,level,area,label:[block?.name,level?.name,area?.name].filter(Boolean).join(' · ')};
+  };
+
+  const previousLoadRemoteData=window.loadRemoteData;
+  window.loadRemoteData=async function(){
+    await previousLoadRemoteData();
+    try{await loadProjectsV81(true);}catch(error){toast(`No se cargó la estructura de proyectos: ${error.message}`);}
+  };
+
+  // Acceso: IT se evalúa antes de cualquier guardia heredada. Esto evita que una
+  // envoltura antigua vuelva a bloquear Usuarios y permisos.
+  window.qpcCanManageUsers=user=>Boolean(user&&(user.role==='IT'||has(user,'users.view')));
+  window.qpcCanCreateProject=user=>Boolean(user&&(user.role==='IT'||has(user,'projects.create')));
+
+  const previousRenderView=window.renderView;
+  window.renderView=function(user){
+    if(ui.view==='users')return window.qpcCanManageUsers(user)?window.renderUsers(user):noAccess();
+    if(ui.view==='projects')return projectPermission(user)?window.renderProjects(user):noAccess();
+    if(ui.view==='audit')return has(user,'audit.view')?renderAuditV81(user):noAccess();
+    return previousRenderView(user);
+  };
+
+  const previousNavItems=window.navItems;
+  window.navItems=function(user){
+    let items=list(previousNavItems(user)).filter((item,index,array)=>array.findIndex(other=>other[0]===item[0])===index);
+    const ensure=(item)=>{if(!items.some(existing=>existing[0]===item[0]))items.push(item);};
+    if(user?.role==='IT'){
+      ensure(['users','⚙','Usuarios y permisos']);
+      ensure(['projects','▣','Proyectos']);
+      ensure(['audit','◉','Auditoría']);
+    }else{
+      if(has(user,'users.view'))ensure(['users','⚙','Usuarios y permisos']);
+      if(projectPermission(user))ensure(['projects','▣','Proyectos']);
+      if(has(user,'audit.view'))ensure(['audit','◉','Auditoría']);
+    }
+    return items;
+  };
+
+  const previousViewTitle=window.viewTitle;
+  window.viewTitle=function(){
+    if(ui.view==='audit')return 'Auditoría';
+    if(ui.view==='projects')return 'Proyectos';
+    return previousViewTitle();
+  };
+
+  function defaultProjectDraft(){
+    return {id:'',name:'',shortCode:'',description:'',timezone:'America/Santo_Domingo',isActive:true,blocks:[]};
+  }
+  function selectedProjectRecord(){return list(data.projects).find(project=>project.id===ui.projectSelectedId)||null;}
+  function ensureProjectDraft(){
+    const source=ui.projectSelectedId==='__NEW__'?null:selectedProjectRecord();
+    if(!ui.projectDraft||ui.projectDraftSource!==ui.projectSelectedId){
+      ui.projectDraft=source?deepClone(source):defaultProjectDraft();
+      ui.projectDraftSource=ui.projectSelectedId;
+    }
+    return ui.projectDraft;
+  }
+  function cleanCode(value,fallback=''){
+    return text(value||fallback).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().replace(/[^A-Z0-9_-]+/g,'_').replace(/^_+|_+$/g,'').slice(0,20);
+  }
+  function newBlock(index){return {id:`B${index+1}`,code:`B${index+1}`,name:`Bloque ${index+1}`,sortOrder:(index+1)*10,isActive:true,levels:[]};}
+  function newLevel(index){return {id:`N${String(index+1).padStart(2,'0')}`,code:`N${String(index+1).padStart(2,'0')}`,name:`Nivel ${String(index+1).padStart(2,'0')}`,sortOrder:(index+1)*10,isActive:true,areas:[]};}
+  function newArea(index){return {id:`A${index+1}`,code:`A${index+1}`,name:`Área ${index+1}`,areaType:'',sortOrder:(index+1)*10,isActive:true};}
+
+  function syncProjectDraftFromDom(){
+    if(!ui.projectDraft)return;
+    const draft=ui.projectDraft;
+    const value=id=>document.getElementById(id)?.value;
+    draft.id=cleanCode(value('p2ProjectId'),draft.id);
+    draft.name=text(value('p2ProjectName'));
+    draft.shortCode=cleanCode(value('p2ProjectShort'),draft.shortCode||draft.id);
+    draft.description=text(value('p2ProjectDescription'));
+    draft.timezone=text(value('p2ProjectTimezone'))||'America/Santo_Domingo';
+    draft.isActive=document.getElementById('p2ProjectActive')?.checked!==false;
+    draft.blocks=[...document.querySelectorAll('[data-p2-block-index]')].map((blockNode,blockIndex)=>{
+      const codeInput=blockNode.querySelector('[data-p2-block-code]');
+      const nameInput=blockNode.querySelector('[data-p2-block-name]');
+      return {
+        ...(draft.blocks[blockIndex]||newBlock(blockIndex)),
+        id:cleanCode(codeInput?.value,`B${blockIndex+1}`),
+        code:cleanCode(codeInput?.value,`B${blockIndex+1}`),
+        name:text(nameInput?.value)||`Bloque ${blockIndex+1}`,
+        sortOrder:(blockIndex+1)*10,
+        isActive:true,
+        levels:[...blockNode.querySelectorAll('[data-p2-level-index]')].map((levelNode,levelIndex)=>{
+          const previous=draft.blocks[blockIndex]?.levels?.[levelIndex]||newLevel(levelIndex);
+          const levelCode=levelNode.querySelector('[data-p2-level-code]')?.value;
+          const levelName=levelNode.querySelector('[data-p2-level-name]')?.value;
+          return {
+            ...previous,
+            id:cleanCode(levelCode,`N${String(levelIndex+1).padStart(2,'0')}`),
+            code:cleanCode(levelCode,`N${String(levelIndex+1).padStart(2,'0')}`),
+            name:text(levelName)||`Nivel ${String(levelIndex+1).padStart(2,'0')}`,
+            sortOrder:(levelIndex+1)*10,
+            isActive:true,
+            areas:[...levelNode.querySelectorAll('[data-p2-area-index]')].map((areaNode,areaIndex)=>{
+              const prior=previous.areas?.[areaIndex]||newArea(areaIndex);
+              const areaCode=areaNode.querySelector('[data-p2-area-code]')?.value;
+              return {
+                ...prior,
+                id:cleanCode(areaCode,`A${areaIndex+1}`),
+                code:cleanCode(areaCode,`A${areaIndex+1}`),
+                name:text(areaNode.querySelector('[data-p2-area-name]')?.value)||`Área ${areaIndex+1}`,
+                areaType:text(areaNode.querySelector('[data-p2-area-type]')?.value),
+                sortOrder:(areaIndex+1)*10,
+                isActive:true,
+              };
+            })
+          };
+        })
+      };
+    });
+  }
+
+  function structureEditorV81(draft,canStructure){
+    if(!canStructure)return `<div class="callout">No tiene permiso para modificar bloques, niveles y áreas.</div>`;
+    return `<section class="p2-structure-editor"><div class="p2-section-head"><div><h4>Estructura del proyecto</h4><p>Configure bloques, niveles y áreas. Los códigos alimentarán los dropdowns y reportes.</p></div><button type="button" id="p2AddBlock" class="btn btn-outline">＋ Bloque</button></div><div class="p2-block-list">${list(draft.blocks).map((block,blockIndex)=>`<article class="p2-block" data-p2-block-index="${blockIndex}"><div class="p2-row-head"><strong>Bloque ${blockIndex+1}</strong><button type="button" class="btn btn-danger btn-compact" data-p2-remove-block="${blockIndex}">Quitar</button></div><div class="form-grid p2-compact-grid"><div class="field"><label>Código</label><input data-p2-block-code value="${escapeHtml(block.code||block.id||'')}"></div><div class="field"><label>Nombre</label><input data-p2-block-name value="${escapeHtml(block.name||'')}"></div></div><div class="p2-level-list">${list(block.levels).map((level,levelIndex)=>`<section class="p2-level" data-p2-level-index="${levelIndex}"><div class="p2-row-head"><span>Nivel ${levelIndex+1}</span><button type="button" class="btn btn-danger btn-compact" data-p2-remove-level="${blockIndex}:${levelIndex}">Quitar</button></div><div class="form-grid p2-compact-grid"><div class="field"><label>Código</label><input data-p2-level-code value="${escapeHtml(level.code||level.id||'')}"></div><div class="field"><label>Nombre</label><input data-p2-level-name value="${escapeHtml(level.name||'')}"></div></div><div class="p2-area-list">${list(level.areas).map((area,areaIndex)=>`<div class="p2-area" data-p2-area-index="${areaIndex}"><input data-p2-area-code aria-label="Código de área" value="${escapeHtml(area.code||area.id||'')}"><input data-p2-area-name aria-label="Nombre de área" value="${escapeHtml(area.name||'')}"><input data-p2-area-type aria-label="Tipo de área" placeholder="Tipo opcional" value="${escapeHtml(area.areaType||'')}"><button type="button" class="btn btn-danger btn-compact" data-p2-remove-area="${blockIndex}:${levelIndex}:${areaIndex}">Quitar</button></div>`).join('')}</div><button type="button" class="btn btn-outline btn-compact" data-p2-add-area="${blockIndex}:${levelIndex}">＋ Área</button></section>`).join('')}</div><button type="button" class="btn btn-outline btn-compact" data-p2-add-level="${blockIndex}">＋ Nivel</button></article>`).join('')}</div>${!draft.blocks.length?'<div class="empty">Todavía no hay bloques configurados.</div>':''}</section>`;
+  }
+
+  function projectEditorV81(project){
+    const actor=currentActor();
+    const draft=ensureProjectDraft();
+    const editing=Boolean(project);
+    const canEdit=actor?.role==='IT'||has(actor,editing?'projects.edit':'projects.create');
+    const canStructure=actor?.role==='IT'||has(actor,'projects.structure.manage');
+    const canArchive=actor?.role==='IT'||has(actor,'projects.archive');
+    return `<div class="inline-editor p2-project-editor"><h3>${editing?`Editar ${escapeHtml(project.name)}`:'Crear proyecto'}</h3><div class="form-grid"><div class="field"><label>ID interno</label><input id="p2ProjectId" value="${escapeHtml(draft.id||'')}" placeholder="LCE" ${editing?'readonly':''}></div><div class="field"><label>Nombre completo</label><input id="p2ProjectName" value="${escapeHtml(draft.name||'')}" placeholder="Lopesan La Ceiba"></div><div class="field"><label>Abreviatura para códigos</label><input id="p2ProjectShort" value="${escapeHtml(draft.shortCode||'')}" placeholder="LLC"></div><div class="field"><label>Zona horaria</label><input id="p2ProjectTimezone" value="${escapeHtml(draft.timezone||'America/Santo_Domingo')}"></div><div class="field full"><label>Descripción</label><textarea id="p2ProjectDescription" rows="2">${escapeHtml(draft.description||'')}</textarea></div><div class="field full"><label class="check-row"><input id="p2ProjectActive" type="checkbox" ${draft.isActive===false?'':'checked'} ${canArchive?'':'disabled'}><span>Proyecto activo</span></label></div></div>${structureEditorV81(draft,canStructure)}<div class="button-row p2-save-row"><button type="button" id="p2SaveProject" class="btn btn-primary" ${canEdit?'':'disabled'}>${editing?'Guardar cambios':'Crear proyecto'}</button>${editing&&canArchive?`<button type="button" id="p2ToggleProject" class="btn ${project.isActive===false?'btn-success':'btn-danger'}">${project.isActive===false?'Restaurar':'Archivar'}</button>`:''}<button type="button" id="p2CancelProject" class="btn btn-secondary">Cancelar</button></div></div>`;
+  }
+
+  window.renderProjects=function(user){
+    if(!projectPermission(user))return noAccess();
+    if(!phase2.loaded&&!phase2.loading)loadProjectsV81().then(()=>render()).catch(error=>toast(error.message));
+    const projects=list(data.projects).slice().sort((a,b)=>a.name.localeCompare(b.name,'es'));
+    const canCreate=user.role==='IT'||has(user,'projects.create');
+    return `<div class="page-head"><div><h2>Proyectos y ubicaciones</h2><p>La estructura relacional alimenta bloques, niveles y áreas en toda la plataforma.</p></div>${canCreate?'<button type="button" id="p2AddProject" class="btn btn-primary">＋ Crear proyecto</button>':''}</div><div class="table-wrap"><table><thead><tr><th>Proyecto</th><th>Abreviatura</th><th>ID</th><th>Bloques</th><th>Niveles</th><th>Áreas</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${ui.projectSelectedId==='__NEW__'?`<tr class="inline-edit-table-row"><td colspan="8">${projectEditorV81(null)}</td></tr>`:''}${projects.map(project=>{const levels=list(project.blocks).reduce((sum,block)=>sum+list(block.levels).length,0);const areas=list(project.blocks).reduce((sum,block)=>sum+list(block.levels).reduce((inner,level)=>inner+list(level.areas).length,0),0);const canEdit=user.role==='IT'||has(user,'projects.edit')||has(user,'projects.structure.manage');return `<tr><td><strong>${escapeHtml(project.name)}</strong><br><span class="helper">${escapeHtml(project.description||'')}</span></td><td>${escapeHtml(project.shortCode)}</td><td>${escapeHtml(project.id)}</td><td>${list(project.blocks).length}</td><td>${levels}</td><td>${areas}</td><td><span class="badge ${project.isActive===false?'badge-gray':'badge-green'}">${project.isActive===false?'Archivado':'Activo'}</span></td><td>${canEdit?`<button type="button" class="btn btn-outline" data-p2-edit-project="${escapeHtml(project.id)}">Editar</button>`:'—'}</td></tr>${ui.projectSelectedId===project.id?`<tr class="inline-edit-table-row"><td colspan="8">${projectEditorV81(project)}</td></tr>`:''}`;}).join('')}</tbody></table></div>`;
+  };
+
+  async function invokeProjectAdmin(payload){
+    const {data:result,error}=await supabaseClient.functions.invoke('admin-project-management',{body:payload});
+    if(error){
+      let detail=error.message||'La Edge Function devolvió un error.';
+      try{const response=error.context?.clone?error.context.clone():null;if(response){const json=await response.json();detail=`${json.error||detail}${json.stage?` [${json.stage}]`:''}`;}}catch(_ignored){}
+      throw new Error(detail);
+    }
+    if(result?.error)throw new Error(`${result.error}${result.stage?` [${result.stage}]`:''}`);
+    return result;
+  }
+
+  async function saveProjectV81(){
+    syncProjectDraftFromDom();
+    const draft=ui.projectDraft;
+    if(!draft?.id||!draft?.name||!draft?.shortCode){toast('Complete ID, nombre y abreviatura.');return;}
+    const button=document.getElementById('p2SaveProject');
+    try{
+      if(button){button.disabled=true;button.textContent='Guardando…';}
+      await invokeProjectAdmin({action:'upsert_project',project:{id:draft.id,name:draft.name,short_code:draft.shortCode,description:draft.description,timezone:draft.timezone,is_active:draft.isActive},blocks:draft.blocks,replace_structure:true});
+      await loadProjectsV81(true);
+      ui.projectSelectedId=null;ui.projectDraft=null;ui.projectDraftSource=null;
+      toast('Proyecto y estructura guardados');render();
+    }catch(error){console.error(error);toast(`No se pudo guardar el proyecto: ${error.message}`);}finally{if(button){button.disabled=false;button.textContent='Guardar proyecto';}}
+  }
+
+  async function toggleProjectV81(){
+    const project=selectedProjectRecord();if(!project)return;
+    try{
+      await invokeProjectAdmin({action:project.isActive===false?'restore_project':'archive_project',project_id:project.id});
+      await loadProjectsV81(true);ui.projectSelectedId=null;ui.projectDraft=null;ui.projectDraftSource=null;toast(project.isActive===false?'Proyecto restaurado':'Proyecto archivado');render();
+    }catch(error){console.error(error);toast(`No se pudo cambiar el estado: ${error.message}`);}
+  }
+
+  function rerenderProjectAtCurrentPosition(){const y=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo({top:y,behavior:'auto'}));}
+  function mutateDraft(mutator){syncProjectDraftFromDom();mutator(ensureProjectDraft());rerenderProjectAtCurrentPosition();}
+
+  async function loadAuditV81(force=false){
+    if(phase2.auditLoaded&&!force)return phase2.audit;
+    if(phase2.auditLoading&&!force)return phase2.auditLoading;
+    phase2.auditLoading=(async()=>{
+      const {data:rows,error}=await supabaseClient.from('audit_logs').select('id,project_id,actor_id,action,entity_type,entity_id,previous_data,new_data,created_at').order('created_at',{ascending:false}).limit(250);
+      if(error)throw error;
+      phase2.audit=list(rows);phase2.auditLoaded=true;phase2.auditLoading=null;return phase2.audit;
+    })().catch(error=>{phase2.auditLoading=null;throw error;});
+    return phase2.auditLoading;
+  }
+
+  function renderAuditV81(user){
+    if(!has(user,'audit.view'))return noAccess();
+    if(!phase2.auditLoaded&&!phase2.auditLoading)loadAuditV81().then(()=>render()).catch(error=>toast(`No se cargó la auditoría: ${error.message}`));
+    const activeProject=typeof projectId==='function'?projectId():null;
+    const rows=list(phase2.audit).filter(row=>!activeProject||!row.project_id||row.project_id===activeProject);
+    return `<div class="page-head"><div><h2>Auditoría</h2><p>Últimas 250 acciones visibles para el proyecto seleccionado.</p></div><button type="button" id="p2RefreshAudit" class="btn btn-outline">Actualizar</button></div>${phase2.auditLoading?'<div class="card">Cargando auditoría…</div>':`<div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th><th>ID</th><th>Proyecto</th></tr></thead><tbody>${rows.map(row=>{const actor=list(data.users).find(item=>(item.authId||item.id)===row.actor_id);return `<tr><td>${escapeHtml(new Date(row.created_at).toLocaleString('es-DO'))}</td><td>${escapeHtml(actor?.name||actor?.email||row.actor_id||'Sistema')}</td><td><strong>${escapeHtml(row.action)}</strong></td><td>${escapeHtml(row.entity_type)}</td><td>${escapeHtml(row.entity_id||'—')}</td><td>${escapeHtml(list(data.projects).find(project=>project.id===row.project_id)?.name||row.project_id||'Global')}</td></tr>`;}).join('')}</tbody></table></div><div class="helper">${rows.length} registros visibles.</div>`}`;
+  }
+
+  document.addEventListener('click',async event=>{
+    const button=event.target.closest('button');if(!button)return;
+    const stop=()=>{event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();};
+    if(button.id==='p2AddProject'){stop();ui.projectSelectedId='__NEW__';ui.projectDraft=null;ui.projectDraftSource=null;rerenderProjectAtCurrentPosition();return;}
+    if(button.matches('[data-p2-edit-project]')){stop();ui.projectSelectedId=button.dataset.p2EditProject;ui.projectDraft=null;ui.projectDraftSource=null;rerenderProjectAtCurrentPosition();return;}
+    if(button.id==='p2CancelProject'){stop();ui.projectSelectedId=null;ui.projectDraft=null;ui.projectDraftSource=null;rerenderProjectAtCurrentPosition();return;}
+    if(button.id==='p2SaveProject'){stop();await saveProjectV81();return;}
+    if(button.id==='p2ToggleProject'){stop();await toggleProjectV81();return;}
+    if(button.id==='p2AddBlock'){stop();mutateDraft(draft=>draft.blocks.push(newBlock(draft.blocks.length)));return;}
+    if(button.matches('[data-p2-remove-block]')){stop();const index=Number(button.dataset.p2RemoveBlock);mutateDraft(draft=>draft.blocks.splice(index,1));return;}
+    if(button.matches('[data-p2-add-level]')){stop();const blockIndex=Number(button.dataset.p2AddLevel);mutateDraft(draft=>draft.blocks[blockIndex]?.levels.push(newLevel(draft.blocks[blockIndex].levels.length)));return;}
+    if(button.matches('[data-p2-remove-level]')){stop();const [blockIndex,levelIndex]=button.dataset.p2RemoveLevel.split(':').map(Number);mutateDraft(draft=>draft.blocks[blockIndex]?.levels.splice(levelIndex,1));return;}
+    if(button.matches('[data-p2-add-area]')){stop();const [blockIndex,levelIndex]=button.dataset.p2AddArea.split(':').map(Number);mutateDraft(draft=>{const areas=draft.blocks[blockIndex]?.levels[levelIndex]?.areas;if(areas)areas.push(newArea(areas.length));});return;}
+    if(button.matches('[data-p2-remove-area]')){stop();const [blockIndex,levelIndex,areaIndex]=button.dataset.p2RemoveArea.split(':').map(Number);mutateDraft(draft=>draft.blocks[blockIndex]?.levels[levelIndex]?.areas.splice(areaIndex,1));return;}
+    if(button.id==='p2RefreshAudit'){stop();phase2.auditLoaded=false;await loadAuditV81(true);render();return;}
+  },true);
+})();
