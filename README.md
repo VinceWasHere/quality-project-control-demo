@@ -54,3 +54,43 @@ Este README conserva el historial de la rama y debe continuar ampliándose en ca
 - V6.8: responsive móvil.
 - V6.7: demo estática con adjuntos locales.
 - V6.6: adjuntos visibles para Calidad.
+
+---
+
+# Versión 7.2 — 24 de julio de 2026
+
+## Rama DEMO-GITHUB — estática
+
+### Cambios equivalentes a MAIN
+
+- Edición contextual de equipos, usuarios, proyectos, instructivos y mapeos sin saltar al inicio de la página.
+- Barra horizontal superior sincronizada para todas las tablas anchas.
+- Selector de cantidad de equipos: 50, 100, 250, 500 o todos.
+- Combobox propio de correos en el login, con búsqueda y apariencia consistente en PC, Android e iPhone.
+- Nota de cuentas `.demo` con contraseña `1234`.
+- Imagen de perfil persistente en almacenamiento local y visible en perfil, cabecera y menú lateral.
+- CRUD completo de proyectos con bloques, niveles y áreas.
+- CRUD de mapeos con código automático, eliminación, sustitución de duplicados y edición junto a la tarjeta.
+- Edición contextual de instructivos conservando el versionado inteligente V7.1.
+- Actualización de equipos existentes cuando se reutiliza un ID.
+
+### Rol Tecnología
+
+Se incorpora el usuario estático:
+
+- Correo: `tecnologia@codelpa.demo`
+- Contraseña: `1234`
+- Rol: Tecnología (IT)
+- Permisos: acceso total.
+
+### Matriz de administración
+
+- Calidad administra Ejecución.
+- Gerente de Calidad administra Calidad y Ejecución.
+- Gerente de Proyecto administra Gerentes de Proyecto, Gerentes de Calidad, Calidad y Ejecución.
+- Presidente e IT administran cualquier rol.
+
+### Persistencia
+
+Esta rama no utiliza Supabase. Usuarios, proyectos, mapeos, imágenes ligeras y demás cambios se almacenan localmente en el navegador.
+

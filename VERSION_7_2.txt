@@ -1,0 +1,3 @@
+Quality Project Control DEMO-GITHUB V7.2
+Versión estática sin Supabase
+Fecha: 2026-07-24
