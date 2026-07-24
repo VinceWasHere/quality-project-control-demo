@@ -1,5 +1,29 @@
 # Quality Project Control — MAIN
 
+## Versión 7.1
+
+Rama principal conectada a Supabase. V7.1 corrige y optimiza la biblioteca de instructivos sin eliminar el historial anterior.
+
+### Cambios V7.1
+
+- Las tarjetas de instructivos se ordenan siempre alfabéticamente por nombre; dentro del mismo nombre/código se muestra primero la versión más alta.
+- Versionado inteligente: al registrar `IT-CP-04 V09`, la `V09` queda como **Vigente** y la `V08` pasa automáticamente a **Obsoleto**.
+- El archivo y la vigencia se muestran como estados separados: **Disponible / Pendiente de cargar** y **Vigente / Obsoleto**.
+- La creación de una versión nueva ya no sobrescribe la versión anterior.
+- Se corrige la eliminación: los registros cargados se borran realmente; las referencias iniciales pueden ocultarse sin reaparecer después de sincronizar.
+- Se elimina el uso de archivos Base64 completos dentro de atributos HTML, reduciendo drásticamente el tiempo de los clics en **Visualizar** y **Borrar**.
+- Los instructivos nuevos se almacenan en Supabase Storage; los Base64 heredados se migran en segundo plano cuando sea posible.
+- Se reemplaza el `confirm()` bloqueante por una confirmación interna no bloqueante.
+- La persistencia se difiere hasta después del repintado para evitar alertas de interacción lenta de Chrome.
+- La edición utiliza controles propios de V7.1 y no activa los manejadores antiguos que enviaban la página al inicio.
+- Se incluye `SUPABASE_V7_1_DOCUMENT_STORAGE.sql` para ampliar formatos admitidos y permitir a Calidad retirar archivos de Storage.
+
+### SQL requerido V7.1
+
+Ejecutar `SUPABASE_V7_1_DOCUMENT_STORAGE.sql` en Supabase SQL Editor antes de cargar Word, Excel o PowerPoint. Para PDF e imágenes, el bucket existente continúa funcionando.
+
+---
+
 ## Versión 7.0
 
 Rama principal conectada a Supabase. Esta versión parte de V6.14 y agrega un refactor incremental para administración real de usuarios, proyectos, documentos, equipos, mapeos, exportaciones y flujo de inspecciones.
