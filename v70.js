@@ -257,7 +257,6 @@
     window.login=function(){ const email=document.getElementById('loginEmail').value.trim().toLowerCase(),password=document.getElementById('loginPassword').value; const user=data.users.find(u=>String(u.email).toLowerCase()===email&&String(u.password||DEMO_PASSWORD)===password&&u.isActive!==false); if(!user){document.getElementById('loginError').innerHTML='<div class="login-error">Correo o contraseña incorrectos.</div>';return;} localStorage.setItem(SESSION_KEY,JSON.stringify({userId:user.id})); ui.view='home'; render(); };
   }
 
-  // Ejecutar arranque controlado.
-  if(IS_MAIN){ if(typeof window.qpcBootstrapV613==='function') window.qpcBootstrapV700(); }
-  else { qpcNormalizeState(); loadLoginDirectory(); render(); }
+  // MAIN se inicia al final de v72.js para evitar carreras entre módulos.
+  if(!IS_MAIN){ qpcNormalizeState(); loadLoginDirectory(); render(); }
 })();
