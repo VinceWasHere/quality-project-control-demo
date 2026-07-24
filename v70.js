@@ -27,14 +27,14 @@
   function allProjects(){ return data?.projects?.length ? ensureProjects() : PROJECT_DEFAULTS; }
   window.projectInfo = function(){ const id=projectId(); return allProjects().find(p=>p.id===id) || allProjects()[0] || PROJECT_DEFAULTS[0]; };
   window.projectOptions = function(user){
-    const allowed = arr(user?.projectIds); const projects = allProjects().filter(p=>p.isActive!==false && (!allowed.length || allowed.includes(p.id) || ['PRESIDENTE','GERENCIA','COORDINADOR_CALIDAD','CALIDAD'].includes(user?.role)));
+    const allowed = arr(user?.projectIds); const projects = allProjects().filter(p=>p.isActive!==false && (!allowed.length || allowed.includes(p.id) || ['PRESIDENTE','GERENCIA','COORDINADOR_CALIDAD','CALIDAD','IT'].includes(user?.role)));
     return projects.map(p=>`<option value="${escapeHtml(p.id)}" ${projectId()===p.id?'selected':''}>${escapeHtml(p.name)}</option>`).join('');
   };
   window.projectDocuments = function(){ return [...INSTRUCTIVOS, ...arr(data?.customDocuments)].filter(d=>!d.projectId||d.projectId===projectId()); };
   window.projectMappings = function(){ const base=(projectId()==='LCE'?MAPEOS:[]).map(m=>({...m,projectId:'LCE'})); return [...base, ...arr(data?.customMappings).filter(m=>(m.projectId||'LCE')===projectId())]; };
   window.mappingById = function(id){ return [...MAPEOS, ...arr(data?.customMappings)].find(m=>m.id===id); };
-  window.qpcCanManageUsers = function(user){ return ['COORDINADOR_CALIDAD','GERENCIA','PRESIDENTE'].includes(user?.role); };
-  window.qpcCanCreateProject = function(user){ return ['CALIDAD','COORDINADOR_CALIDAD','GERENCIA','PRESIDENTE'].includes(user?.role); };
+  window.qpcCanManageUsers = function(user){ return ['COORDINADOR_CALIDAD','GERENCIA','PRESIDENTE','IT'].includes(user?.role); };
+  window.qpcCanCreateProject = function(user){ return ['CALIDAD','COORDINADOR_CALIDAD','GERENCIA','PRESIDENTE','IT'].includes(user?.role); };
 
   const priorNormalize = window.qpcNormalizeState;
   window.qpcNormalizeState = function(){

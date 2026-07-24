@@ -1,4 +1,4 @@
-/* Quality Project Control V7.2
+/* Quality Project Control V7.3
    - Edición contextual sin saltos de pantalla
    - Avatar persistente en perfil, cabecera y menú lateral
    - Combobox propio de correos para login
@@ -73,7 +73,7 @@
   window.qpcNormalizeState=function(){
     if(typeof priorNormalize==='function') priorNormalize();
     ensureProjectStructure();
-    data.version='7.2';
+    data.version='7.3';
     data.deletedMappingIds=list(data.deletedMappingIds);
     data.users=list(data.users);
     data.users.forEach(user=>{
@@ -113,7 +113,7 @@
       data=remote&&typeof remote==='object'?remote:initialData();
       await loadProfiles();
       qpcNormalizeState();
-      data.version='7.2';
+      data.version='7.3';
       if(!row){const {error:insertError}=await supabaseClient.from('app_state').insert({id:REMOTE_STATE_ID,payload:{...data,users:[]}});if(insertError)throw insertError;}
       localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
     };
@@ -255,7 +255,18 @@
     if(MAIN_MODE){
       try{
         const {data:result,error}=await supabaseClient.functions.invoke('admin-create-user',{body:payload});
-        if(error)throw error;if(result?.error)throw new Error(result.error);
+        if(error){
+          let detail=error.message||'La Edge Function devolvió un error.';
+          try{
+            if(error.context && typeof error.context.clone==='function'){
+              const responsePayload=await error.context.clone().json();
+              detail=responsePayload?.error||detail;
+              if(responsePayload?.stage)detail+=` [${responsePayload.stage}]`;
+            }
+          }catch(_ignored){}
+          throw new Error(detail);
+        }
+        if(result?.error)throw new Error(`${result.error}${result.stage?` [${result.stage}]`:''}`);
         const profile=result.profile||{};record=record||{id:profile.legacy_id||payload.legacy_id};Object.assign(record,{id:profile.legacy_id||payload.legacy_id,authId:profile.id,name:profile.full_name||name,email:profile.email||email,role:profile.role||role,executionArea:profile.execution_area||payload.execution_area,projectIds:profile.project_ids||payload.project_ids,isActive:profile.is_active!==false,avatarDataUrl:profile.avatar_data_url||record?.avatarDataUrl||null});
       }catch(error){console.error(error);toast(`No se pudo guardar el usuario: ${error.message||error}`);return;}
     }else{

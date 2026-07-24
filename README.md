@@ -94,3 +94,15 @@ Se incorpora el usuario estático:
 
 Esta rama no utiliza Supabase. Usuarios, proyectos, mapeos, imágenes ligeras y demás cambios se almacenan localmente en el navegador.
 
+
+---
+
+# Versión 7.3 — 24 de julio de 2026
+
+## Rama DEMO-GITHUB — estática
+
+- Se mantiene el usuario `tecnologia@codelpa.demo` con contraseña `1234`.
+- El rol Tecnología (IT) tiene acceso total a todas las secciones, proyectos, inspecciones, visitas, equipos, instructivos, mapeos, exportaciones y usuarios.
+- IT puede administrar cualquier rol y visualizar todos los proyectos.
+- Se sincronizan las comprobaciones internas de permisos con la rama MAIN.
+- No requiere SQL ni Edge Functions porque esta rama continúa completamente desconectada de Supabase.
