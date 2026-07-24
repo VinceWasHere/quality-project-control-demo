@@ -1,5 +1,23 @@
 # Quality Project Control — DEMO-GITHUB
 
+## Versión 7.1
+
+Rama estática sin Supabase. V7.1 incorpora la misma biblioteca inteligente de instructivos y conserva todos los datos de demostración.
+
+### Cambios V7.1
+
+- Orden alfabético automático de instructivos.
+- Versionado inteligente: la versión más alta queda **Vigente** y las anteriores pasan a **Obsoleto**.
+- Estados separados de vigencia y disponibilidad de archivo.
+- Las versiones nuevas no sobrescriben las anteriores.
+- Eliminación real de instructivos personalizados y ocultación persistente de referencias base.
+- Visor por referencia interna, evitando incrustar archivos Base64 completos en el HTML.
+- Confirmación interna no bloqueante para eliminar.
+- Persistencia diferida para mejorar la respuesta de la interfaz.
+- Mantiene contraseña demo `1234`, datos de ejemplo y almacenamiento local.
+
+---
+
 ## Versión 7.0
 
 Rama estática desconectada de Supabase. Conserva datos y usuarios de ejemplo, pero recibe las mismas mejoras funcionales compatibles con almacenamiento local.
