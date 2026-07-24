@@ -207,3 +207,46 @@ Las contraseñas iniciales pueden asignarse al crear cuentas. El cambio o restab
 2. Sustituir y desplegar la Edge Function `admin-create-user` con `admin-create-user_index.ts`.
 3. Publicar esta versión en el branch `main`.
 4. Iniciar sesión con `tecnologia@codelpa.demo` y la contraseña asignada previamente.
+
+---
+
+## V8.0.0 · Fase 1 — Permisos y administración segura de usuarios
+
+Fecha: 24 de julio de 2026.
+
+Esta versión inicia la refactorización estructural sin eliminar todavía las pantallas operativas existentes. Los múltiples archivos JavaScript se empaquetan en un único `app.bundle.js` para asegurar un orden de ejecución determinista. La migración completa a módulos ES/Vite continuará por fases para evitar perder funcionalidades.
+
+### Implementado
+
+- Catálogo relacional de permisos.
+- Permisos predeterminados por rol.
+- Excepciones individuales por usuario.
+- Interfaz con todos los permisos agrupados y marcables.
+- Indicador de permiso heredado, concedido o denegado.
+- Botón para restaurar permisos del rol.
+- Tecnología (IT) recibe todos los permisos y no puede ser restringido.
+- Protección para impedir desactivar al último usuario IT activo.
+- Asignaciones relacionales de usuarios a proyectos mediante `project_members`.
+- Auditoría de creación y modificación de usuarios.
+- Edge Function `admin-user-management` con validación interna del JWT.
+- Mensajes de error con etapa identificable.
+- Rollback de cuentas Auth nuevas si falla el perfil.
+- Sincronización de Auth, perfil, proyectos, permisos y directorio del login.
+- Un solo bundle JavaScript cargado por `index.html`.
+
+### Despliegue requerido
+
+1. Ejecutar `supabase/migrations/20260724_001_permissions_and_memberships.sql` en Supabase SQL Editor.
+2. Crear o reemplazar la Edge Function `admin-user-management` con `supabase/functions/admin-user-management/index.ts`.
+3. Desactivar la verificación JWT heredada de la función (`verify_jwt = false`), porque la función valida explícitamente el token del usuario y la aplicación usa una Publishable Key.
+4. Subir el contenido de esta carpeta al branch `main` y esperar el despliegue de Vercel.
+
+### Alcance pendiente de las próximas fases
+
+- Migración relacional de proyectos, bloques, niveles y áreas.
+- Migración relacional de inspecciones, visitas y respuestas.
+- Migración relacional de equipos, instructivos y mapeos.
+- Sustitución total de `app_state`.
+- Conversión completa a módulos ES/Vite/TypeScript.
+- RLS granular en todos los módulos operativos.
+- Motor corporativo de exportaciones PDF.
