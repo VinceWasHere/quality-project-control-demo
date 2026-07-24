@@ -176,3 +176,34 @@ Las contraseñas iniciales pueden asignarse al crear cuentas. El cambio o restab
 - Tablas mejoradas mediante una única rutina reutilizable.
 - Avatares comprimidos antes de persistirlos.
 
+
+---
+
+# Versión 7.3 — 24 de julio de 2026
+
+## Rama MAIN — Supabase
+
+### Reparación de creación de usuarios
+
+- Se corrige el caso en que Supabase Auth creaba la cuenta, pero la inserción en `public.profiles` fallaba.
+- Se incluye `SUPABASE_V7_3_AUTH_PROFILE_REPAIR.sql`, que habilita explícitamente el rol `IT` y repara el usuario `tecnologia@codelpa.demo` ya creado sin perfil.
+- La Edge Function `admin-create-user` ahora detecta usuarios existentes en Auth y crea o repara su perfil en lugar de fallar por correo duplicado.
+- Si una cuenta nueva no puede crear su perfil, la función elimina automáticamente el usuario Auth recién creado para evitar cuentas huérfanas.
+- Los errores devueltos por la Edge Function incluyen la etapa exacta: autenticación, validación, creación Auth, actualización Auth, perfil o directorio del login.
+- El frontend muestra el detalle real del error en lugar del mensaje genérico `Edge Function returned a non-2xx status code`.
+
+### Tecnología (IT)
+
+- `IT` está incluido en la restricción válida de roles de `profiles`.
+- IT puede crear y administrar cualquier rol.
+- IT puede consultar y administrar todos los proyectos.
+- IT puede operar inspecciones, visitas, cierres, equipos, instructivos, mapeos, exportaciones, usuarios, permisos y proyectos.
+- IT puede abrir recursos de cualquier inspección y restaurar contraseñas.
+- En listados de inspecciones, IT puede consultar todas las inspecciones y evaluar las asignadas a otras cuentas cuando sea necesario.
+
+### Despliegue V7.3
+
+1. Ejecutar `SUPABASE_V7_3_AUTH_PROFILE_REPAIR.sql`.
+2. Sustituir y desplegar la Edge Function `admin-create-user` con `admin-create-user_index.ts`.
+3. Publicar esta versión en el branch `main`.
+4. Iniciar sesión con `tecnologia@codelpa.demo` y la contraseña asignada previamente.

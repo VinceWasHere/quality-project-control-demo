@@ -1,0 +1,4 @@
+Quality Project Control V7.3
+- Reparación de usuarios Auth sin perfil
+- Edge Function idempotente con rollback y errores detallados
+- Rol Tecnología (IT) con acceso total
