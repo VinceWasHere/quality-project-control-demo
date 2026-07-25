@@ -3524,3 +3524,263 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   const previousRender=window.render;
   window.render=function(){const result=previousRender();requestAnimationFrame(()=>{if(ui.view==='mappings')hydrateMapPreviews();});return result;};
 })();
+
+/* Quality Project Control MAIN V8.4 · Fase 5
+   Calificaciones, puntos débiles, reportes corporativos y exportaciones relacionales.
+   - Promedios por inspección para no sobreponderar inspecciones con muchas visitas.
+   - Puntos débiles por respuestas de todas las visitas, excluyendo N/A.
+   - Periodo semanal de jueves a miércoles y periodo mensual calendario.
+   - Vista previa interna de PDF antes de descargar.
+*/
+(function(){
+  'use strict';
+  const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL&&typeof supabaseClient!=='undefined');
+  if(!MAIN_MODE)return;
+
+  const p5={projectId:null,loaded:false,loading:null,inspections:[],visits:[],answers:[],charts:[]};
+  const arr=value=>Array.isArray(value)?value:[];
+  const text=value=>String(value??'').trim();
+  const number=value=>Number.isFinite(Number(value))?Number(value):0;
+  const actor=()=>typeof currentUser==='function'?currentUser():null;
+  const has=(user,permission)=>Boolean(user&&(user.role==='IT'||window.qpcHasPermission?.(user,permission)));
+  const project=()=>typeof projectId==='function'?projectId():(ui.activeProjectId||'LCE');
+  const projectRecord=()=>typeof projectInfo==='function'?projectInfo():{id:project(),name:project(),shortCode:project()};
+
+  ui.p5Engineer=ui.p5Engineer||'ALL';
+  ui.p5Area=ui.p5Area||'ALL';
+  ui.p5Workshop=ui.p5Workshop||'ALL';
+
+  function isoDate(value){return text(value).slice(0,10);}
+  function addDays(value,days){const d=new Date(`${value}T12:00:00`);d.setDate(d.getDate()+days);return d.toISOString().slice(0,10);}
+  function monthStart(value){return /^\d{4}-\d{2}$/.test(value)?`${value}-01`:new Date().toISOString().slice(0,7)+'-01';}
+  function monthEnd(value){const start=new Date(`${monthStart(value)}T12:00:00`);start.setMonth(start.getMonth()+1);start.setDate(0);return start.toISOString().slice(0,10);}
+  function periodBounds(){
+    if(ui.reportMode==='week'){
+      const start=/^\d{4}-\d{2}-\d{2}$/.test(ui.reportValue)?ui.reportValue:(typeof qualityWeekStart==='function'?qualityWeekStart(new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10));
+      return {start,end:addDays(start,6)};
+    }
+    return {start:monthStart(ui.reportValue),end:monthEnd(ui.reportValue)};
+  }
+  function periodLabel(){
+    if(ui.reportMode==='week')return typeof qualityWeekLabel==='function'?qualityWeekLabel(ui.reportValue):`${ui.reportValue} al ${addDays(ui.reportValue,6)}`;
+    return typeof monthName==='function'?monthName(ui.reportValue):ui.reportValue;
+  }
+  function inPeriod(value){const d=isoDate(value),b=periodBounds();return d>=b.start&&d<=b.end;}
+  function normalizeArea(value){const v=text(value).toUpperCase();return v||'SIN_AREA';}
+  function areaLabel(value){return window.AREA_LABELS?.[normalizeArea(value)]||text(value)||'Sin área';}
+
+  async function loadReports(force=false){
+    const activeProject=project();
+    if(p5.loaded&&p5.projectId===activeProject&&!force)return p5;
+    if(p5.loading&&!force)return p5.loading;
+    p5.loading=(async()=>{
+      const [inspections,visits,answers]=await Promise.all([
+        supabaseClient.from('qpc_reporting_inspections').select('*').eq('project_id',activeProject).order('completed_date',{ascending:false}),
+        supabaseClient.from('qpc_reporting_visits').select('*').eq('project_id',activeProject).order('completed_date',{ascending:false}),
+        supabaseClient.from('qpc_reporting_answers').select('*').eq('project_id',activeProject).order('completed_date',{ascending:false})
+      ]);
+      const error=[inspections.error,visits.error,answers.error].find(Boolean);
+      if(error)throw error;
+      p5.inspections=arr(inspections.data);p5.visits=arr(visits.data);p5.answers=arr(answers.data);
+      const reportDates=p5.inspections.map(row=>isoDate(row.completed_date)).filter(Boolean);
+      if(ui.reportMode==='week'){const weeks=[...new Set(reportDates.map(weekStart))].sort().reverse();if(weeks.length&&!weeks.includes(ui.reportValue))ui.reportValue=weeks[0];}
+      else{const months=[...new Set(reportDates.map(value=>value.slice(0,7)))].sort().reverse();if(months.length&&!months.includes(ui.reportValue))ui.reportValue=months[0];}
+      p5.projectId=activeProject;p5.loaded=true;p5.loading=null;
+      return p5;
+    })().catch(error=>{p5.loading=null;console.error('Fase 5 reporting',error);throw error;});
+    return p5.loading;
+  }
+  window.qpcLoadReports=loadReports;
+
+  function fallbackInspectionRows(){
+    if(typeof aggregateRecords!=='function')return [];
+    return arr(aggregateRecords()).map(r=>{
+      const i=r.inspection||{},u=typeof userById==='function'?userById(r.createdBy):null,q=typeof userById==='function'?userById(i.closedBy||i.assignedQualityId):null;
+      return {inspection_id:i.id,request_code:i.code,closure_code:i.closureCode,project_id:i.projectId||project(),project_name:projectRecord().name,project_short_code:projectRecord().shortCode||projectRecord().hotelCode,activity:r.template?.activity||'',stage:r.template?.stage||'',location_text:i.location||'',requested_date:i.requestedDate,status:i.status,objective:r.objective,technical_score:r.technicalScore,preparation_score:r.visitScore,final_score:r.finalScore,latest_decision:i.decision,requested_by:r.createdBy,execution_name:u?.name||'',execution_email:u?.email||'',execution_area:u?.executionArea||'',assigned_quality_id:i.assignedQualityId,assigned_quality_name:q?.name||'',closed_by:i.closedBy,closed_by_name:q?.name||'',closed_at:i.completedAt,visit_count:r.visits?.length||0,first_visit_decision:r.visits?.[0]?.decision||'',first_visit_released:r.visits?.[0]?.decision==='Liberada',completed_date:r.completedDate};
+    });
+  }
+  function fallbackVisitRows(){
+    if(typeof evaluationRecords!=='function')return [];
+    return arr(evaluationRecords()).map(r=>{const i=r.inspection||{},v=r.visit||{},u=userById?.(i.createdBy),q=userById?.(v.finishedBy||i.assignedQualityId);return {visit_id:v.id,inspection_id:i.id,request_code:i.code,closure_code:i.closureCode,project_id:i.projectId||project(),project_name:projectRecord().name,location_text:i.location||'',requested_date:i.requestedDate,requested_by:i.createdBy,execution_name:u?.name||'',execution_email:u?.email||'',execution_area:u?.executionArea||'',visit_number:v.number,visit_type:v.visitType||'LIBERACION',template_id:v.templateId,activity:r.template?.activity||'',stage:r.template?.stage||'',finished_by:v.finishedBy,quality_name:q?.name||'',finished_at:v.finishedAt,completed_date:r.completedDate,status:v.status,technical_score:v.technicalScore,preparation_score:v.visitScore,final_score:v.finalScore,objective:v.objective||r.objective,decision:v.decision,general_observation:v.generalObservation||''};});
+  }
+  function fallbackAnswerRows(){
+    const rows=[];
+    if(typeof evaluationRecords!=='function')return rows;
+    arr(evaluationRecords()).forEach(r=>{
+      const i=r.inspection||{},v=r.visit||{},u=userById?.(i.createdBy);arr(r.template?.criteria).forEach((criterion,index)=>{
+        const label=v.answers?.[criterion.id]||'',factor=typeof answerFactor==='function'?answerFactor(criterion,label):null,isNa=factor===null,weight=number(criterion.weight),earned=isNa?null:weight*factor;
+        rows.push({answer_id:`${v.id}-${criterion.id}`,visit_id:v.id,inspection_id:i.id,request_code:i.code,project_id:i.projectId||project(),location_text:i.location||'',requested_by:i.createdBy,execution_name:u?.name||'',execution_area:u?.executionArea||'',visit_number:v.number,visit_type:v.visitType||'LIBERACION',activity:r.template?.activity||'',stage:r.template?.stage||'',finished_at:v.finishedAt,completed_date:r.completedDate,visit_final_score:v.finalScore,visit_objective:v.objective||r.objective,criterion_id:criterion.id,criterion_name:criterion.name,criterion_stage:r.template?.stage||'',weight,is_visit_criterion:Boolean(criterion.isVisitCriterion),selected_label:label,factor,is_na:isNa,observation:v.notes?.[criterion.id]||'',points_earned:earned,points_lost:isNa?null:weight-earned,sort_order:index});
+      });
+    });
+    return rows;
+  }
+  function sourceRows(){return {inspections:p5.loaded?p5.inspections:fallbackInspectionRows(),visits:p5.loaded?p5.visits:fallbackVisitRows(),answers:p5.loaded?p5.answers:fallbackAnswerRows()};}
+
+  function filters(){return {engineer:ui.p5Engineer||'ALL',area:ui.p5Area||'ALL',workshop:ui.p5Workshop||'ALL'};}
+  function rowMatches(row){
+    const f=filters();
+    if(!inPeriod(row.completed_date||row.finished_at||row.completed_at))return false;
+    if(f.engineer!=='ALL'&&text(row.requested_by)!==f.engineer)return false;
+    if(f.area!=='ALL'&&normalizeArea(row.execution_area)!==f.area)return false;
+    if(f.workshop!=='ALL'&&text(row.activity)!==f.workshop)return false;
+    return true;
+  }
+  function filteredRows(){const rows=sourceRows();return {inspections:rows.inspections.filter(rowMatches),visits:rows.visits.filter(rowMatches),answers:rows.answers.filter(rowMatches)};}
+  function distinct(rows,key,labelKey=key){const map=new Map();rows.forEach(row=>{const id=text(row[key]);if(id&&!map.has(id))map.set(id,text(row[labelKey])||id);});return [...map.entries()].sort((a,b)=>a[1].localeCompare(b[1],'es'));}
+
+  function groupInspections(rows,keyFn,labelFn){
+    const groups=new Map();
+    rows.forEach(row=>{const key=keyFn(row),label=labelFn(row);if(!groups.has(key))groups.set(key,{key,label,rows:[]});groups.get(key).rows.push(row);});
+    return [...groups.values()].map(group=>{
+      const values=group.rows.map(row=>number(row.final_score)).filter(Number.isFinite);
+      const objectives=group.rows.map(row=>number(row.objective)).filter(Number.isFinite);
+      const avg=values.length?values.reduce((a,b)=>a+b,0)/values.length:0;
+      const objective=objectives.length?objectives.reduce((a,b)=>a+b,0)/objectives.length:0;
+      return {...group,count:group.rows.length,average:avg,objective,technical:meanP5(group.rows.map(r=>number(r.technical_score))),preparation:meanP5(group.rows.map(r=>number(r.preparation_score))),firstVisitPct:group.rows.length?group.rows.filter(r=>r.first_visit_released===true).length/group.rows.length*100:0};
+    }).sort((a,b)=>a.label.localeCompare(b.label,'es'));
+  }
+  function meanP5(values){const valid=values.filter(value=>Number.isFinite(value));return valid.length?valid.reduce((a,b)=>a+b,0)/valid.length:0;}
+  function workshopGroups(rows){return groupInspections(rows,row=>text(row.activity)||'SIN_TALLER',row=>text(row.activity)||'Sin taller');}
+  function engineerGroups(rows){return groupInspections(rows,row=>text(row.requested_by)||text(row.execution_name),row=>text(row.execution_name)||'Sin ingeniero').map(group=>({...group,area:areaLabel(group.rows[0]?.execution_area)}));}
+  function areaGroups(rows){return groupInspections(rows,row=>normalizeArea(row.execution_area),row=>areaLabel(row.execution_area));}
+
+  function weakGroups(inspectionRows,answerRows){
+    const under=new Map(workshopGroups(inspectionRows).filter(group=>group.average<group.objective).map(group=>[group.key,group]));
+    return [...under.values()].map(workshop=>{
+      const answers=answerRows.filter(row=>text(row.activity)===workshop.key);
+      const criteria=new Map();
+      answers.forEach(row=>{
+        const key=`${row.criterion_id}|${row.criterion_stage}`;
+        if(!criteria.has(key))criteria.set(key,{id:row.criterion_id,name:row.criterion_name,stage:row.criterion_stage,weight:number(row.weight),evaluated:0,na:0,earned:0,possible:0,pointsLost:0,failures:0});
+        const item=criteria.get(key);
+        if(row.is_na===true){item.na++;return;}
+        item.evaluated++;item.earned+=number(row.points_earned);item.possible+=number(row.weight);item.pointsLost+=number(row.points_lost);if(number(row.points_lost)>0.0001)item.failures++;
+      });
+      const items=[...criteria.values()].map(item=>({...item,average:item.possible>0?item.earned/item.possible*100:null,frequency:item.evaluated?item.failures/item.evaluated*100:0})).sort((a,b)=>(b.pointsLost-a.pointsLost)||(a.name.localeCompare(b.name,'es')));
+      return {...workshop,criteria:items};
+    });
+  }
+
+  function optionsHtml(entries,current,allLabel){return `<option value="ALL">${escapeHtml(allLabel)}</option>`+entries.map(([id,label])=>`<option value="${escapeHtml(id)}" ${id===current?'selected':''}>${escapeHtml(label)}</option>`).join('');}
+  function availableMonths(rows){const values=[...new Set(rows.map(row=>isoDate(row.completed_date).slice(0,7)).filter(v=>/^\d{4}-\d{2}$/.test(v)))].sort().reverse();return values.length?values:[new Date().toISOString().slice(0,7)];}
+  function weekStart(value){if(typeof qualityWeekStart==='function')return qualityWeekStart(value);const d=new Date(`${value}T12:00:00`);const day=d.getDay(),distance=(day-4+7)%7;d.setDate(d.getDate()-distance);return d.toISOString().slice(0,10);}
+  function availableWeeks(rows){const values=[...new Set(rows.map(row=>weekStart(isoDate(row.completed_date))).filter(Boolean))].sort().reverse();return values.length?values:[weekStart(new Date().toISOString().slice(0,10))];}
+  function periodSelect(rows,prefix){
+    if(ui.reportMode==='week')return `<div class="field"><label>Semana</label><select id="${prefix}Period">${availableWeeks(rows).map(value=>`<option value="${value}" ${value===ui.reportValue?'selected':''}>${escapeHtml(typeof qualityWeekLabel==='function'?qualityWeekLabel(value):value)}</option>`).join('')}</select></div>`;
+    return `<div class="field"><label>Mes</label><select id="${prefix}Period">${availableMonths(rows).map(value=>`<option value="${value}" ${value===ui.reportValue?'selected':''}>${escapeHtml(typeof monthName==='function'?monthName(value):value)}</option>`).join('')}</select></div>`;
+  }
+  function reportFilters(prefix){
+    const all=sourceRows().inspections;
+    const engineers=distinct(all,'requested_by','execution_name'),areas=[...new Set(all.map(row=>normalizeArea(row.execution_area)))].filter(Boolean).sort().map(value=>[value,areaLabel(value)]),workshops=[...new Set(all.map(row=>text(row.activity)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es')).map(value=>[value,value]);
+    return `<div class="card p5-filter-card"><div class="filters p5-report-filters"><div class="field"><label>Tipo de periodo</label><select id="${prefix}Mode"><option value="month" ${ui.reportMode==='month'?'selected':''}>Mensual</option><option value="week" ${ui.reportMode==='week'?'selected':''}>Semanal · Jueves a miércoles</option></select></div>${periodSelect(all,prefix)}<div class="field"><label>Ingeniero de Ejecución</label><select id="${prefix}Engineer">${optionsHtml(engineers,ui.p5Engineer,'Todos')}</select></div><div class="field"><label>Área</label><select id="${prefix}Area">${optionsHtml(areas,ui.p5Area,'Todas')}</select></div><div class="field"><label>Taller</label><select id="${prefix}Workshop">${optionsHtml(workshops,ui.p5Workshop,'Todos')}</select></div><div class="field p5-refresh-field"><label>Datos</label><button type="button" class="btn btn-outline" id="p5RefreshReports">Actualizar</button></div></div></div>`;
+  }
+  function metricP5(label,value,foot,tone=''){return `<div class="card"><div class="metric-label">${escapeHtml(label)}</div><div class="metric-value ${tone}">${escapeHtml(String(value))}</div><div class="metric-foot">${escapeHtml(foot)}</div></div>`;}
+  function traffic(avg,target){return avg>=target?'Verde':avg>=target-5?'Amarillo':'Rojo';}
+  function badgeP5(value){const cls=value==='Verde'?'badge-green':value==='Amarillo'?'badge-yellow':'badge-red';return `<span class="badge ${cls}">${value}</span>`;}
+  function wideTable(headers,rows){return `<div class="p5-table-shell"><div class="p5-scroll-top" aria-label="Desplazamiento horizontal superior"><div></div></div><div class="table-wrap p5-table-wrap"><table><thead><tr>${headers.map(h=>`<th>${escapeHtml(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table></div></div>`;}
+  function chartPanel(id,title,description){return `<article class="card chart-card"><h3>${escapeHtml(title)}</h3><p class="helper">${escapeHtml(description)}</p><div class="chart-box"><canvas id="${id}"></canvas></div></article>`;}
+
+  window.renderRatings=function(user){
+    if(!(user?.role==='IT'||has(user,'ratings.view')))return noAccess();
+    if(!p5.loaded&&!p5.loading)loadReports().then(()=>render()).catch(error=>toast(`No se cargaron los reportes: ${error.message}`));
+    if(p5.loading&&!p5.loaded)return `<div class="card empty">Cargando calificaciones relacionales…</div>`;
+    const rows=filteredRows(),workshops=workshopGroups(rows.inspections),engineers=engineerGroups(rows.inspections),areas=areaGroups(rows.inspections),weak=weakGroups(rows.inspections,rows.answers),average=meanP5(rows.inspections.map(r=>number(r.final_score))),weekly=ui.reportMode==='week';
+    const workshopRows=workshops.map(group=>`<tr><td><strong>${escapeHtml(group.label)}</strong></td><td>${group.count}</td><td>${round1(group.technical)}%</td><td>${round1(group.preparation)}%</td><td><strong>${round1(group.average)}%</strong></td><td>${round1(group.objective)}%</td><td>${badgeP5(traffic(group.average,group.objective))}</td></tr>`);
+    const engineerRows=engineers.map(group=>`<tr><td><strong>${escapeHtml(group.label)}</strong></td><td>${escapeHtml(group.area)}</td><td>${group.count}</td><td>${round1(group.average)}%</td><td>${round1(group.firstVisitPct)}%</td><td>${badgeP5(traffic(group.average,90))}</td></tr>`);
+    const weakHtml=weak.length?weak.map(group=>`<article class="card weak-workshop"><div class="visit-head"><div><span class="badge badge-red">Taller bajo objetivo</span><h3>${escapeHtml(group.label)}</h3><div class="helper">Promedio ${round1(group.average)}% · Objetivo asignado ${round1(group.objective)}% · ${group.count} inspecciones</div></div><div class="visit-score critical">${round1(group.average)}%</div></div>${wideTable(['Punto de evaluación','Etapa','Evaluaciones','N/A','Fallos','Frecuencia','Promedio','Objetivo asignado','Puntos perdidos'],group.criteria.map(item=>`<tr class="${item.average!==null&&item.average<group.objective?'weak-row':''}"><td><strong>${escapeHtml(item.name)}</strong><br><span class="helper">${escapeHtml(item.id)}</span></td><td>${escapeHtml(typeof stageDisplay==='function'?stageDisplay(item.stage):item.stage)}</td><td>${item.evaluated}</td><td>${item.na}</td><td>${item.failures}</td><td>${round1(item.frequency)}%</td><td>${item.average===null?'N/A':round1(item.average)+'%'}</td><td>${round1(group.objective)}%</td><td>${round1(item.pointsLost)}</td></tr>`))}</article>`).join(''):`<div class="alert alert-success">Todos los talleres alcanzan su objetivo asignado en el periodo ${weekly?'semanal':'mensual'} seleccionado.</div>`;
+    return `<div class="page-head"><div><h2>Calificaciones y comparativos</h2><p>Promedios por inspección; los criterios de todas las visitas alimentan los puntos débiles y N/A se excluye del denominador.</p></div></div>${reportFilters('p5Ratings')}<div class="grid grid-4 p5-metrics">${metricP5('Inspecciones',rows.inspections.length,'Cada inspección pesa una vez')}${metricP5('Visitas evaluadas',rows.visits.length,'Liberación, seguimiento y cierre')}${metricP5('Media general',`${round1(average)}%`,'Promedio de inspecciones',average>=90?'positive':average>=85?'warning':'critical')}${metricP5('Talleres bajo objetivo',weak.length,'Requieren análisis','warning')}</div><div class="grid grid-2" style="margin-top:16px">${chartPanel('p5WorkshopChart','Resultado por taller','Puntaje obtenido y objetivo asignado.')}${chartPanel('p5EngineerChart','Comparativo por ingenieros','Resultado individual, meta 90% y media general.')}${chartPanel('p5AreaChart','Comparativo por áreas','Estructura, Terminación y demás áreas registradas.')}${chartPanel('p5VisitTypeChart','Visitas por tipo','Cantidad de liberaciones, seguimientos y cierres evaluados.')}</div><div class="section-title"><h3>Calificación por taller</h3></div>${wideTable(['Taller','Inspecciones','Técnico','Preparación','Promedio','Objetivo asignado','Semáforo'],workshopRows)}<div class="section-title"><h3>Calificación por ingeniero</h3></div>${wideTable(['Ingeniero','Área','Inspecciones','Promedio','Liberadas en primera visita','Semáforo'],engineerRows)}<div class="section-title"><div><h3>Puntos débiles ${weekly?'semanales':'mensuales'}</h3><p class="helper">Periodo: ${escapeHtml(periodLabel())}. Solo se muestran talleres por debajo de su objetivo asignado.</p></div></div>${weakHtml}`;
+  };
+
+  function exportCardP5(kind,title,description){return `<article class="card p5-export-card"><div><span class="badge badge-blue">${escapeHtml(kind)}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(description)}</p></div><div class="button-row"><button type="button" class="btn btn-outline" data-p5-csv="${escapeHtml(kind)}">CSV</button><button type="button" class="btn btn-primary" data-p5-pdf="${escapeHtml(kind)}">Vista previa PDF</button></div></article>`;}
+  window.renderExports=function(user){
+    if(!(user?.role==='IT'||has(user,'exports.csv')||has(user,'exports.pdf')))return noAccess();
+    if(!p5.loaded&&!p5.loading)loadReports().then(()=>render()).catch(error=>toast(`No se cargaron los reportes: ${error.message}`));
+    return `<div class="page-head"><div><h2>Exportaciones</h2><p>El PDF se abre primero en el visor interno; el usuario decide después si lo descarga.</p></div></div>${reportFilters('p5Exports')}<div class="alert alert-info">Semanal: FO-CP-10 V07. Mensual: FO-CP-11 V10. Equipos: FO-GC-23 V05. CSV conserva los datos sin formato visual.</div><div class="grid grid-2 p5-export-grid">${exportCardP5('inspections','Inspecciones y visitas','Códigos, ubicaciones, responsables, visitas, resultados y decisiones.')}${exportCardP5('criteria','Detalle de criterios','Respuestas, N/A, puntos obtenidos, puntos perdidos y observaciones.')}${exportCardP5('workshops','Talleres y objetivos','Promedio por inspección, objetivo asignado y semáforo.')}${exportCardP5('engineers','Ingenieros y áreas','Comparativo individual y por área con meta y media general.')}${exportCardP5('weak','Puntos débiles','Incisos de talleres bajo objetivo para semana o mes.')}${exportCardP5('complete','Informe completo de Calidad','Documento corporativo con portada, resumen, gráficos, tablas y puntos débiles.')}${exportCardP5('equipment','Equipos FO-GC-23','Seguimiento de calibración y verificación con semáforo calculado.')}</div>`;
+  };
+
+  function syncTopScrollers(){
+    document.querySelectorAll('.p5-table-shell').forEach(shell=>{const top=shell.querySelector('.p5-scroll-top'),wrap=shell.querySelector('.p5-table-wrap'),table=wrap?.querySelector('table');if(!top||!wrap||!table)return;top.firstElementChild.style.width=`${table.scrollWidth}px`;let lock=false;top.onscroll=()=>{if(lock)return;lock=true;wrap.scrollLeft=top.scrollLeft;lock=false;};wrap.onscroll=()=>{if(lock)return;lock=true;top.scrollLeft=wrap.scrollLeft;lock=false;};});
+  }
+  function clearP5Charts(){p5.charts.forEach(chart=>{try{chart.destroy();}catch(_){}});p5.charts=[];}
+  function initP5Charts(){
+    if(ui.view!=='ratings'||typeof Chart==='undefined')return;
+    clearP5Charts();const rows=filteredRows(),workshops=workshopGroups(rows.inspections),engineers=engineerGroups(rows.inspections),areas=areaGroups(rows.inspections),average=meanP5(rows.inspections.map(r=>number(r.final_score)));
+    const common={responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,max:105}}};
+    const workshop=document.getElementById('p5WorkshopChart');if(workshop)p5.charts.push(new Chart(workshop,{type:'bar',data:{labels:workshops.map(g=>g.label),datasets:[{label:'Puntaje obtenido',data:workshops.map(g=>round1(g.average)),backgroundColor:'#174b67'},{label:'Objetivo asignado',data:workshops.map(g=>round1(g.objective)),type:'line',borderColor:'#d97706',backgroundColor:'#d97706',borderWidth:3,pointRadius:2}]},options:{...common,scales:{y:{min:0,max:105},x:{ticks:{maxRotation:45,minRotation:25}}}}}));
+    const engineer=document.getElementById('p5EngineerChart');if(engineer)p5.charts.push(new Chart(engineer,{type:'bar',data:{labels:engineers.map(g=>g.label),datasets:[{label:'Resultado',data:engineers.map(g=>round1(g.average)),backgroundColor:'#198754'},{label:'Meta 90%',data:engineers.map(()=>90),type:'line',borderColor:'#f59e0b',borderWidth:3,pointRadius:0},{label:`Media ${round1(average)}%`,data:engineers.map(()=>round1(average)),type:'line',borderColor:'#c8102e',borderDash:[7,5],borderWidth:2,pointRadius:0}]},options:{...common,scales:{y:{min:0,max:105},x:{ticks:{maxRotation:55,minRotation:35}}}}}));
+    const area=document.getElementById('p5AreaChart');if(area)p5.charts.push(new Chart(area,{type:'bar',data:{labels:areas.map(g=>g.label),datasets:[{label:'Resultado',data:areas.map(g=>round1(g.average)),backgroundColor:'#0e7490'},{label:'Meta 90%',data:areas.map(()=>90),type:'line',borderColor:'#d97706',borderWidth:3,pointRadius:0}]},options:common}));
+    const types=new Map();rows.visits.forEach(row=>types.set(row.visit_type,(types.get(row.visit_type)||0)+1));const type=document.getElementById('p5VisitTypeChart');if(type)p5.charts.push(new Chart(type,{type:'doughnut',data:{labels:[...types.keys()].map(v=>v==='LIBERACION'?'Liberación':v==='SEGUIMIENTO'?'Seguimiento':'Cierre'),datasets:[{data:[...types.values()],backgroundColor:['#174b67','#d97706','#198754']}]},options:{responsive:true,maintainAspectRatio:false,animation:false,plugins:{legend:{position:'bottom'}}}}));
+  }
+
+  function csvEscape(value){const s=String(value??'');return /[",\n]/.test(s)?`"${s.replace(/"/g,'""')}"`:s;}
+  async function logExport(kind,format,count){try{await supabaseClient.rpc('qpc_log_export',{p_project_id:project(),p_report_kind:kind,p_export_format:format,p_period_mode:ui.reportMode,p_period_value:ui.reportValue,p_filters:{engineer:ui.p5Engineer,area:ui.p5Area,workshop:ui.p5Workshop},p_row_count:count,p_file_id:null});}catch(error){console.warn('No se registró la exportación',error);}}
+  async function csvDownload(kind,headers,rows,filename){const content='\ufeff'+[headers,...rows].map(row=>row.map(csvEscape).join(',')).join('\r\n');const blob=new Blob([content],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);await logExport(kind,'CSV',rows.length);}
+
+  function reportData(kind){
+    const rows=filteredRows(),workshops=workshopGroups(rows.inspections),engineers=engineerGroups(rows.inspections),areas=areaGroups(rows.inspections),weak=weakGroups(rows.inspections,rows.answers);
+    if(kind==='inspections')return {headers:['Código','Código cierre','Fecha','Taller','Etapa','Ubicación','Ingeniero de Ejecución','Área','Calidad','Visitas','Técnico','Preparación','Promedio','Objetivo','Decisión','Estado'],rows:rows.inspections.map(r=>[r.request_code,r.closure_code||'',r.completed_date,r.activity,r.stage,r.location_text,r.execution_name,areaLabel(r.execution_area),r.closed_by_name||r.assigned_quality_name||'',r.visit_count,round1(number(r.technical_score)),round1(number(r.preparation_score)),round1(number(r.final_score)),round1(number(r.objective)),r.latest_decision||'',r.status])};
+    if(kind==='criteria')return {headers:['Código','Visita','Fecha','Taller','Etapa','Ingeniero','Área','Criterio','Peso','Respuesta','Factor','Puntos obtenidos','Puntos perdidos','N/A','Observación'],rows:rows.answers.map(r=>[r.request_code,r.visit_number,r.completed_date,r.activity,r.criterion_stage||r.stage,r.execution_name,areaLabel(r.execution_area),r.criterion_name,number(r.weight),r.selected_label||'',r.is_na?'':round1(number(r.factor)*100),r.is_na?'':round1(number(r.points_earned)),r.is_na?'':round1(number(r.points_lost)),r.is_na?'Sí':'No',r.observation||''])};
+    if(kind==='workshops')return {headers:['Taller','Inspecciones','Promedio técnico','Promedio preparación','Resultado final','Objetivo asignado','Diferencia','Semáforo'],rows:workshops.map(g=>[g.label,g.count,round1(g.technical),round1(g.preparation),round1(g.average),round1(g.objective),round1(g.average-g.objective),traffic(g.average,g.objective)])};
+    if(kind==='engineers')return {headers:['Ingeniero','Área','Inspecciones','Resultado','Meta','Media general','Liberadas en primera visita'],rows:engineers.map(g=>[g.label,g.area,g.count,round1(g.average),90,round1(meanP5(rows.inspections.map(r=>number(r.final_score)))),round1(g.firstVisitPct)])};
+    if(kind==='weak'){const output=[];weak.forEach(g=>g.criteria.forEach(c=>output.push([g.label,round1(g.average),round1(g.objective),c.id,c.name,c.stage,c.evaluated,c.na,c.failures,round1(c.frequency),c.average===null?'N/A':round1(c.average),round1(c.pointsLost)])));return {headers:['Taller','Promedio taller','Objetivo asignado','Código criterio','Punto débil','Etapa','Evaluaciones','N/A','Fallos','Frecuencia','Promedio inciso','Puntos perdidos'],rows:output};}
+    if(kind==='equipment'){const equipment=arr(data.equipmentRecords);return {headers:['ID','Tipo','Descripción','Marca / modelo','Ubicación','Responsable','Frecuencia','Próxima calibración','Próxima verificación','Estado','Observaciones'],rows:equipment.map(r=>[r.id,r.type,r.description||'',r.brandModel,r.location,r.responsible,`${r.frequencyDays||''} días`,r.nextCalibrationDate||'N/A',r.nextVerificationDate||'N/A',typeof equipmentStatus==='function'?equipmentStatus(r):'',r.observations||''])};}
+    return {headers:[],rows:[]};
+  }
+
+  async function exportCsvP5(kind){const report=reportData(kind);await csvDownload(kind,report.headers,report.rows,`${kind}_${projectRecord().shortCode||project()}_${ui.reportValue}.csv`);}
+
+  async function logoData(){if(typeof imageData==='function')return imageData('assets/codelpa_logo_red.png');return null;}
+  function reportCode(kind){if(kind==='equipment')return 'FO-GC-23 V05';return ui.reportMode==='week'?'FO-CP-10 V07':'FO-CP-11 V10';}
+  function reportTitle(kind){const map={inspections:'INSPECCIONES Y VISITAS',criteria:'DETALLE DE CRITERIOS',workshops:'RESUMEN DE PLANILLAS',engineers:'COMPARATIVO POR INGENIEROS',weak:'PUNTOS DÉBILES',complete:ui.reportMode==='week'?'INFORME SEMANAL CALIDAD DE PROYECTOS':'CIERRE MENSUAL DE CALIDAD DE PROYECTOS',equipment:'SEGUIMIENTO, CALIBRACIÓN Y VERIFICACIÓN DE EQUIPOS'};return map[kind]||'REPORTE';}
+  function addPdfHeader(doc,title,code,logo){const width=doc.internal.pageSize.getWidth();if(logo)doc.addImage(logo,'PNG',12,8,35,10);doc.setFont('helvetica','bold');doc.setTextColor(20,31,51);doc.setFontSize(14);doc.text(title,width/2,14,{align:'center'});doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(90,100,116);doc.text(`${projectRecord().name} · ${periodLabel()}`,width/2,20,{align:'center'});doc.setTextColor(20,31,51);doc.text(`Código: ${code}`,width-12,10,{align:'right'});doc.setDrawColor(200,16,46);doc.setLineWidth(.7);doc.line(12,25,width-12,25);}
+  function addCover(doc,title,code,logo){const width=doc.internal.pageSize.getWidth(),height=doc.internal.pageSize.getHeight();doc.setFillColor(200,16,46);doc.rect(0,0,width,60,'F');if(logo)doc.addImage(logo,'PNG',16,15,48,14);doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setFontSize(24);doc.text(title,16,86);doc.setFontSize(17);doc.text(projectRecord().name.toUpperCase(),16,100);doc.setFont('helvetica','normal');doc.setFontSize(13);doc.text(periodLabel(),16,112);doc.setTextColor(20,31,51);doc.setFontSize(10);doc.text(`Código: ${code}`,16,height-20);doc.text('Quality Project Control · CODELPA',width-16,height-20,{align:'right'});}
+  function autoTableP5(doc,headers,rows,startY=32,options={}){doc.autoTable({startY,head:[headers],body:rows,theme:'grid',styles:{fontSize:options.fontSize||7,cellPadding:1.7,overflow:'linebreak',valign:'middle'},headStyles:{fillColor:[200,16,46],textColor:255,fontStyle:'bold'},alternateRowStyles:{fillColor:[248,249,251]},margin:{left:10,right:10,bottom:16},didParseCell:options.didParseCell});}
+  function drawObjectiveBars(doc,groups,y=36){const pageWidth=doc.internal.pageSize.getWidth(),left=20,right=18,chartWidth=pageWidth-left-right,rowHeight=10,maxRows=Math.min(groups.length,13);doc.setFontSize(8);groups.slice(0,maxRows).forEach((group,index)=>{const top=y+index*rowHeight,label=group.label.length>34?group.label.slice(0,32)+'…':group.label;doc.setTextColor(20,31,51);doc.text(label,left,top+5);const x=left+58,w=chartWidth-76;doc.setFillColor(232,237,242);doc.roundedRect(x,top,w,5,1.5,1.5,'F');const score=Math.max(0,Math.min(100,group.average));doc.setFillColor(score>=group.objective?21:score>=group.objective-5?183:200,score>=group.objective?128:score>=group.objective-5?121:35,score>=group.objective?61:score>=group.objective-5?31:24);doc.roundedRect(x,top,w*score/100,5,1.5,1.5,'F');doc.setDrawColor(217,119,6);const targetX=x+w*Math.max(0,Math.min(100,group.objective))/100;doc.setLineWidth(.8);doc.line(targetX,top-1,targetX,top+6);doc.setTextColor(20,31,51);doc.text(`${round1(group.average)}%`,x+w+3,top+5);});}
+  function finalizePdf(doc,code){const pages=doc.getNumberOfPages();for(let page=1;page<=pages;page++){doc.setPage(page);const width=doc.internal.pageSize.getWidth(),height=doc.internal.pageSize.getHeight();doc.setDrawColor(210);doc.line(10,height-10,width-10,height-10);doc.setFontSize(7);doc.setTextColor(100);doc.text(code,10,height-5);doc.text(`Página ${page} de ${pages}`,width-10,height-5,{align:'right'});}}
+  async function previewPdfP5(doc,filename,kind,count){finalizePdf(doc,reportCode(kind));const blob=doc.output('blob'),url=URL.createObjectURL(blob);showFileViewer(url,filename,'application/pdf');setTimeout(()=>URL.revokeObjectURL(url),30*60*1000);await logExport(kind,'PDF',count);toast('Vista previa generada. Descargue desde el visor después de revisar.');}
+
+  async function buildTablePdf(kind){
+    if(!window.jspdf||!window.jspdf.jsPDF)throw new Error('La librería PDF no está disponible.');
+    const report=reportData(kind),{jsPDF}=window.jspdf,landscape=kind!=='weak',doc=new jsPDF({orientation:landscape?'landscape':'portrait',unit:'mm',format:'a4'}),logo=await logoData(),code=reportCode(kind),title=reportTitle(kind);addCover(doc,title,code,logo);doc.addPage('a4',landscape?'landscape':'portrait');addPdfHeader(doc,title,code,logo);autoTableP5(doc,report.headers,report.rows,32,{fontSize:kind==='criteria'?5.5:6.8});await previewPdfP5(doc,`${kind}_${projectRecord().shortCode||project()}_${ui.reportValue}.pdf`,kind,report.rows.length);
+  }
+  async function buildCompletePdf(){
+    if(!window.jspdf||!window.jspdf.jsPDF)throw new Error('La librería PDF no está disponible.');
+    const {jsPDF}=window.jspdf,doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),logo=await logoData(),code=reportCode('complete'),rows=filteredRows(),workshops=workshopGroups(rows.inspections),engineers=engineerGroups(rows.inspections),weak=weakGroups(rows.inspections,rows.answers),equipment=reportData('equipment');
+    addCover(doc,reportTitle('complete'),code,logo);
+    doc.addPage('a4','landscape');addPdfHeader(doc,'AGENDA DE PRESENTACIÓN',code,logo);autoTableP5(doc,['Sección'],[['Resumen de planillas'],['Resumen de objetivos de Calidad'],['Comparativo por ingenieros'],['Puntos débiles'],['Seguimiento de equipos'],['Inspecciones del periodo']],34,{fontSize:11});
+    doc.addPage('a4','landscape');addPdfHeader(doc,ui.reportMode==='week'?'RESUMEN SEMANAL DE PLANILLAS':'RESUMEN MENSUAL DE PLANILLAS',code,logo);autoTableP5(doc,['Actividad','Inspecciones','Puntaje','Objetivo asignado','Semáforo'],workshops.map(g=>[g.label,g.count,round1(g.average),round1(g.objective),traffic(g.average,g.objective)]),32,{fontSize:8});
+    doc.addPage('a4','landscape');addPdfHeader(doc,'RESUMEN DE OBJETIVOS DE CALIDAD',code,logo);drawObjectiveBars(doc,workshops,36);
+    doc.addPage('a4','landscape');addPdfHeader(doc,'COMPARATIVO POR INGENIEROS',code,logo);autoTableP5(doc,['Ingeniero','Área','Inspecciones','Resultado','Meta','Liberadas en 1ra visita'],engineers.map(g=>[g.label,g.area,g.count,round1(g.average),90,round1(g.firstVisitPct)]),32,{fontSize:7.5});
+    if(weak.length){weak.forEach(group=>{doc.addPage('a4','landscape');addPdfHeader(doc,`PUNTOS DÉBILES · ${group.label}`,code,logo);autoTableP5(doc,['Punto de evaluación','Etapa','Evaluaciones','N/A','Fallos','Promedio','Objetivo','Puntos perdidos'],group.criteria.map(c=>[c.name,c.stage,c.evaluated,c.na,c.failures,c.average===null?'N/A':round1(c.average),round1(group.objective),round1(c.pointsLost)]),32,{fontSize:7,didParseCell(h){if(h.section==='body'&&h.column.index===5){const value=Number(h.cell.raw);if(Number.isFinite(value)&&value<group.objective){h.cell.styles.fillColor=[254,226,226];h.cell.styles.textColor=[185,28,28];h.cell.styles.fontStyle='bold';}}}});});}
+    else{doc.addPage('a4','landscape');addPdfHeader(doc,'PUNTOS DÉBILES',code,logo);doc.setFontSize(14);doc.setTextColor(21,128,61);doc.text('Todos los talleres alcanzan su objetivo asignado en el periodo seleccionado.',20,45);}
+    doc.addPage('a4','landscape');addPdfHeader(doc,'SEGUIMIENTO, CALIBRACIÓN Y VERIFICACIÓN DE EQUIPOS',code,logo);const statuses=arr(data.equipmentRecords).reduce((acc,r)=>{const state=typeof equipmentStatus==='function'?equipmentStatus(r):'SIN INFORMACIÓN';acc[state]=(acc[state]||0)+1;return acc;},{});autoTableP5(doc,['Indicador','Cantidad'],[['Total de equipos',arr(data.equipmentRecords).length],['Vigentes',statuses.VIGENTE||0],['Próximos',statuses.PRÓXIMO||0],['Vencidos',statuses.VENCIDO||0],['Sin información',statuses['SIN INFORMACIÓN']||statuses['SIN FECHA']||0]],32,{fontSize:10});
+    doc.addPage('a4','landscape');addPdfHeader(doc,'INSPECCIONES DEL PERIODO',code,logo);const inspections=reportData('inspections');autoTableP5(doc,inspections.headers,inspections.rows,32,{fontSize:5.8});
+    await previewPdfP5(doc,`${ui.reportMode==='week'?'informe_semanal':'cierre_mensual'}_${projectRecord().shortCode||project()}_${ui.reportValue}.pdf`,'complete',rows.inspections.length);
+  }
+  async function buildEquipmentPdf(){
+    if(!window.jspdf||!window.jspdf.jsPDF)throw new Error('La librería PDF no está disponible.');
+    const report=reportData('equipment'),{jsPDF}=window.jspdf,doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'}),logo=await logoData(),code=reportCode('equipment');addCover(doc,'LISTA DE EQUIPOS DE SEGUIMIENTO Y MEDICIÓN',code,logo);doc.addPage('a4','landscape');addPdfHeader(doc,'LISTA DE EQUIPOS DE SEGUIMIENTO Y MEDICIÓN',code,logo);autoTableP5(doc,report.headers,report.rows,32,{fontSize:5.7,didParseCell(h){if(h.section==='body'&&h.column.index===9){const state=String(h.cell.raw);if(state==='VENCIDO'){h.cell.styles.fillColor=[254,226,226];h.cell.styles.textColor=[190,18,60];h.cell.styles.fontStyle='bold';}else if(state==='PRÓXIMO'){h.cell.styles.fillColor=[254,243,199];h.cell.styles.textColor=[146,64,14];}}}});await previewPdfP5(doc,`equipos_${projectRecord().shortCode||project()}.pdf`,'equipment',report.rows.length);
+  }
+  async function exportPdfP5(kind){if(kind==='complete')return buildCompletePdf();if(kind==='equipment')return buildEquipmentPdf();return buildTablePdf(kind);}
+
+  async function runButton(button,operation){const old=button.textContent;try{button.disabled=true;button.textContent='Procesando…';await operation();}catch(error){console.error(error);toast(`No se pudo generar el exportable: ${error.message}`);}finally{button.disabled=false;button.textContent=old;}}
+
+  document.addEventListener('click',event=>{
+    const button=event.target.closest('button');if(!button)return;
+    if(button.id==='p5RefreshReports'){event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();p5.loaded=false;loadReports(true).then(()=>render()).catch(error=>toast(error.message));return;}
+    if(button.matches('[data-p5-csv]')){event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();runButton(button,()=>exportCsvP5(button.dataset.p5Csv));return;}
+    if(button.matches('[data-p5-pdf]')){event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();runButton(button,()=>exportPdfP5(button.dataset.p5Pdf));return;}
+  },true);
+  document.addEventListener('change',event=>{
+    const target=event.target;
+    if(['p5RatingsMode','p5ExportsMode'].includes(target.id)){event.stopPropagation();event.stopImmediatePropagation();ui.reportMode=target.value;const all=sourceRows().inspections;ui.reportValue=target.value==='week'?availableWeeks(all)[0]:availableMonths(all)[0];render();return;}
+    if(['p5RatingsPeriod','p5ExportsPeriod'].includes(target.id)){event.stopPropagation();event.stopImmediatePropagation();ui.reportValue=target.value;render();return;}
+    if(['p5RatingsEngineer','p5ExportsEngineer'].includes(target.id)){event.stopPropagation();event.stopImmediatePropagation();ui.p5Engineer=target.value;render();return;}
+    if(['p5RatingsArea','p5ExportsArea'].includes(target.id)){event.stopPropagation();event.stopImmediatePropagation();ui.p5Area=target.value;render();return;}
+    if(['p5RatingsWorkshop','p5ExportsWorkshop'].includes(target.id)){event.stopPropagation();event.stopImmediatePropagation();ui.p5Workshop=target.value;render();return;}
+    if(target.id==='projectSelector'||target.id==='activeProjectSelect'||target.matches('[data-project-select]')){p5.loaded=false;p5.projectId=null;setTimeout(()=>loadReports(true).then(()=>render()).catch(error=>toast(error.message)),0);}
+  },true);
+
+  const priorRender=window.render;
+  window.render=function(){const result=priorRender();requestAnimationFrame(()=>{syncTopScrollers();if(ui.view==='ratings')initP5Charts();});return result;};
+})();

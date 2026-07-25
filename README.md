@@ -6,6 +6,59 @@ Rama principal conectada a Supabase, publicada desde GitHub en Vercel. Este READ
 
 ---
 
+## V8.4.0 · Fase 5 — Calificaciones, puntos débiles y exportaciones corporativas
+
+Fecha: 25 de julio de 2026.
+
+Esta fase conecta los análisis de Calidad y los exportables con las tablas relacionales de inspecciones, visitas y respuestas. Las vistas de reportes respetan el acceso por proyecto y dejan de depender del JSON compartido para calcular calificaciones.
+
+### Calificaciones
+
+- Nuevas vistas relacionales de reporting para inspecciones, visitas y respuestas.
+- Cada inspección pesa una sola vez en el promedio de talleres, ingenieros y áreas, aunque tenga varias visitas.
+- Las visitas siguen mostrándose individualmente para trazabilidad.
+- Filtros combinables por periodo, Ingeniero de Ejecución, área y taller.
+- Periodo semanal de jueves a miércoles y periodo mensual calendario.
+- Comparativos por taller, ingeniero y área.
+- Línea de objetivo asignado, meta de ingenieros y media general.
+- Las tablas anchas incluyen una barra horizontal superior sincronizada con la inferior.
+
+### Puntos débiles
+
+- Funcionan tanto semanal como mensualmente.
+- El encabezado cambia automáticamente según el periodo.
+- Solo se muestran talleres por debajo de su objetivo asignado.
+- Los criterios se calculan con todas las visitas del periodo.
+- N/A se registra, pero no suma, no descuenta y se excluye del denominador.
+- Se muestran evaluaciones, N/A, fallos, frecuencia, promedio del inciso y puntos perdidos.
+- Los incisos por debajo del objetivo se resaltan visualmente.
+
+### Exportaciones
+
+- Categorías unificadas con opciones CSV y vista previa PDF.
+- Los PDF no se descargan automáticamente: primero se abren en el visor interno.
+- Reporte semanal con código `FO-CP-10 V07`.
+- Reporte mensual con código `FO-CP-11 V10`.
+- Reporte de equipos con código `FO-GC-23 V05`.
+- Portada CODELPA, encabezados, pies, número de página, tablas, semáforos y gráficos.
+- Exportables de inspecciones, criterios, talleres, ingenieros, puntos débiles, informe completo y equipos.
+- Nueva tabla `qpc_export_runs` y auditoría de cada exportación.
+
+### Base de datos
+
+- Vista `qpc_reporting_inspections`.
+- Vista `qpc_reporting_visits`.
+- Vista `qpc_reporting_answers`.
+- Tabla `qpc_export_runs`.
+- Función segura `qpc_log_export()`.
+- Las vistas usan `security_invoker` y respetan el RLS de las tablas base.
+
+### Archivos de despliegue
+
+- `SUPABASE_V8_4_PHASE5.sql`.
+- `DEPLOYMENT_V8_PHASE5.md`.
+- No requiere una Edge Function nueva.
+
 ## V8.3.0 · Fase 4 — Equipos, instructivos, mapeos y archivos relacionales
 
 Fecha: 25 de julio de 2026.
