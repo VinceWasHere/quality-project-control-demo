@@ -3,3 +3,6 @@ verify_jwt = false
 
 [functions.admin-project-management]
 verify_jwt = false
+
+[functions.asset-workflow]
+verify_jwt = false

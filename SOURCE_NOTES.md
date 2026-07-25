@@ -47,3 +47,10 @@ Esta versión fue estructurada usando como referencias funcionales y visuales:
 ## Advertencia
 
 Los datos incluidos son demostrativos y deben validarse antes de un uso corporativo. Las fórmulas, ponderaciones, objetivos y criterios finales deben administrarse con las versiones oficiales vigentes de CODELPA.
+
+## V8.3 · Fase 4
+
+- `SUPABASE_V8_3_PHASE4.sql`: tablas y migración de equipos, instructivos, mapeos y archivos.
+- `asset-workflow_index.ts`: operaciones seguras de los módulos de activos.
+- `assets/favicon-codelpa-c.svg`: favicon con una sola C.
+- `README.md`: historial acumulativo reorganizado de más reciente a más antiguo.

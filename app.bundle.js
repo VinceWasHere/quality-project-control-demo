@@ -3178,3 +3178,349 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     if(event.target.id==='projectSelector'||event.target.matches('[data-project-select]')){phase3.loaded=false;setTimeout(()=>loadRelationalInspections(true).then(()=>render()).catch(error=>toast(error.message)),0);}
   },true);
 })();
+
+/* Quality Project Control MAIN V8.3 · Fase 4
+   Equipos, instructivos, mapeos, archivos y anotaciones relacionales.
+   Estos módulos dejan de persistirse en app_state; el JSON se conserva solo como respaldo.
+*/
+(function(){
+  'use strict';
+  const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL && typeof supabaseClient!=='undefined');
+  if(!MAIN_MODE)return;
+
+  const P4_BUCKET='qpc-attachments';
+  const phase4={
+    projectId:null,loaded:false,loading:null,equipment:[],documents:[],mappings:[],files:new Map(),signed:new Map(),
+    legacy:{equipment:[],documents:[],mappings:[]}
+  };
+  const list=value=>Array.isArray(value)?value:[];
+  const txt=value=>String(value??'').trim();
+  const norm=value=>txt(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const has=(user,code)=>Boolean(user&&(user.role==='IT'||window.qpcHasPermission?.(user,code)));
+  const actor=()=>typeof currentUser==='function'?currentUser():null;
+  const isoToday=()=>new Date().toISOString().slice(0,10);
+  const addDays=(value,days)=>{if(!value)return null;const date=new Date(`${value}T12:00:00`);date.setDate(date.getDate()+Number(days||0));return toISODate(date);};
+  const versionNo=value=>Number(txt(value).replace(/[^0-9]/g,''))||0;
+  window.qpcPhase4=phase4;
+
+  function p4Error(error,fallback='La operación no pudo completarse'){
+    return new Error(error?.message||error?.error||fallback);
+  }
+  async function invokeAsset(body){
+    const {data:result,error}=await supabaseClient.functions.invoke('asset-workflow',{body});
+    if(error){
+      let detail=error.message||'La Edge Function devolvió un error.';
+      try{const response=error.context?.clone?error.context.clone():null;if(response){const parsed=await response.json();detail=`${parsed.error||detail}${parsed.stage?` [${parsed.stage}]`:''}`;}}catch(_ignored){}
+      throw new Error(detail);
+    }
+    if(result?.error)throw new Error(`${result.error}${result.stage?` [${result.stage}]`:''}`);
+    return result;
+  }
+  async function uploadAsset(file,moduleName,project,identity){
+    if(!file)return null;
+    if(file.size>50*1024*1024)throw new Error('El archivo supera el límite de 50 MB.');
+    const user=actor();if(!user?.authId)throw new Error('No se identificó al usuario autenticado.');
+    const safe=value=>norm(value).replace(/[^a-z0-9._-]+/g,'-').replace(/^-+|-+$/g,'')||'archivo';
+    const fileName=txt(file.name).replace(/[^a-zA-Z0-9._-]+/g,'_').slice(-140);
+    const path=`${safe(moduleName)}/${user.authId}/${safe(project)}/${safe(identity)}/${Date.now()}-${fileName}`;
+    const {error}=await supabaseClient.storage.from(P4_BUCKET).upload(path,file,{contentType:file.type||undefined,cacheControl:'3600',upsert:false});
+    if(error)throw error;
+    return {bucket:P4_BUCKET,storage_path:path,original_name:file.name,mime_type:file.type||'application/octet-stream',size_bytes:file.size};
+  }
+  async function removeStorageObjects(value){
+    const entries=Array.isArray(value)?value:(value?[value]:[]);
+    for(const entry of entries){
+      if(!entry?.storage_path)continue;
+      try{await supabaseClient.storage.from(entry.bucket||P4_BUCKET).remove([entry.storage_path]);}
+      catch(error){console.warn('No se retiró el objeto de Storage',entry,error);}
+    }
+  }
+  async function signedUrl(file){
+    if(!file)return '';
+    if(file.external_url)return file.external_url;
+    if(!file.storage_path)return '';
+    const cached=phase4.signed.get(file.id);if(cached&&cached.expires>Date.now())return cached.url;
+    const {data:signed,error}=await supabaseClient.storage.from(file.bucket||P4_BUCKET).createSignedUrl(file.storage_path,3600);
+    if(error)throw error;
+    const url=signed?.signedUrl||'';phase4.signed.set(file.id,{url,expires:Date.now()+55*60*1000});return url;
+  }
+  function fileMap(rows){const map=new Map();list(rows).forEach(row=>map.set(row.id,row));return map;}
+
+  function mapEquipment(row){
+    return {
+      _dbId:row.id,id:row.equipment_code,projectId:row.project_id,type:row.equipment_type||'',description:row.description||'',
+      brandModel:row.brand_model||'',blockId:row.block_id,levelId:row.level_id,areaId:row.area_id,location:row.location_text||'',
+      responsible:row.responsible||'',frequencyDays:Number(row.frequency_days)||180,calibrationRequired:row.calibration_required===true,
+      verificationRequired:row.verification_required!==false,calibrationDate:row.last_calibration_date||null,verificationDate:row.last_verification_date||null,
+      observations:row.observations||'',isActive:row.is_active!==false,createdAt:row.created_at,updatedAt:row.updated_at
+    };
+  }
+  function equipmentDates(record){
+    const nextCalibration=record.calibrationRequired&&record.calibrationDate?addDays(record.calibrationDate,record.frequencyDays):null;
+    const nextVerification=record.verificationRequired&&record.verificationDate?addDays(record.verificationDate,record.frequencyDays):null;
+    const candidates=[nextCalibration,nextVerification].filter(Boolean).sort();const due=candidates[0]||null;
+    let status='SIN INFORMACIÓN';
+    if(due){const today=isoToday();const soon=addDays(today,30);status=due<today?'VENCIDO':due<=soon?'PRÓXIMO':'VIGENTE';}
+    return {nextCalibrationDate:nextCalibration||'N/A',nextVerificationDate:nextVerification||'N/A',dueDate:due,status};
+  }
+  window.equipmentStatus=function(record){const result=equipmentDates(record);record.nextCalibrationDate=result.nextCalibrationDate;record.nextVerificationDate=result.nextVerificationDate;return result.status;};
+  window.equipmentSummary=function(){const rows=list(data?.equipmentRecords);return {total:rows.length,current:rows.filter(r=>equipmentStatus(r)==='VIGENTE').length,soon:rows.filter(r=>equipmentStatus(r)==='PRÓXIMO').length,expired:rows.filter(r=>equipmentStatus(r)==='VENCIDO').length};};
+
+  function mapDocument(parent,version,file){
+    return {
+      id:version.id,_instructiveId:parent.id,projectId:parent.project_id,code:parent.document_code,title:parent.title,
+      activities:parent.activity?[parent.activity]:[],version:version.version_label,versionNumber:Number(version.version_number)||0,
+      status:version.lifecycle_status==='VIGENTE'?'Vigente':'Obsoleto',availability:version.availability_status,
+      note:version.note||'',fileId:version.file_id,fileRecord:file||null,storagePath:file?.storage_path||null,bucket:file?.bucket||null,
+      fileName:file?.original_name||null,fileType:file?.mime_type||null,fileSize:file?.size_bytes||null,file:file?.external_url||'',
+      updatedAt:version.updated_at,createdAt:version.created_at
+    };
+  }
+  function mapMapping(parent,version,file){
+    return {
+      id:version.id,mappingId:parent.id,legacyId:version.legacy_id||parent.legacy_id||null,projectId:parent.project_id,
+      code:parent.base_code,title:parent.title,block:parent.block_code,level:parent.level_code,area:parent.area_name,
+      blockId:parent.block_id,levelId:parent.level_id,areaId:parent.area_id,version:version.version_label,versionNumber:Number(version.version_number)||1,
+      status:version.lifecycle_status==='VIGENTE'?'Vigente':'Obsoleto',fileId:version.file_id,fileRecord:file||null,
+      storagePath:file?.storage_path||null,bucket:file?.bucket||null,fileName:file?.original_name||null,fileType:file?.mime_type||null,
+      fileSize:file?.size_bytes||null,file:file?.external_url||'',updatedAt:version.updated_at,createdAt:version.created_at
+    };
+  }
+
+  async function loadPhase4(force=false){
+    const project=projectId();
+    if(phase4.loaded&&phase4.projectId===project&&!force)return phase4;
+    if(phase4.loading&&!force)return phase4.loading;
+    phase4.loading=(async()=>{
+      const [equipmentResult,instructivesResult,mappingsResult]=await Promise.all([
+        supabaseClient.from('qpc_equipment').select('*').eq('project_id',project).eq('is_active',true).order('equipment_code'),
+        supabaseClient.from('qpc_instructives').select('*').eq('is_active',true).or(`project_id.is.null,project_id.eq.${project}`).order('title'),
+        supabaseClient.from('qpc_mappings').select('*').eq('project_id',project).eq('is_active',true).order('block_code').order('level_code').order('area_name')
+      ]);
+      const error=[equipmentResult.error,instructivesResult.error,mappingsResult.error].find(Boolean);if(error)throw error;
+      const parentsDocs=list(instructivesResult.data),parentsMaps=list(mappingsResult.data);
+      const docIds=parentsDocs.map(row=>row.id),mapIds=parentsMaps.map(row=>row.id);
+      let docVersions=[],mapVersions=[];
+      if(docIds.length){const result=await supabaseClient.from('qpc_instructive_versions').select('*').in('instructive_id',docIds).is('deleted_at',null).order('version_number',{ascending:false});if(result.error)throw result.error;docVersions=list(result.data);}
+      if(mapIds.length){const result=await supabaseClient.from('qpc_mapping_versions').select('*').in('mapping_id',mapIds).is('deleted_at',null).order('version_number',{ascending:false});if(result.error)throw result.error;mapVersions=list(result.data);}
+      const fileIds=[...new Set([...docVersions,...mapVersions].flatMap(row=>[row.file_id,row.thumbnail_file_id]).filter(Boolean))];
+      let files=[];if(fileIds.length){const result=await supabaseClient.from('qpc_files').select('*').in('id',fileIds).is('deleted_at',null);if(result.error)throw result.error;files=list(result.data);}
+      phase4.files=fileMap(files);
+      const docsById=new Map(parentsDocs.map(row=>[row.id,row]));
+      const mapsById=new Map(parentsMaps.map(row=>[row.id,row]));
+      phase4.equipment=list(equipmentResult.data).map(mapEquipment);
+      phase4.documents=docVersions.map(version=>mapDocument(docsById.get(version.instructive_id),version,phase4.files.get(version.file_id))).filter(row=>row.title);
+      phase4.mappings=mapVersions.map(version=>mapMapping(mapsById.get(version.mapping_id),version,phase4.files.get(version.file_id))).filter(row=>row.title);
+      await Promise.all([...phase4.documents,...phase4.mappings].map(async item=>{if(item.fileRecord){try{item.file=await signedUrl(item.fileRecord);}catch(error){console.warn('No se firmó un archivo',item.id,error);}}}));
+      phase4.documents.sort((a,b)=>a.title.localeCompare(b.title,'es')||b.versionNumber-a.versionNumber);
+      phase4.mappings.sort((a,b)=>`${a.block} ${a.level} ${a.area}`.localeCompare(`${b.block} ${b.level} ${b.area}`,'es')||b.versionNumber-a.versionNumber);
+      data.equipmentRecords=phase4.equipment;
+      data.customDocuments=phase4.documents;
+      data.customMappings=phase4.mappings;
+      data.version='8.3';phase4.projectId=project;phase4.loaded=true;phase4.loading=null;
+      return phase4;
+    })().catch(error=>{phase4.loading=null;console.error('Fase 4',error);throw error;});
+    return phase4.loading;
+  }
+  window.qpcLoadAssets=loadPhase4;
+
+  const previousLoadRemoteData=window.loadRemoteData;
+  window.loadRemoteData=async function(){
+    await previousLoadRemoteData();
+    phase4.legacy.equipment=JSON.parse(JSON.stringify(list(data.equipmentRecords)));
+    phase4.legacy.documents=JSON.parse(JSON.stringify(list(data.customDocuments)));
+    phase4.legacy.mappings=JSON.parse(JSON.stringify(list(data.customMappings)));
+    try{await loadPhase4(true);}catch(error){toast(`No se cargaron equipos, instructivos y mapeos relacionales: ${error.message}`);throw error;}
+  };
+
+  // app_state queda solo como respaldo de los módulos ya migrados.
+  const previousSaveData=window.saveData||saveData;
+  window.saveData=saveData=function(){
+    const current={equipment:data.equipmentRecords,documents:data.customDocuments,mappings:data.customMappings};
+    data.equipmentRecords=phase4.legacy.equipment;data.customDocuments=phase4.legacy.documents;data.customMappings=phase4.legacy.mappings;
+    try{return previousSaveData();}
+    finally{data.equipmentRecords=current.equipment;data.customDocuments=current.documents;data.customMappings=current.mappings;}
+  };
+
+  projectDocuments=function(){return phase4.documents.filter(doc=>!doc.projectId||doc.projectId===projectId());};window.projectDocuments=projectDocuments;
+  projectMappings=function(){
+    const current=new Map();phase4.mappings.filter(map=>map.status==='Vigente').forEach(map=>{const key=map.mappingId;const old=current.get(key);if(!old||map.versionNumber>old.versionNumber)current.set(key,map);});return [...current.values()];
+  };window.projectMappings=projectMappings;
+  mappingById=function(id){return phase4.mappings.find(map=>[map.id,map.mappingId,map.legacyId].filter(Boolean).map(String).includes(String(id)))||null;};window.mappingById=mappingById;
+
+  function metricP4(label,value,foot,tone=''){return `<div class="metric-card ${tone}"><div class="metric-label">${escapeHtml(label)}</div><div class="metric-value">${escapeHtml(value)}</div><div class="metric-foot">${escapeHtml(foot)}</div></div>`;}
+  function preserveRender(){const y=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo({top:y,behavior:'auto'}));}
+  function confirmP4(message){
+    return new Promise(resolve=>{
+      const root=document.createElement('div');root.id='p4ConfirmRoot';root.innerHTML=`<div class="file-viewer-backdrop"><section class="qpc-confirm-dialog" role="dialog" aria-modal="true"><h3>Confirmar acción</h3><p>${escapeHtml(message)}</p><div class="button-row"><button class="btn btn-secondary" data-p4-cancel>Cancelar</button><button class="btn btn-danger" data-p4-accept>Confirmar</button></div></section></div>`;document.body.appendChild(root);
+      const finish=value=>{root.remove();resolve(value);};root.querySelector('[data-p4-cancel]').onclick=()=>finish(false);root.querySelector('[data-p4-accept]').onclick=()=>finish(true);root.querySelector('.file-viewer-backdrop').onclick=event=>{if(event.target===event.currentTarget)finish(false);};
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Equipos relacionales
+  // ---------------------------------------------------------------------------
+  ui.equipmentPage=ui.equipmentPage||1;
+  function equipmentEditor(record={}){
+    const structure=list(data.projects).find(project=>project.id===projectId());
+    const blocks=list(structure?.blocks);const selectedBlock=blocks.find(block=>block.id===record.blockId)||null;
+    const levels=list(selectedBlock?.levels);const selectedLevel=levels.find(level=>level.id===record.levelId)||null;const areas=list(selectedLevel?.areas);
+    return `<div class="inline-editor p4-editor"><h3>${record._dbId?`Editar ${escapeHtml(record.id)}`:'Agregar equipo'}</h3><div class="form-grid">
+      <div class="field"><label>Código</label><input id="p4EqCode" value="${escapeHtml(record.id||'')}"></div>
+      <div class="field"><label>Tipo</label><input id="p4EqType" value="${escapeHtml(record.type||'')}"></div>
+      <div class="field"><label>Marca / modelo</label><input id="p4EqBrand" value="${escapeHtml(record.brandModel||'')}"></div>
+      <div class="field"><label>Descripción</label><input id="p4EqDescription" value="${escapeHtml(record.description||'')}"></div>
+      <div class="field"><label>Bloque</label><select id="p4EqBlock"><option value="">Sin asignar</option>${blocks.map(block=>`<option value="${block.id}" ${record.blockId===block.id?'selected':''}>${escapeHtml(block.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Nivel</label><select id="p4EqLevel"><option value="">Sin asignar</option>${levels.map(level=>`<option value="${level.id}" ${record.levelId===level.id?'selected':''}>${escapeHtml(level.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Área</label><select id="p4EqArea"><option value="">Sin asignar</option>${areas.map(area=>`<option value="${area.id}" ${record.areaId===area.id?'selected':''}>${escapeHtml(area.name)}</option>`).join('')}</select></div>
+      <div class="field"><label>Ubicación complementaria</label><input id="p4EqLocation" value="${escapeHtml(record.location||'')}"></div>
+      <div class="field"><label>Responsable</label><input id="p4EqResponsible" value="${escapeHtml(record.responsible||'')}"></div>
+      <div class="field"><label>Frecuencia (días)</label><input id="p4EqFrequency" type="number" min="1" value="${escapeHtml(record.frequencyDays||180)}"></div>
+      <div class="field"><label>Última verificación</label><input id="p4EqVerification" type="date" value="${record.verificationDate||''}"></div>
+      <div class="field"><label>Última calibración</label><input id="p4EqCalibration" type="date" value="${record.calibrationDate||''}"></div>
+      <div class="field"><label class="check-row"><input id="p4EqVerificationRequired" type="checkbox" ${record.verificationRequired===false?'':'checked'}><span>Requiere verificación</span></label></div>
+      <div class="field"><label class="check-row"><input id="p4EqCalibrationRequired" type="checkbox" ${record.calibrationRequired?'checked':''}><span>Requiere calibración</span></label></div>
+      <div class="field full"><label>Observaciones</label><textarea id="p4EqObservations">${escapeHtml(record.observations||'')}</textarea><div class="helper">El semáforo se calcula con las fechas y la frecuencia.</div></div>
+    </div><div class="button-row"><button id="p4SaveEquipment" class="btn btn-primary">Guardar</button>${record._dbId?'<button id="p4VerifyEquipment" class="btn btn-success">Verificar hoy</button><button id="p4DeleteEquipment" class="btn btn-danger">Archivar</button>':''}<button id="p4CancelEquipment" class="btn btn-secondary">Cerrar</button></div></div>`;
+  }
+  window.renderEquipment=function(user){
+    if(!has(user,'equipment.view'))return noAccess();
+    if((!phase4.loaded||phase4.projectId!==projectId())&&!phase4.loading)loadPhase4().then(()=>render()).catch(error=>toast(error.message));
+    const search=norm(ui.equipmentSearch||''),state=ui.equipmentStatus||'TODOS';
+    const filtered=phase4.equipment.filter(record=>(state==='TODOS'||equipmentStatus(record)===state)&&(!search||norm(`${record.id} ${record.type} ${record.brandModel} ${record.description} ${record.location} ${record.responsible}`).includes(search)));
+    const pageSize=ui.equipmentPageSize==='ALL'?Math.max(filtered.length,1):Number(ui.equipmentPageSize)||250;const pages=Math.max(1,Math.ceil(filtered.length/pageSize));ui.equipmentPage=Math.min(Math.max(Number(ui.equipmentPage)||1,1),pages);const start=(ui.equipmentPage-1)*pageSize;const rows=filtered.slice(start,start+pageSize);const summary=equipmentSummary();
+    const canCreate=has(user,'equipment.create'),canEdit=has(user,'equipment.edit'),canImport=has(user,'equipment.import'),canExport=has(user,'equipment.export');
+    return `<div class="page-head"><div><h2>Verificación de equipos</h2><p>Registros relacionales por proyecto, historial de eventos y semáforo calculado.</p></div>${canCreate?'<button id="p4AddEquipment" class="btn btn-primary">＋ Agregar equipo</button>':''}</div>
+      <div class="grid grid-4">${metricP4('Equipos registrados',summary.total,'Activos')}${metricP4('Vigentes',summary.current,'Fuera de 30 días','positive')}${metricP4('Próximos',summary.soon,'Vencen en 30 días','warning')}${metricP4('Vencidos',summary.expired,'Requieren seguimiento','critical')}</div>
+      <div class="card" style="margin-top:16px"><h3>Importación y exportación FO-GC-23</h3><div class="form-grid"><div class="field full"><label>Archivo XLSX</label><input id="p4EquipmentFile" type="file" accept=".xlsx,.xls" ${canImport?'':'disabled'}></div></div><div class="button-row"><button id="p4ImportEquipment" class="btn btn-primary" ${canImport?'':'disabled'}>Importar / actualizar por código</button><button id="exportEquipmentCSV" class="btn btn-outline" ${canExport?'':'disabled'}>Exportar CSV</button><button id="exportEquipmentPDF" class="btn btn-outline" ${canExport?'':'disabled'}>Vista previa PDF</button><button id="p4RefreshAssets" class="btn btn-secondary">Actualizar</button></div></div>
+      <div class="filters"><div class="field"><label>Buscar</label><input id="p4EquipmentSearch" value="${escapeHtml(ui.equipmentSearch||'')}"></div><div class="field"><label>Estado</label><select id="p4EquipmentStatus"><option value="TODOS">TODOS</option>${['VIGENTE','PRÓXIMO','VENCIDO','SIN INFORMACIÓN'].map(item=>`<option ${state===item?'selected':''}>${item}</option>`).join('')}</select></div><div class="field"><label>Registros por página</label><select id="p4EquipmentPageSize">${[50,100,250,500].map(size=>`<option value="${size}" ${String(ui.equipmentPageSize)===String(size)?'selected':''}>${size}</option>`).join('')}<option value="ALL" ${ui.equipmentPageSize==='ALL'?'selected':''}>Todos (${filtered.length})</option></select></div></div>
+      <div class="table-wrap"><table><thead><tr><th>Código</th><th>Equipo</th><th>Marca / modelo</th><th>Ubicación</th><th>Responsable</th><th>Frecuencia</th><th>Próxima calibración</th><th>Próxima verificación</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${ui.equipmentSelectedId==='__NEW__'?`<tr class="inline-edit-table-row"><td colspan="10">${equipmentEditor({verificationRequired:true,frequencyDays:180})}</td></tr>`:''}${rows.map(record=>{const dates=equipmentDates(record);return `<tr class="${dates.status==='VENCIDO'?'equipment-row-expired':dates.status==='PRÓXIMO'?'equipment-row-soon':''}"><td><strong>${escapeHtml(record.id)}</strong></td><td>${escapeHtml(record.type)}</td><td>${escapeHtml(record.brandModel)}</td><td>${escapeHtml(record.location)}</td><td>${escapeHtml(record.responsible)}</td><td>${record.frequencyDays} días</td><td>${escapeHtml(dates.nextCalibrationDate)}</td><td>${escapeHtml(dates.nextVerificationDate)}</td><td><span class="badge ${dates.status==='VIGENTE'?'badge-green':dates.status==='PRÓXIMO'?'badge-yellow':dates.status==='VENCIDO'?'badge-red':'badge-gray'}">${dates.status}</span></td><td>${canEdit?`<button class="btn btn-outline" data-p4-edit-equipment="${record._dbId}">Editar</button>`:'—'}</td></tr>${ui.equipmentSelectedId===record._dbId?`<tr class="inline-edit-table-row"><td colspan="10">${equipmentEditor(record)}</td></tr>`:''}`;}).join('')}</tbody></table></div>
+      <div class="p4-pagination"><span>Mostrando ${filtered.length?start+1:0}–${Math.min(start+rows.length,filtered.length)} de ${filtered.length}</span><div class="button-row"><button class="btn btn-secondary" data-p4-equipment-page="${ui.equipmentPage-1}" ${ui.equipmentPage<=1?'disabled':''}>Anterior</button><span>Página ${ui.equipmentPage} de ${pages}</span><button class="btn btn-secondary" data-p4-equipment-page="${ui.equipmentPage+1}" ${ui.equipmentPage>=pages?'disabled':''}>Siguiente</button></div></div>`;
+  };
+
+  async function saveEquipmentP4(){
+    const record=phase4.equipment.find(item=>item._dbId===ui.equipmentSelectedId);const code=txt(document.getElementById('p4EqCode')?.value);if(!code){toast('Indique el código del equipo.');return;}
+    const button=document.getElementById('p4SaveEquipment');try{button.disabled=true;button.textContent='Guardando…';await invokeAsset({action:'equipment_upsert',equipment:{
+      project_id:projectId(),equipment_code:code,equipment_type:txt(document.getElementById('p4EqType')?.value),brand_model:txt(document.getElementById('p4EqBrand')?.value),description:txt(document.getElementById('p4EqDescription')?.value),
+      block_id:document.getElementById('p4EqBlock')?.value||null,level_id:document.getElementById('p4EqLevel')?.value||null,area_id:document.getElementById('p4EqArea')?.value||null,
+      location_text:txt(document.getElementById('p4EqLocation')?.value),responsible:txt(document.getElementById('p4EqResponsible')?.value),frequency_days:Number(document.getElementById('p4EqFrequency')?.value)||180,
+      verification_required:document.getElementById('p4EqVerificationRequired')?.checked!==false,calibration_required:document.getElementById('p4EqCalibrationRequired')?.checked===true,
+      last_verification_date:document.getElementById('p4EqVerification')?.value||null,last_calibration_date:document.getElementById('p4EqCalibration')?.value||null,
+      observations:txt(document.getElementById('p4EqObservations')?.value),is_active:true,legacy_id:record?.id||null
+    }});ui.equipmentSelectedId=null;await loadPhase4(true);toast('Equipo guardado');preserveRender();}catch(error){console.error(error);toast(`No se pudo guardar: ${error.message}`);}finally{if(button){button.disabled=false;button.textContent='Guardar';}}
+  }
+  async function equipmentEventP4(type='VERIFICATION'){
+    const record=phase4.equipment.find(item=>item._dbId===ui.equipmentSelectedId);if(!record)return;
+    try{await invokeAsset({action:'equipment_event',equipment_id:record._dbId,event_type:type,event_date:isoToday(),notes:'Registrado desde Quality Project Control'});await loadPhase4(true);toast(type==='CALIBRATION'?'Calibración registrada':'Verificación registrada');preserveRender();}catch(error){toast(error.message);}
+  }
+  async function deleteEquipmentP4(){
+    const record=phase4.equipment.find(item=>item._dbId===ui.equipmentSelectedId);if(!record||!await confirmP4(`¿Archivar el equipo ${record.id}?`))return;
+    try{await invokeAsset({action:'equipment_delete',equipment_id:record._dbId});ui.equipmentSelectedId=null;await loadPhase4(true);toast('Equipo archivado');preserveRender();}catch(error){toast(error.message);}
+  }
+  function parseExcelDateP4(value){if(!value)return null;if(typeof value==='number'&&window.XLSX){const d=XLSX.SSF.parse_date_code(value);return d?`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`:null;}const text=txt(value);if(/^\d{4}-\d{2}-\d{2}$/.test(text))return text;const date=new Date(text);return Number.isNaN(date.getTime())?null:toISODate(date);}
+  async function importEquipmentP4(){
+    const file=document.getElementById('p4EquipmentFile')?.files?.[0];if(!file||!window.XLSX){toast('Seleccione un archivo Excel válido.');return;}
+    const button=document.getElementById('p4ImportEquipment');try{button.disabled=true;button.textContent='Procesando…';const book=XLSX.read(await file.arrayBuffer(),{type:'array'}),sheet=book.Sheets[book.SheetNames[0]],rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});let header=rows.findIndex(row=>norm(row[0]).includes('identificacion')||norm(row[0]).includes('identificación'));if(header<0)header=rows.findIndex(row=>norm(row.join(' ')).includes('identificacion del equipo'));if(header<0)throw new Error('No se encontró el encabezado de identificación del FO-GC-23.');
+      const records=rows.slice(header+1).filter(row=>txt(row[0])).map(row=>({equipment_code:txt(row[0]),equipment_type:txt(row[1]),brand_model:txt(row[2]),description:txt(row[3]),location_text:txt(row[4]),responsible:txt(row[5]),frequency_days:Number(row[6])||180,calibration_required:Boolean(parseExcelDateP4(row[7])),verification_required:true,last_calibration_date:parseExcelDateP4(row[7]),last_verification_date:parseExcelDateP4(row[9]),observations:txt(row[11])}));
+      if(!records.length)throw new Error('No se encontraron equipos para importar.');await invokeAsset({action:'equipment_bulk_upsert',project_id:projectId(),records});await loadPhase4(true);toast(`${records.length} equipos importados o actualizados`);render();
+    }catch(error){console.error(error);toast(`No se pudo importar: ${error.message}`);}finally{if(button){button.disabled=false;button.textContent='Importar / actualizar por código';}}
+  }
+
+  // ---------------------------------------------------------------------------
+  // Instructivos relacionales
+  // ---------------------------------------------------------------------------
+  ui.documentSelectedId=ui.documentSelectedId||null;
+  function activityOptionsP4(selected=''){const activities=[...new Set(TEMPLATES.map(item=>item.activity).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));return `<option value="">Seleccione…</option>${activities.map(activity=>`<option ${activity===selected?'selected':''}>${escapeHtml(activity)}</option>`).join('')}`;}
+  function documentEditor(doc={}){return `<div class="inline-editor p4-editor"><h3>${doc.id?'Modificar versión':'Agregar instructivo'}</h3><div class="form-grid"><div class="field"><label>Código</label><input id="p4DocCode" value="${escapeHtml(doc.code||'')}"></div><div class="field"><label>Versión</label><input id="p4DocVersion" value="${escapeHtml(doc.version||'V01')}" placeholder="V09"></div><div class="field full"><label>Título</label><input id="p4DocTitle" value="${escapeHtml(doc.title||'')}"></div><div class="field"><label>Actividad relacionada</label><select id="p4DocActivity">${activityOptionsP4(doc.activities?.[0]||'')}</select></div><div class="field"><label>Disponibilidad</label><input value="${doc.fileId?'Disponible':'Pendiente de cargar'}" readonly></div><div class="field full"><label>Archivo</label><input id="p4DocFile" type="file" accept=".pdf,image/*,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv"></div><div class="field full"><label>Nota</label><textarea id="p4DocNote">${escapeHtml(doc.note||'')}</textarea></div></div><div class="button-row"><button id="p4SaveDocument" class="btn btn-primary">Guardar</button>${doc.id?'<button id="p4DeleteDocument" class="btn btn-danger">Borrar versión</button>':''}<button id="p4CancelDocument" class="btn btn-secondary">Cerrar</button></div></div>`;}
+  window.renderDocuments=function(user){
+    if(!has(user,'instructives.view'))return noAccess();if((!phase4.loaded||phase4.projectId!==projectId())&&!phase4.loading)loadPhase4().then(()=>render()).catch(error=>toast(error.message));
+    const search=norm(ui.docSearch||''),rows=phase4.documents.filter(doc=>!search||norm(`${doc.code} ${doc.version} ${doc.title} ${doc.activities.join(' ')} ${doc.status}`).includes(search));const canCreate=has(user,'instructives.create'),canEdit=has(user,'instructives.edit'),canDelete=has(user,'instructives.delete');
+    return `<div class="page-head"><div><h2>Biblioteca de instructivos</h2><p>Versionado relacional, archivos privados y estado calculado automáticamente.</p></div>${canCreate?'<button id="p4AddDocument" class="btn btn-primary">＋ Agregar instructivo</button>':''}</div><div class="filters"><div class="field full"><label>Buscar</label><input id="p4DocSearch" value="${escapeHtml(ui.docSearch||'')}" placeholder="Código, título, actividad o versión"></div></div><div class="grid grid-3">${ui.documentSelectedId==='__NEW__'?`<article class="card p4-editor-card">${documentEditor({version:'V01'})}</article>`:''}${rows.map(doc=>`<article class="card doc-card"><div><span class="doc-code">${escapeHtml(doc.code)} · ${escapeHtml(doc.version)}</span><h3>${escapeHtml(doc.title)}</h3><div class="p4-status-row"><span class="badge ${doc.status==='Vigente'?'badge-green':'badge-gray'}">${escapeHtml(doc.status)}</span><span class="badge ${doc.fileId?'badge-green':'badge-yellow'}">${doc.fileId?'Disponible':'Pendiente de cargar'}</span></div><div class="tag-list">${doc.activities.map(activity=>`<span class="tag">${escapeHtml(activity)}</span>`).join('')}</div>${doc.note?`<p class="helper">${escapeHtml(doc.note)}</p>`:''}</div><div class="button-row">${doc.fileId||doc.file?`<button class="btn btn-primary" data-p4-view-document="${doc.id}">Visualizar</button>`:'<button class="btn btn-secondary" disabled>Pendiente de cargar</button>'}${canEdit?`<button class="btn btn-outline" data-p4-edit-document="${doc.id}">Modificar</button>`:''}</div>${ui.documentSelectedId===doc.id?documentEditor(doc):''}</article>`).join('')||'<div class="card empty">No hay instructivos en este proyecto.</div>'}</div>`;
+  };
+  async function viewDocumentP4(id){const doc=phase4.documents.find(item=>item.id===id);if(!doc)return;try{const url=await signedUrl(doc.fileRecord);if(!url)throw new Error('El archivo está pendiente de cargar.');showFileViewer(url,doc.fileName||`${doc.code} ${doc.version}`,doc.fileType||'');}catch(error){toast(error.message);}}
+  async function saveDocumentP4(){
+    const selected=phase4.documents.find(item=>item.id===ui.documentSelectedId);const code=txt(document.getElementById('p4DocCode')?.value),title=txt(document.getElementById('p4DocTitle')?.value),version=txt(document.getElementById('p4DocVersion')?.value)||'V01';if(!code||!title){toast('Complete código y título.');return;}
+    const button=document.getElementById('p4SaveDocument');let uploaded=null;try{button.disabled=true;button.textContent='Guardando…';const file=document.getElementById('p4DocFile')?.files?.[0];if(file)uploaded=await uploadAsset(file,'instructives',projectId(),`${code}-${version}`);const result=await invokeAsset({action:'instructive_upsert',instructive:{instructive_id:selected?._instructiveId||null,project_id:projectId(),document_code:code,title,activity:document.getElementById('p4DocActivity')?.value||'',version_label:version,note:txt(document.getElementById('p4DocNote')?.value),file:uploaded}});await removeStorageObjects(result.remove_storage);ui.documentSelectedId=null;await loadPhase4(true);toast('Instructivo guardado');preserveRender();}catch(error){if(uploaded?.storage_path)await removeStorageObjects(uploaded);console.error(error);toast(`No se pudo guardar: ${error.message}`);}finally{if(button){button.disabled=false;button.textContent='Guardar';}}
+  }
+  async function deleteDocumentP4(){const doc=phase4.documents.find(item=>item.id===ui.documentSelectedId);if(!doc||!await confirmP4(`¿Borrar ${doc.code} ${doc.version}?`))return;try{const result=await invokeAsset({action:'instructive_delete',version_id:doc.id});await removeStorageObjects(result.remove_storage);ui.documentSelectedId=null;await loadPhase4(true);toast('Versión eliminada');preserveRender();}catch(error){toast(error.message);}}
+
+  // ---------------------------------------------------------------------------
+  // Mapeos relacionales
+  // ---------------------------------------------------------------------------
+  ui.mappingSelectedId=ui.mappingSelectedId||null;
+  function projectStructureP4(){return list(data.projects).find(project=>project.id===projectId())||{blocks:[]};}
+  function mappingEditor(map={}){
+    const project=projectStructureP4(),blocks=list(project.blocks);const block=blocks.find(item=>item.id===map.blockId)||blocks.find(item=>item.code===map.block)||blocks[0];const levels=list(block?.levels);const level=levels.find(item=>item.id===map.levelId)||levels.find(item=>item.code===map.level)||levels[0];const areas=list(level?.areas);const area=areas.find(item=>item.id===map.areaId)||areas.find(item=>item.name===map.area)||areas[0];
+    const preview=`MAP-${escapeHtml(project.shortCode||project.id||'PRJ')}-${escapeHtml(block?.code||'B')}-${escapeHtml(level?.code||'N00')} · ${escapeHtml(map.version||'V01')}`;
+    return `<div class="inline-editor p4-editor"><h3>${map.id?'Modificar mapeo':'Agregar mapeo'}</h3><div class="alert alert-info">Código automático: <strong>${preview}</strong></div><div class="form-grid"><div class="field"><label>Bloque</label><select id="p4MapBlock">${blocks.map(item=>`<option value="${item.id}" ${block?.id===item.id?'selected':''}>${escapeHtml(item.name)}</option>`).join('')}</select></div><div class="field"><label>Nivel</label><select id="p4MapLevel">${levels.map(item=>`<option value="${item.id}" ${level?.id===item.id?'selected':''}>${escapeHtml(item.name)}</option>`).join('')}</select></div><div class="field"><label>Área</label><select id="p4MapArea">${areas.map(item=>`<option value="${item.id}" ${area?.id===item.id?'selected':''}>${escapeHtml(item.name)}</option>`).join('')}</select></div><div class="field"><label>Versión</label><input id="p4MapVersion" value="${escapeHtml(map.version||'V01')}"></div><div class="field full"><label>Título</label><input id="p4MapTitle" value="${escapeHtml(map.title||`Mapeo ${area?.name||''}`)}"></div><div class="field full"><label>Plano / imagen</label><input id="p4MapFile" type="file" accept="image/*,.pdf"></div></div><div class="button-row"><button id="p4SaveMapping" class="btn btn-primary">Guardar</button>${map.mappingId?'<button id="p4DeleteMapping" class="btn btn-danger">Borrar mapeo</button>':''}<button id="p4CancelMapping" class="btn btn-secondary">Cerrar</button></div></div>`;
+  }
+  window.renderMappings=function(user){
+    if(!has(user,'mappings.view'))return noAccess();if((!phase4.loaded||phase4.projectId!==projectId())&&!phase4.loading)loadPhase4().then(()=>render()).catch(error=>toast(error.message));
+    const search=norm(ui.mapSearch||''),rows=phase4.mappings.filter(map=>!search||norm(`${map.code} ${map.title} ${map.block} ${map.level} ${map.area} ${map.version}`).includes(search));const canCreate=has(user,'mappings.create'),canEdit=has(user,'mappings.edit');
+    return `<div class="page-head"><div><h2>Biblioteca de mapeos</h2><p>Ubicación estructurada, versiones, archivos privados y anotaciones sin alterar el original.</p></div>${canCreate?'<button id="p4AddMapping" class="btn btn-primary">＋ Agregar mapeo</button>':''}</div><div class="filters"><div class="field full"><label>Buscar</label><input id="p4MapSearch" value="${escapeHtml(ui.mapSearch||'')}" placeholder="Bloque, nivel, área, código o título"></div></div><div class="grid grid-3">${ui.mappingSelectedId==='__NEW__'?`<article class="card p4-editor-card">${mappingEditor({version:'V01'})}</article>`:''}${rows.map(map=>`<article class="card map-card"><div class="p4-map-preview" data-p4-map-preview="${map.id}">${map.file?`<img src="${escapeHtml(map.file)}" alt="${escapeHtml(map.title)}">`:'<div class="p4-map-placeholder">MAP</div>'}</div><div class="body"><h3>${escapeHtml(map.title)}</h3><div class="helper">${escapeHtml(map.code)} · ${escapeHtml(map.version)}</div><div class="p4-status-row"><span class="badge ${map.status==='Vigente'?'badge-green':'badge-gray'}">${escapeHtml(map.status)}</span></div><div class="tag-list"><span class="tag">${escapeHtml(map.block)}</span><span class="tag">${escapeHtml(map.level)}</span><span class="tag">${escapeHtml(map.area)}</span></div><div class="button-row"><button class="btn btn-primary" data-p4-view-mapping="${map.id}">Ver</button>${canEdit?`<button class="btn btn-outline" data-p4-edit-mapping="${map.id}">Modificar</button>`:''}${user.role==='EJECUCION'?`<button class="btn btn-primary" data-use-mapping="${map.id}">Usar y marcar</button>`:''}</div>${ui.mappingSelectedId===map.id?mappingEditor(map):''}</div></article>`).join('')||'<div class="card empty">No hay mapeos en este proyecto.</div>'}</div>`;
+  };
+  async function hydrateMapPreviews(){const cards=[...document.querySelectorAll('[data-p4-map-preview]')];await Promise.all(cards.map(async card=>{const map=phase4.mappings.find(item=>item.id===card.dataset.p4MapPreview);if(!map||card.querySelector('img')||!map.fileRecord)return;try{const url=await signedUrl(map.fileRecord);if(url)card.innerHTML=`<img src="${escapeHtml(url)}" alt="${escapeHtml(map.title)}">`;}catch(_ignored){}}));}
+  async function viewMappingP4(id){const map=phase4.mappings.find(item=>item.id===id);if(!map)return;try{const url=await signedUrl(map.fileRecord)||map.file;if(!url)throw new Error('El archivo del mapeo está pendiente.');showFileViewer(url,map.fileName||map.title,map.fileType||'');}catch(error){toast(error.message);}}
+  async function saveMappingP4(){
+    const selected=phase4.mappings.find(item=>item.id===ui.mappingSelectedId),project=projectStructureP4();const block=list(project.blocks).find(item=>item.id===document.getElementById('p4MapBlock')?.value),level=list(block?.levels).find(item=>item.id===document.getElementById('p4MapLevel')?.value),area=list(level?.areas).find(item=>item.id===document.getElementById('p4MapArea')?.value);if(!block||!level||!area){toast('Seleccione bloque, nivel y área.');return;}
+    const version=txt(document.getElementById('p4MapVersion')?.value)||'V01',title=txt(document.getElementById('p4MapTitle')?.value)||`Mapeo ${area.name}`,button=document.getElementById('p4SaveMapping');let uploaded=null;
+    try{button.disabled=true;button.textContent='Guardando…';const file=document.getElementById('p4MapFile')?.files?.[0];if(file)uploaded=await uploadAsset(file,'mappings',projectId(),`${block.code}-${level.code}-${area.code||area.name}-${version}`);const result=await invokeAsset({action:'mapping_upsert',mapping:{mapping_id:selected?.mappingId||null,version_id:selected?.id||null,project_id:projectId(),block_id:block.id,level_id:level.id,area_id:area.id,block_code:block.code,level_code:level.code,area_name:area.name,title,version_label:version,file:uploaded}});await removeStorageObjects(result.remove_storage);ui.mappingSelectedId=null;await loadPhase4(true);toast('Mapeo guardado');preserveRender();}catch(error){if(uploaded?.storage_path)await removeStorageObjects(uploaded);console.error(error);toast(`No se pudo guardar: ${error.message}`);}finally{if(button){button.disabled=false;button.textContent='Guardar';}}
+  }
+  async function deleteMappingP4(){const map=phase4.mappings.find(item=>item.id===ui.mappingSelectedId);if(!map||!await confirmP4(`¿Borrar el mapeo ${map.title} y sus versiones?`))return;try{const result=await invokeAsset({action:'mapping_delete',mapping_id:map.mappingId});await removeStorageObjects(result.remove_storage);ui.mappingSelectedId=null;await loadPhase4(true);toast('Mapeo eliminado');preserveRender();}catch(error){toast(error.message);}}
+
+  // Recursos de inspección usan versiones vigentes relacionales.
+  window.renderResources=function(inspection,mapping,docs,user){
+    const relMapping=mappingById(inspection?.mappingId)||mapping;const activity=templateById(inspection?.templateId)?.activity;
+    const related=projectDocuments().filter(doc=>doc.status==='Vigente'&&(!activity||doc.activities.includes(activity)));
+    const attachments=list(inspection?.attachments).map((attachment,index)=>({...attachment,index}));
+    return `<div class="resource-grid"><article class="resource-item"><strong>Mapeo original</strong><span>${escapeHtml(relMapping?.code||'—')} ${escapeHtml(relMapping?.version||'')}</span>${relMapping?`<button class="btn btn-primary" data-p4-view-mapping="${escapeHtml(relMapping.id)}">Visualizar</button>`:'<button class="btn btn-secondary" disabled>Pendiente</button>'}</article>${inspection?.mappingAnnotation?`<article class="resource-item"><strong>Mapeo marcado</strong><span>Alcance señalado</span>${viewerButton(inspection.mappingAnnotation,'Mapeo marcado','image/png','Visualizar')}</article>`:''}${attachments.map(attachment=>`<article class="resource-item"><strong>${escapeHtml(attachment.kind||'Adjunto')}</strong><span>${escapeHtml(attachment.name||'Archivo')}</span><button class="btn btn-primary" data-open-attachment="${inspection.id}" data-attachment-index="${attachment.index}">Visualizar</button><button class="btn btn-outline" data-download-attachment="${inspection.id}" data-attachment-index="${attachment.index}">Descargar</button></article>`).join('')}${related.map(doc=>`<article class="resource-item"><strong>${escapeHtml(doc.code)} ${escapeHtml(doc.version)}</strong><span>${escapeHtml(doc.title)}</span>${doc.fileId?`<button class="btn btn-primary" data-p4-view-document="${doc.id}">Visualizar</button>`:'<button class="btn btn-secondary" disabled>Pendiente</button>'}</article>`).join('')}</div>`;
+  };
+
+  function setSelectOptions(select,items,selected=''){if(!select)return;select.innerHTML='<option value="">Sin asignar</option>'+items.map(item=>`<option value="${item.id}" ${item.id===selected?'selected':''}>${escapeHtml(item.name)}</option>`).join('');}
+  function updateEquipmentLocationOptions(changed){const project=projectStructureP4(),blockSelect=document.getElementById('p4EqBlock'),levelSelect=document.getElementById('p4EqLevel'),areaSelect=document.getElementById('p4EqArea');const block=list(project.blocks).find(item=>item.id===blockSelect?.value);if(changed==='p4EqBlock')setSelectOptions(levelSelect,list(block?.levels));const level=list(block?.levels).find(item=>item.id===levelSelect?.value);setSelectOptions(areaSelect,list(level?.areas));}
+  function updateMappingLocationOptions(changed){const project=projectStructureP4(),blockSelect=document.getElementById('p4MapBlock'),levelSelect=document.getElementById('p4MapLevel'),areaSelect=document.getElementById('p4MapArea');const block=list(project.blocks).find(item=>item.id===blockSelect?.value);if(changed==='p4MapBlock'){setSelectOptions(levelSelect,list(block?.levels));}const level=list(block?.levels).find(item=>item.id===levelSelect?.value);setSelectOptions(areaSelect,list(level?.areas));}
+
+  // Eventos de Fase 4 en captura para neutralizar binders heredados.
+  document.addEventListener('click',async event=>{
+    const button=event.target.closest('button');if(!button)return;
+    const stop=()=>{event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();};
+    if(button.id==='p4RefreshAssets'){stop();phase4.loaded=false;await loadPhase4(true);render();return;}
+    if(button.id==='p4AddEquipment'){stop();ui.equipmentSelectedId='__NEW__';preserveRender();return;}
+    if(button.matches('[data-p4-edit-equipment]')){stop();ui.equipmentSelectedId=button.dataset.p4EditEquipment;preserveRender();return;}
+    if(button.id==='p4CancelEquipment'){stop();ui.equipmentSelectedId=null;preserveRender();return;}
+    if(button.id==='p4SaveEquipment'){stop();await saveEquipmentP4();return;}
+    if(button.id==='p4VerifyEquipment'){stop();await equipmentEventP4('VERIFICATION');return;}
+    if(button.id==='p4DeleteEquipment'){stop();await deleteEquipmentP4();return;}
+    if(button.id==='p4ImportEquipment'){stop();await importEquipmentP4();return;}
+    if(button.matches('[data-p4-equipment-page]')){stop();ui.equipmentPage=Number(button.dataset.p4EquipmentPage)||1;preserveRender();return;}
+    if(button.id==='p4AddDocument'){stop();ui.documentSelectedId='__NEW__';preserveRender();return;}
+    if(button.matches('[data-p4-edit-document]')){stop();ui.documentSelectedId=button.dataset.p4EditDocument;preserveRender();return;}
+    if(button.matches('[data-p4-view-document]')){stop();await viewDocumentP4(button.dataset.p4ViewDocument);return;}
+    if(button.id==='p4CancelDocument'){stop();ui.documentSelectedId=null;preserveRender();return;}
+    if(button.id==='p4SaveDocument'){stop();await saveDocumentP4();return;}
+    if(button.id==='p4DeleteDocument'){stop();await deleteDocumentP4();return;}
+    if(button.id==='p4AddMapping'){stop();ui.mappingSelectedId='__NEW__';preserveRender();return;}
+    if(button.matches('[data-p4-edit-mapping]')){stop();ui.mappingSelectedId=button.dataset.p4EditMapping;preserveRender();return;}
+    if(button.matches('[data-p4-view-mapping]')){stop();await viewMappingP4(button.dataset.p4ViewMapping);return;}
+    if(button.id==='p4CancelMapping'){stop();ui.mappingSelectedId=null;preserveRender();return;}
+    if(button.id==='p4SaveMapping'){stop();await saveMappingP4();return;}
+    if(button.id==='p4DeleteMapping'){stop();await deleteMappingP4();return;}
+  },true);
+
+  document.addEventListener('input',event=>{
+    if(event.target.id==='p4EquipmentSearch'){ui.equipmentSearch=event.target.value;ui.equipmentPage=1;preserveRender();}
+    if(event.target.id==='p4DocSearch'){ui.docSearch=event.target.value;preserveRender();}
+    if(event.target.id==='p4MapSearch'){ui.mapSearch=event.target.value;preserveRender();}
+  },true);
+  document.addEventListener('change',event=>{
+    if(event.target.id==='p4EquipmentStatus'){ui.equipmentStatus=event.target.value;ui.equipmentPage=1;preserveRender();}
+    if(event.target.id==='p4EquipmentPageSize'){ui.equipmentPageSize=event.target.value==='ALL'?'ALL':Number(event.target.value);ui.equipmentPage=1;preserveRender();}
+    if(event.target.id==='p4EqBlock'||event.target.id==='p4EqLevel')updateEquipmentLocationOptions(event.target.id);
+    if(event.target.id==='p4MapBlock'||event.target.id==='p4MapLevel')updateMappingLocationOptions(event.target.id);
+    if(event.target.id==='projectSelector'||event.target.id==='activeProjectSelect'||event.target.matches('[data-project-select]')){phase4.loaded=false;phase4.projectId=null;setTimeout(()=>loadPhase4(true).then(()=>render()).catch(error=>toast(error.message)),0);}
+  },true);
+
+  // Las miniaturas privadas se resuelven después de cada render.
+  const previousRender=window.render;
+  window.render=function(){const result=previousRender();requestAnimationFrame(()=>{if(ui.view==='mappings')hydrateMapPreviews();});return result;};
+})();

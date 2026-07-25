@@ -332,3 +332,19 @@ a{color:inherit;text-decoration:none}
   .workflow-card .form-grid{grid-template-columns:1fr}
   .workflow-card .button-row .btn{width:100%}
 }
+
+/* V8.3 · Fase 4 */
+.p4-editor{margin-top:16px;border-top:1px solid #dce5ed;padding-top:16px}
+.p4-editor-card{grid-column:1/-1}
+.p4-status-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.p4-pagination{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:12px 2px 2px;color:#556579;font-size:14px}
+.p4-map-preview{height:180px;background:#eef3f7;display:flex;align-items:center;justify-content:center;overflow:hidden;border-radius:14px 14px 0 0}
+.p4-map-preview img{width:100%;height:100%;object-fit:contain;background:#fff}
+.p4-map-placeholder{width:76px;height:76px;border-radius:20px;background:#0f4561;color:#fff;display:grid;place-items:center;font-weight:900;letter-spacing:.08em}
+.inline-edit-table-row>td{padding:0!important;background:#f8fafc}
+.inline-edit-table-row .p4-editor{margin:0;padding:20px}
+@media(max-width:720px){
+  .p4-pagination{align-items:flex-start;flex-direction:column}
+  .p4-pagination .button-row{width:100%;justify-content:space-between}
+  .p4-map-preview{height:150px}
+}
