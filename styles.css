@@ -409,3 +409,56 @@ a{color:inherit;text-decoration:none}
   .inspection-archive-tabs .tab{justify-content:center;padding-inline:8px}
   .p8-archive-dialog{width:min(92vw,520px)}
 }
+
+/* ================================================================
+   MAIN V8.8.0 · Fase 9
+   ================================================================ */
+
+/* Chevrón integrado del combobox de correo. */
+.qpc-combobox-control #loginEmailToggle{
+  width:44px;
+  min-width:44px;
+  height:100%;
+  display:grid;
+  place-items:center;
+  padding:0;
+  border:0;
+  border-left:1px solid #d7e0e8;
+  border-radius:0 11px 11px 0;
+  background:linear-gradient(180deg,#ffffff 0%,#f5f8fa 100%);
+  color:#123d56;
+  cursor:pointer;
+  transition:background-color .16s ease,color .16s ease,box-shadow .16s ease;
+}
+.qpc-combobox-control #loginEmailToggle:hover,
+.qpc-combobox-control #loginEmailToggle:focus-visible{
+  background:#eef5f8;
+  color:#c8102e;
+  box-shadow:inset 0 0 0 2px rgba(200,16,46,.1);
+  outline:none;
+}
+.qpc-combobox-control #loginEmailToggle svg{
+  width:19px;
+  height:19px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2.2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  transition:transform .18s ease;
+}
+.qpc-combobox-control #loginEmailToggle[aria-expanded="true"] svg{
+  transform:rotate(180deg);
+}
+
+/* Evita que la flecha de un input/select nativo se superponga al control. */
+.qpc-combobox-control #loginEmail{
+  border-radius:11px 0 0 11px;
+}
+
+/* Los gráficos porcentuales usan el espacio disponible hasta 100 %. */
+#p5WorkshopChart,
+#p5EngineerChart,
+#p5AreaChart{
+  max-height:330px;
+}

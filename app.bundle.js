@@ -4006,3 +4006,157 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     if(event.target.closest('#logoutBtn')){p8.loaded=false;p8.userId=null;p8.archives.clear();ui.myInspectionArchiveMode='ACTIVE';}
   },true);
 })();
+
+/* ================================================================
+   Quality Project Control · MAIN V8.8.0 · Fase 9
+   Estabilización de calificaciones, login e inspecciones personales.
+   ================================================================ */
+(()=>{
+  'use strict';
+
+  const phase9Version='8.8.0';
+  window.QPC_VERSION=phase9Version;
+
+  /* --------------------------------------------------------------
+     1. Gráficos de Calificaciones
+     - Escala porcentual estricta 0–100.
+     - Líneas de referencia visibles aun cuando exista una sola barra.
+     -------------------------------------------------------------- */
+  const OriginalChart=window.Chart;
+  if(OriginalChart && !OriginalChart.__qpcPhase9Wrapped){
+    const referenceLinePlugin={
+      id:'qpcPhase9ReferenceLines',
+      afterDatasetsDraw(chart,_args,options){
+        const lines=Array.isArray(options?.lines)?options.lines:[];
+        const yScale=chart.scales?.y;
+        const area=chart.chartArea;
+        if(!yScale||!area||!lines.length)return;
+        const ctx=chart.ctx;
+        ctx.save();
+        lines.forEach(line=>{
+          const value=Number(line.value);
+          if(!Number.isFinite(value))return;
+          const y=yScale.getPixelForValue(Math.max(0,Math.min(100,value)));
+          ctx.beginPath();
+          ctx.setLineDash(Array.isArray(line.dash)?line.dash:[]);
+          ctx.lineWidth=Number(line.width)||2;
+          ctx.strokeStyle=line.color||'#c8102e';
+          ctx.moveTo(area.left,y);
+          ctx.lineTo(area.right,y);
+          ctx.stroke();
+        });
+        ctx.restore();
+      }
+    };
+
+    function normalizePercentageChart(item,config){
+      if(!config||typeof config!=='object')return config;
+      const canvas=typeof item==='string'?document.getElementById(item):(item?.canvas||item);
+      const id=canvas?.id||'';
+      if(!['p5WorkshopChart','p5EngineerChart','p5AreaChart'].includes(id))return config;
+
+      config.options={...(config.options||{})};
+      config.options.scales={...(config.options.scales||{})};
+      config.options.scales.y={
+        ...(config.options.scales.y||{}),
+        min:0,
+        max:100,
+        beginAtZero:true,
+        ticks:{...(config.options.scales.y?.ticks||{}),stepSize:20,callback:value=>`${value}%`}
+      };
+
+      const datasets=Array.isArray(config.data?.datasets)?config.data.datasets:[];
+      const lines=[];
+      if(id==='p5EngineerChart'){
+        datasets.forEach(dataset=>{
+          const label=String(dataset.label||'');
+          const value=Number(Array.isArray(dataset.data)?dataset.data[0]:NaN);
+          if(label.startsWith('Meta ')&&Number.isFinite(value))lines.push({value,color:dataset.borderColor||'#f59e0b',width:3});
+          if(label.startsWith('Media ')&&Number.isFinite(value))lines.push({value,color:dataset.borderColor||'#c8102e',width:2,dash:[7,5]});
+        });
+      }
+      if(id==='p5AreaChart'){
+        datasets.forEach(dataset=>{
+          const label=String(dataset.label||'');
+          const value=Number(Array.isArray(dataset.data)?dataset.data[0]:NaN);
+          if(label.startsWith('Meta ')&&Number.isFinite(value))lines.push({value,color:dataset.borderColor||'#d97706',width:3});
+        });
+      }
+      if(lines.length){
+        config.plugins=[...(Array.isArray(config.plugins)?config.plugins:[]),referenceLinePlugin];
+        config.options.plugins={...(config.options.plugins||{}),qpcPhase9ReferenceLines:{lines}};
+      }
+      return config;
+    }
+
+    const ChartProxy=new Proxy(OriginalChart,{
+      construct(target,args){
+        if(args.length>1)args[1]=normalizePercentageChart(args[0],args[1]);
+        return Reflect.construct(target,args,target);
+      },
+      apply(target,thisArg,args){
+        if(args.length>1)args[1]=normalizePercentageChart(args[0],args[1]);
+        return Reflect.apply(target,thisArg,args);
+      }
+    });
+    Object.defineProperty(ChartProxy,'__qpcPhase9Wrapped',{value:true});
+    window.Chart=ChartProxy;
+  }
+
+  /* --------------------------------------------------------------
+     2. Combobox de login
+     Sustituye la palomita tipográfica por un chevrón SVG consistente.
+     -------------------------------------------------------------- */
+  const previousRenderLogin=window.renderLogin||renderLogin;
+  const phase9RenderLogin=function(){
+    const html=previousRenderLogin();
+    return String(html).replace(
+      /<button id="loginEmailToggle" type="button" aria-label="Mostrar correos">[\s\S]*?<\/button>/,
+      '<button id="loginEmailToggle" type="button" aria-label="Mostrar correos" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="m7 9.5 5 5 5-5"/></svg></button>'
+    );
+  };
+  window.renderLogin=phase9RenderLogin;
+  try{renderLogin=phase9RenderLogin;}catch(_){/* módulo estricto: window es suficiente */}
+
+  // Sincroniza el estado visual del chevrón con el combobox ya existente.
+  const comboboxObserver=new MutationObserver(()=>{
+    const input=document.getElementById('loginEmail');
+    const button=document.getElementById('loginEmailToggle');
+    if(input&&button)button.setAttribute('aria-expanded',input.getAttribute('aria-expanded')||'false');
+  });
+  comboboxObserver.observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['aria-expanded']});
+
+  /* --------------------------------------------------------------
+     3. Mis inspecciones
+     Para Calidad, Gerencia de Calidad e IT solo muestra inspecciones
+     tomadas/asignadas al usuario actual. Las no tomadas permanecen en
+     Bandeja de Calidad.
+     -------------------------------------------------------------- */
+  const previousRenderMyInspections=window.renderMyInspections||renderMyInspections;
+  function identitySet(user){
+    const values=[user?.id,user?.authId,user?.auth_id,user?.profileId,user?.profile_id];
+    try{if(typeof authId==='function')values.push(authId(user));}catch(_){/* no-op */}
+    return new Set(values.filter(Boolean).map(value=>String(value)));
+  }
+  function isAssignedToCurrentQuality(inspection,user){
+    const ids=identitySet(user);
+    const assigned=inspection?.assignedQualityId??inspection?.assigned_quality_id;
+    return Boolean(assigned&&ids.has(String(assigned)));
+  }
+  const phase9RenderMyInspections=function(user){
+    if(user?.role==='EJECUCION')return previousRenderMyInspections(user);
+    if(!(user?.role==='IT'||(typeof canOperateQuality==='function'&&canOperateQuality(user))))return previousRenderMyInspections(user);
+
+    const original=data.inspections;
+    data.inspections=Array.isArray(original)?original.filter(inspection=>isAssignedToCurrentQuality(inspection,user)):[];
+    try{return previousRenderMyInspections(user);}
+    finally{data.inspections=original;}
+  };
+  window.renderMyInspections=phase9RenderMyInspections;
+  try{renderMyInspections=phase9RenderMyInspections;}catch(_){/* window es suficiente */}
+
+  /* Re-render tardío para aplicar los cambios si la sesión ya estaba lista. */
+  setTimeout(()=>{
+    if(typeof render==='function')render();
+  },0);
+})();

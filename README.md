@@ -6,6 +6,50 @@ Rama principal conectada a Supabase, publicada desde GitHub en Vercel. Este READ
 
 ---
 
+## V8.8.0 · Fase 9 — Estabilización de calificaciones, login e inspecciones personales
+
+Fecha: 25 de julio de 2026.
+
+Esta fase corrige tres inconsistencias visibles detectadas después de la implementación del archivo personal de inspecciones. No requiere una migración SQL ni una Edge Function nueva.
+
+### Calificaciones y gráficos
+
+- Los gráficos porcentuales de talleres, ingenieros y áreas utilizan una escala estricta de **0 % a 100 %**; se elimina el límite visual de 105 %.
+- En **Comparativo por ingenieros**, la línea de meta y la línea de media general permanecen visibles incluso cuando el filtro devuelve un solo ingeniero.
+- En **Comparativo por áreas**, la línea de meta permanece visible aunque solo exista un área evaluada.
+- Las líneas de referencia se dibujan sobre todo el ancho del área del gráfico y no dependen de que existan dos o más barras.
+- Las etiquetas del eje vertical se muestran como porcentajes.
+
+### Login
+
+- La palomita tipográfica del combobox de correos se sustituye por un chevrón SVG integrado al diseño.
+- El chevrón gira cuando se abre el listado y conserva la misma apariencia en PC, iPhone y Android.
+- Se mantienen la búsqueda, filtrado, navegación con teclado y selección de correos registrados.
+
+### Mis inspecciones
+
+- Para Ingeniería de Calidad, Gerencia de Calidad e IT, **Mis inspecciones** muestra únicamente las inspecciones que el usuario tomó o que fueron asignadas a su perfil.
+- Las solicitudes sin tomar permanecen exclusivamente en **Bandeja de Calidad**.
+- IT conserva acceso global desde las vistas administrativas, reportes y auditoría, pero su bandeja personal deja de mezclarse con solicitudes no asignadas.
+- Las pestañas Activas, Archivadas y Todas se calculan sobre las inspecciones realmente asignadas al usuario.
+
+### Despliegue
+
+- No requiere SQL nuevo.
+- No requiere Edge Function nueva.
+- Publicar los archivos del paquete en el branch `main` y esperar el despliegue de Vercel.
+- Hacer una recarga sin caché para cargar `app.bundle.js?v=8.8.0` y `styles.css?v=8.8.0`.
+
+### Camino pendiente para cierre de producción
+
+Después de esta fase quedan tres frentes principales:
+
+1. **Interconexión relacional final:** retirar la dependencia operativa restante de `app_state`, normalizar completamente adjuntos de inspecciones y persistir las anotaciones vectoriales de mapeos.
+2. **Módulos de información corporativa y fidelidad de reportes:** buenas prácticas, talleres a mejorar, NC, capacitaciones, pruebas a materiales, recomendaciones y reproducción final de los formatos FO-CP-10 V07, FO-CP-11 V10 y FO-GC-23 V05.
+3. **Cierre de producción:** pruebas automatizadas, revisión completa de RLS, concurrencia, rendimiento, paginación del servidor, responsive final y eliminación del código legado archivado.
+
+---
+
 ## V8.7.0 · Fase 8 — Archivo personal de inspecciones y organización operativa
 
 Fecha: 25 de julio de 2026.
