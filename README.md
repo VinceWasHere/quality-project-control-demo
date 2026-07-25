@@ -6,6 +6,49 @@ Rama principal conectada a Supabase, publicada desde GitHub en Vercel. Este READ
 
 ---
 
+## V8.6.0 · Fase 7 — Integridad de datos y recuperación de calificaciones históricas
+
+Fecha: 25 de julio de 2026.
+
+Esta fase corrige la migración histórica de inspecciones y visitas. La etiqueta `Migrado` no representaba un taller nuevo: aparecía porque la migración conservaba el `template_id`, pero no resolvía su actividad real. También existían inspecciones cerradas con puntuación que no entraban a Calificaciones cuando su visita histórica no había quedado marcada como `FINALIZADA`.
+
+### Catálogo relacional
+
+- Se crean `qpc_workshops`, `qpc_inspection_templates` y `qpc_template_criteria`.
+- Se cargan las 22 actividades, las 40 planillas y sus criterios desde el catálogo vigente de la aplicación.
+- Inspecciones y visitas reciben `workshop_id` y se relacionan con la planilla real.
+- El taller se recupera mediante `template_id`; por ejemplo, `TPL-09` vuelve a mostrarse como `Mampostería`.
+- Se revierte el reemplazo visual introducido en V8.5 que convertía `Migrado` en `Sin taller asignado`. La aplicación ahora intenta resolver el nombre verdadero y solo muestra una advertencia cuando el dato no puede reconstruirse.
+
+### Recuperación de inspecciones cerradas
+
+- Se reimportan de forma idempotente las visitas guardadas en `source_snapshot.visitEvaluations`.
+- Una visita se reconoce como finalizada cuando tiene `finishedAt`, puntuación final o estado `FINALIZADA`.
+- Las inspecciones con puntuación y sin visita finalizada reciben una visita histórica resumida para no desaparecer de Calificaciones.
+- Las vistas de reporting incluyen toda inspección con una visita finalizada o con puntuación acumulada.
+- Se recalculan los promedios acumulados de la inspección usando todas sus visitas finalizadas.
+
+### Recuperación de criterios y puntos débiles
+
+- Las respuestas guardadas en `answers_snapshot` se materializan en `qpc_visit_answers`.
+- Se recuperan respuesta, factor, N/A, puntos obtenidos, puntos perdidos y observación.
+- Los puntos débiles vuelven a disponer de detalle histórico cuando el respaldo original contenía respuestas.
+- No se inventan criterios para una visita histórica resumida que no tenga respuestas en el respaldo.
+
+### Diagnóstico
+
+- Nueva vista `qpc_reporting_integrity`.
+- IT y usuarios con acceso a auditoría reciben una advertencia cuando queden registros pendientes de reconciliar.
+- Las inspecciones con puntuación permanecen visibles aun cuando falte detalle de criterios.
+
+### Despliegue
+
+- Ejecutar `SUPABASE_V8_6_PHASE7.sql`.
+- No requiere Edge Function nueva.
+- Publicar los archivos en `main` y esperar el despliegue automático de Vercel.
+
+---
+
 ## V8.5.0 · Fase 6 — Reportes, exportables PPTX y correcciones de interfaz
 
 Fecha: 25 de julio de 2026.

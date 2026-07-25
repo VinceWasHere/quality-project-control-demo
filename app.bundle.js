@@ -3537,7 +3537,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL&&typeof supabaseClient!=='undefined');
   if(!MAIN_MODE)return;
 
-  const p5={projectId:null,loaded:false,loading:null,inspections:[],visits:[],answers:[],charts:[]};
+  const p5={projectId:null,loaded:false,loading:null,inspections:[],visits:[],answers:[],issues:[],charts:[]};
   const arr=value=>Array.isArray(value)?value:[];
   const text=value=>String(value??'').trim();
   const number=value=>Number.isFinite(Number(value))?Number(value):0;
@@ -3574,20 +3574,22 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     if(p5.loaded&&p5.projectId===activeProject&&!force)return p5;
     if(p5.loading&&!force)return p5.loading;
     p5.loading=(async()=>{
-      const [inspections,visits,answers]=await Promise.all([
+      const [inspections,visits,answers,integrity]=await Promise.all([
         supabaseClient.from('qpc_reporting_inspections').select('*').eq('project_id',activeProject).order('completed_date',{ascending:false}),
         supabaseClient.from('qpc_reporting_visits').select('*').eq('project_id',activeProject).order('completed_date',{ascending:false}),
-        supabaseClient.from('qpc_reporting_answers').select('*').eq('project_id',activeProject).order('completed_date',{ascending:false})
+        supabaseClient.from('qpc_reporting_answers').select('*').eq('project_id',activeProject).order('completed_date',{ascending:false}),
+        supabaseClient.from('qpc_reporting_integrity').select('*').eq('project_id',activeProject)
       ]);
       const error=[inspections.error,visits.error,answers.error].find(Boolean);
       if(error)throw error;
-      p5.inspections=arr(inspections.data);p5.visits=arr(visits.data);p5.answers=arr(answers.data);
+      if(integrity.error)console.warn('No se pudo cargar el diagnóstico de integridad',integrity.error);
+      p5.inspections=arr(inspections.data);p5.visits=arr(visits.data);p5.answers=arr(answers.data);p5.issues=integrity.error?[]:arr(integrity.data);
       const reportDates=p5.inspections.map(row=>isoDate(row.completed_date)).filter(Boolean);
       if(ui.reportMode==='week'){const weeks=[...new Set(reportDates.map(weekStart))].sort().reverse();if(weeks.length&&!weeks.includes(ui.reportValue))ui.reportValue=weeks[0];}
       else{const months=[...new Set(reportDates.map(value=>value.slice(0,7)))].sort().reverse();if(months.length&&!months.includes(ui.reportValue))ui.reportValue=months[0];}
       p5.projectId=activeProject;p5.loaded=true;p5.loading=null;
       return p5;
-    })().catch(error=>{p5.loading=null;console.error('Fase 5 reporting',error);throw error;});
+    })().catch(error=>{p5.loading=null;console.error('Reporting relacional V8.6',error);throw error;});
     return p5.loading;
   }
   window.qpcLoadReports=loadReports;
@@ -3616,13 +3618,23 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   }
   function sourceRows(){return {inspections:p5.loaded?p5.inspections:fallbackInspectionRows(),visits:p5.loaded?p5.visits:fallbackVisitRows(),answers:p5.loaded?p5.answers:fallbackAnswerRows()};}
 
+  function templateByIdP7(id){return arr(typeof TEMPLATES!=='undefined'?TEMPLATES:window.QPC_TEMPLATES).find(template=>text(template.id)===text(id));}
+  function cleanWorkshopName(value,templateId){
+    const raw=text(value).trim(),normalized=raw.toUpperCase();
+    if(raw&&!['MIGRADO','MIGRADOS','SIN TALLER ASIGNADO'].includes(normalized))return raw;
+    const template=templateByIdP7(templateId);
+    if(template?.activity)return text(template.activity);
+    return raw?`${raw} · pendiente de reconciliar`:'Taller pendiente de asociar';
+  }
+  function workshopName(row){return cleanWorkshopName(row?.activity,row?.template_id);}
+
   function filters(){return {engineer:ui.p5Engineer||'ALL',area:ui.p5Area||'ALL',workshop:ui.p5Workshop||'ALL'};}
   function rowMatches(row){
     const f=filters();
     if(!inPeriod(row.completed_date||row.finished_at||row.completed_at))return false;
     if(f.engineer!=='ALL'&&text(row.requested_by)!==f.engineer)return false;
     if(f.area!=='ALL'&&normalizeArea(row.execution_area)!==f.area)return false;
-    if(f.workshop!=='ALL'&&cleanWorkshopName(row.activity)!==f.workshop)return false;
+    if(f.workshop!=='ALL'&&workshopName(row)!==f.workshop)return false;
     return true;
   }
   function filteredRows(){const rows=sourceRows();return {inspections:rows.inspections.filter(rowMatches),visits:rows.visits.filter(rowMatches),answers:rows.answers.filter(rowMatches)};}
@@ -3640,15 +3652,14 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     }).sort((a,b)=>a.label.localeCompare(b.label,'es'));
   }
   function meanP5(values){const valid=values.filter(value=>Number.isFinite(value));return valid.length?valid.reduce((a,b)=>a+b,0)/valid.length:0;}
-  function cleanWorkshopName(value){const raw=text(value).trim();if(!raw||raw.toUpperCase()==='MIGRADO'||raw.toUpperCase()==='MIGRADOS')return 'Sin taller asignado';return raw;}
-  function workshopGroups(rows){return groupInspections(rows,row=>cleanWorkshopName(row.activity),row=>cleanWorkshopName(row.activity));}
+  function workshopGroups(rows){return groupInspections(rows,row=>workshopName(row),row=>workshopName(row));}
   function engineerGroups(rows){return groupInspections(rows,row=>text(row.requested_by)||text(row.execution_name),row=>text(row.execution_name)||'Sin ingeniero').map(group=>({...group,area:areaLabel(group.rows[0]?.execution_area)}));}
   function areaGroups(rows){return groupInspections(rows,row=>normalizeArea(row.execution_area),row=>areaLabel(row.execution_area));}
 
   function weakGroups(inspectionRows,answerRows){
     const under=new Map(workshopGroups(inspectionRows).filter(group=>group.average<group.objective).map(group=>[group.key,group]));
     return [...under.values()].map(workshop=>{
-      const answers=answerRows.filter(row=>cleanWorkshopName(row.activity)===workshop.key);
+      const answers=answerRows.filter(row=>workshopName(row)===workshop.key);
       const criteria=new Map();
       answers.forEach(row=>{
         const key=`${row.criterion_id}|${row.criterion_stage}`;
@@ -3672,7 +3683,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   }
   function reportFilters(prefix){
     const all=sourceRows().inspections;
-    const engineers=distinct(all,'requested_by','execution_name'),areas=[...new Set(all.map(row=>normalizeArea(row.execution_area)))].filter(Boolean).sort().map(value=>[value,areaLabel(value)]),workshops=[...new Set(all.map(row=>cleanWorkshopName(row.activity)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es')).map(value=>[value,value]);
+    const engineers=distinct(all,'requested_by','execution_name'),areas=[...new Set(all.map(row=>normalizeArea(row.execution_area)))].filter(Boolean).sort().map(value=>[value,areaLabel(value)]),workshops=[...new Set(all.map(row=>workshopName(row)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es')).map(value=>[value,value]);
     return `<div class="card p5-filter-card"><div class="filters p5-report-filters"><div class="field"><label>Tipo de periodo</label><select id="${prefix}Mode"><option value="month" ${ui.reportMode==='month'?'selected':''}>Mensual</option><option value="week" ${ui.reportMode==='week'?'selected':''}>Semanal · Jueves a miércoles</option></select></div>${periodSelect(all,prefix)}<div class="field"><label>Ingeniero de Ejecución</label><select id="${prefix}Engineer">${optionsHtml(engineers,ui.p5Engineer,'Todos')}</select></div><div class="field"><label>Área</label><select id="${prefix}Area">${optionsHtml(areas,ui.p5Area,'Todas')}</select></div><div class="field"><label>Taller</label><select id="${prefix}Workshop">${optionsHtml(workshops,ui.p5Workshop,'Todos')}</select></div><div class="field p5-refresh-field"><label>Datos</label><button type="button" class="btn btn-outline" id="p5RefreshReports">Actualizar</button></div></div></div>`;
   }
   function metricP5(label,value,foot,tone=''){return `<div class="card"><div class="metric-label">${escapeHtml(label)}</div><div class="metric-value ${tone}">${escapeHtml(String(value))}</div><div class="metric-foot">${escapeHtml(foot)}</div></div>`;}
@@ -3689,7 +3700,9 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     const workshopRows=workshops.map(group=>`<tr><td><strong>${escapeHtml(group.label)}</strong></td><td>${group.count}</td><td>${round1(group.technical)}%</td><td>${round1(group.preparation)}%</td><td><strong>${round1(group.average)}%</strong></td><td>${round1(group.objective)}%</td><td>${badgeP5(traffic(group.average,group.objective))}</td></tr>`);
     const engineerRows=engineers.map(group=>`<tr><td><strong>${escapeHtml(group.label)}</strong></td><td>${escapeHtml(group.area)}</td><td>${group.count}</td><td>${round1(group.average)}%</td><td>${round1(group.firstVisitPct)}%</td><td>${badgeP5(traffic(group.average,90))}</td></tr>`);
     const weakHtml=weak.length?weak.map(group=>`<article class="card weak-workshop"><div class="visit-head"><div><span class="badge badge-red">Taller bajo objetivo</span><h3>${escapeHtml(group.label)}</h3><div class="helper">Promedio ${round1(group.average)}% · Objetivo asignado ${round1(group.objective)}% · ${group.count} inspecciones</div></div><div class="visit-score critical">${round1(group.average)}%</div></div>${wideTable(['Punto de evaluación','Etapa','Evaluaciones','N/A','Fallos','Frecuencia','Promedio','Objetivo asignado','Puntos perdidos'],group.criteria.map(item=>`<tr class="${item.average!==null&&item.average<group.objective?'weak-row':''}"><td><strong>${escapeHtml(item.name)}</strong><br><span class="helper">${escapeHtml(item.id)}</span></td><td>${escapeHtml(typeof stageDisplay==='function'?stageDisplay(item.stage):item.stage)}</td><td>${item.evaluated}</td><td>${item.na}</td><td>${item.failures}</td><td>${round1(item.frequency)}%</td><td>${item.average===null?'N/A':round1(item.average)+'%'}</td><td>${round1(group.objective)}%</td><td>${round1(item.pointsLost)}</td></tr>`))}</article>`).join(''):`<div class="alert alert-success">Todos los talleres alcanzan su objetivo asignado en el periodo ${weekly?'semanal':'mensual'} seleccionado.</div>`;
-    return `<div class="page-head"><div><h2>Calificaciones y comparativos</h2><p>Promedios por inspección; los criterios de todas las visitas alimentan los puntos débiles y N/A se excluye del denominador.</p></div></div>${reportFilters('p5Ratings')}<div class="grid grid-4 p5-metrics">${metricP5('Inspecciones',rows.inspections.length,'Cada inspección pesa una vez')}${metricP5('Visitas evaluadas',rows.visits.length,'Liberación, seguimiento y cierre')}${metricP5('Media general',`${round1(average)}%`,'Promedio de inspecciones',average>=90?'positive':average>=85?'warning':'critical')}${metricP5('Talleres bajo objetivo',weak.length,'Requieren análisis','warning')}</div><div class="grid grid-2" style="margin-top:16px">${chartPanel('p5WorkshopChart','Resultado por taller','Puntaje obtenido y objetivo asignado.')}${chartPanel('p5EngineerChart','Comparativo por ingenieros','Resultado individual, meta 90% y media general.')}${chartPanel('p5AreaChart','Comparativo por áreas','Estructura, Terminación y demás áreas registradas.')}${chartPanel('p5VisitTypeChart','Visitas por tipo','Cantidad de liberaciones, seguimientos y cierres evaluados.')}</div><div class="section-title"><h3>Calificación por taller</h3></div>${wideTable(['Taller','Inspecciones','Técnico','Preparación','Promedio','Objetivo asignado','Semáforo'],workshopRows)}<div class="section-title"><h3>Calificación por ingeniero</h3></div>${wideTable(['Ingeniero','Área','Inspecciones','Promedio','Liberadas en primera visita','Semáforo'],engineerRows)}<div class="section-title"><div><h3>Puntos débiles ${weekly?'semanales':'mensuales'}</h3><p class="helper">Periodo: ${escapeHtml(periodLabel())}. Solo se muestran talleres por debajo de su objetivo asignado.</p></div></div>${weakHtml}`;
+    const canSeeIntegrity=user?.role==='IT'||has(user,'audit.view');
+    const integrityAlert=canSeeIntegrity&&p5.issues.length?`<div class="alert alert-warning"><strong>Diagnóstico de integridad:</strong> quedan ${p5.issues.length} registro(s) históricos pendientes de reconciliar. Las inspecciones con puntaje se mantienen visibles; revise el SQL V8.6 y la vista qpc_reporting_integrity.</div>`:'';
+    return `<div class="page-head"><div><h2>Calificaciones y comparativos</h2><p>Promedios por inspección; los criterios de todas las visitas alimentan los puntos débiles y N/A se excluye del denominador.</p></div></div>${integrityAlert}${reportFilters('p5Ratings')}<div class="grid grid-4 p5-metrics">${metricP5('Inspecciones',rows.inspections.length,'Cada inspección pesa una vez')}${metricP5('Visitas evaluadas',rows.visits.length,'Liberación, seguimiento y cierre')}${metricP5('Media general',`${round1(average)}%`,'Promedio de inspecciones',average>=90?'positive':average>=85?'warning':'critical')}${metricP5('Talleres bajo objetivo',weak.length,'Requieren análisis','warning')}</div><div class="grid grid-2" style="margin-top:16px">${chartPanel('p5WorkshopChart','Resultado por taller','Puntaje obtenido y objetivo asignado.')}${chartPanel('p5EngineerChart','Comparativo por ingenieros','Resultado individual, meta 90% y media general.')}${chartPanel('p5AreaChart','Comparativo por áreas','Estructura, Terminación y demás áreas registradas.')}${chartPanel('p5VisitTypeChart','Visitas por tipo','Cantidad de liberaciones, seguimientos y cierres evaluados.')}</div><div class="section-title"><h3>Calificación por taller</h3></div>${wideTable(['Taller','Inspecciones','Técnico','Preparación','Promedio','Objetivo asignado','Semáforo'],workshopRows)}<div class="section-title"><h3>Calificación por ingeniero</h3></div>${wideTable(['Ingeniero','Área','Inspecciones','Promedio','Liberadas en primera visita','Semáforo'],engineerRows)}<div class="section-title"><div><h3>Puntos débiles ${weekly?'semanales':'mensuales'}</h3><p class="helper">Periodo: ${escapeHtml(periodLabel())}. Solo se muestran talleres por debajo de su objetivo asignado.</p></div></div>${weakHtml}`;
   };
 
   function exportCardP5(kind,title,description){const pptx=kind==='complete'?`<button type="button" class="btn btn-success" data-p5-pptx="${escapeHtml(kind)}">PPTX editable</button>`:'';return `<article class="card p5-export-card"><div><span class="badge badge-blue">${escapeHtml(kind)}</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(description)}</p></div><div class="button-row"><button type="button" class="btn btn-outline" data-p5-csv="${escapeHtml(kind)}">CSV</button><button type="button" class="btn btn-primary" data-p5-pdf="${escapeHtml(kind)}">Vista previa PDF</button>${pptx}</div></article>`;}
@@ -3719,8 +3732,8 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
 
   function reportData(kind){
     const rows=filteredRows(),workshops=workshopGroups(rows.inspections),engineers=engineerGroups(rows.inspections),areas=areaGroups(rows.inspections),weak=weakGroups(rows.inspections,rows.answers);
-    if(kind==='inspections')return {headers:['Código','Código cierre','Fecha','Taller','Etapa','Ubicación','Ingeniero de Ejecución','Área','Calidad','Visitas','Técnico','Preparación','Promedio','Objetivo','Decisión','Estado'],rows:rows.inspections.map(r=>[r.request_code,r.closure_code||'',r.completed_date,cleanWorkshopName(r.activity),r.stage,r.location_text,r.execution_name,areaLabel(r.execution_area),r.closed_by_name||r.assigned_quality_name||'',r.visit_count,round1(number(r.technical_score)),round1(number(r.preparation_score)),round1(number(r.final_score)),round1(number(r.objective)),r.latest_decision||'',r.status])};
-    if(kind==='criteria')return {headers:['Código','Visita','Fecha','Taller','Etapa','Ingeniero','Área','Criterio','Peso','Respuesta','Factor','Puntos obtenidos','Puntos perdidos','N/A','Observación'],rows:rows.answers.map(r=>[r.request_code,r.visit_number,r.completed_date,cleanWorkshopName(r.activity),r.criterion_stage||r.stage,r.execution_name,areaLabel(r.execution_area),r.criterion_name,number(r.weight),r.selected_label||'',r.is_na?'':round1(number(r.factor)*100),r.is_na?'':round1(number(r.points_earned)),r.is_na?'':round1(number(r.points_lost)),r.is_na?'Sí':'No',r.observation||''])};
+    if(kind==='inspections')return {headers:['Código','Código cierre','Fecha','Taller','Etapa','Ubicación','Ingeniero de Ejecución','Área','Calidad','Visitas','Técnico','Preparación','Promedio','Objetivo','Decisión','Estado'],rows:rows.inspections.map(r=>[r.request_code,r.closure_code||'',r.completed_date,workshopName(r),r.stage,r.location_text,r.execution_name,areaLabel(r.execution_area),r.closed_by_name||r.assigned_quality_name||'',r.visit_count,round1(number(r.technical_score)),round1(number(r.preparation_score)),round1(number(r.final_score)),round1(number(r.objective)),r.latest_decision||'',r.status])};
+    if(kind==='criteria')return {headers:['Código','Visita','Fecha','Taller','Etapa','Ingeniero','Área','Criterio','Peso','Respuesta','Factor','Puntos obtenidos','Puntos perdidos','N/A','Observación'],rows:rows.answers.map(r=>[r.request_code,r.visit_number,r.completed_date,workshopName(r),r.criterion_stage||r.stage,r.execution_name,areaLabel(r.execution_area),r.criterion_name,number(r.weight),r.selected_label||'',r.is_na?'':round1(number(r.factor)*100),r.is_na?'':round1(number(r.points_earned)),r.is_na?'':round1(number(r.points_lost)),r.is_na?'Sí':'No',r.observation||''])};
     if(kind==='workshops')return {headers:['Taller','Inspecciones','Promedio técnico','Promedio preparación','Resultado final','Objetivo asignado','Diferencia','Semáforo'],rows:workshops.map(g=>[g.label,g.count,round1(g.technical),round1(g.preparation),round1(g.average),round1(g.objective),round1(g.average-g.objective),traffic(g.average,g.objective)])};
     if(kind==='engineers')return {headers:['Ingeniero','Área','Inspecciones','Resultado','Meta','Media general','Liberadas en primera visita'],rows:engineers.map(g=>[g.label,g.area,g.count,round1(g.average),90,round1(meanP5(rows.inspections.map(r=>number(r.final_score)))),round1(g.firstVisitPct)])};
     if(kind==='weak'){const output=[];weak.forEach(g=>g.criteria.forEach(c=>output.push([g.label,round1(g.average),round1(g.objective),c.id,c.name,c.stage,c.evaluated,c.na,c.failures,round1(c.frequency),c.average===null?'N/A':round1(c.average),round1(c.pointsLost)])));return {headers:['Taller','Promedio taller','Objetivo asignado','Código criterio','Punto débil','Etapa','Evaluaciones','N/A','Fallos','Frecuencia','Promedio inciso','Puntos perdidos'],rows:output};}
