@@ -740,6 +740,13 @@ revoke all on function public.qpc_log_export(text,text,text,text,text,jsonb,inte
 grant execute on function public.qpc_log_export(text,text,text,text,text,jsonb,integer,uuid) to authenticated;
 
 -- 8. Vistas de reporting robustas: incluyen inspecciones con puntaje aunque el detalle histórico estuviera incompleto.
+-- Se eliminan y recrean porque PostgreSQL no permite cambiar el nombre u orden
+-- de las columnas de una vista mediante CREATE OR REPLACE VIEW.
+drop view if exists public.qpc_reporting_integrity;
+drop view if exists public.qpc_reporting_answers;
+drop view if exists public.qpc_reporting_visits;
+drop view if exists public.qpc_reporting_inspections;
+
 create or replace view public.qpc_reporting_inspections with (security_invoker=true) as
 select
   i.id as inspection_id,i.request_code,i.closure_code,i.project_id,pr.name as project_name,pr.short_code as project_short_code,

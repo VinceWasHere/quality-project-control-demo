@@ -1,0 +1,10 @@
+Quality Project Control MAIN V8.7.0 · Fase 8
+
+Archivo personal y no destructivo de inspecciones:
+- Calidad y Gerencia de Calidad pueden archivar inspecciones terminadas asignadas a su usuario.
+- IT conserva acceso total.
+- Pestañas Activas, Archivadas y Todas en Mis inspecciones.
+- Confirmación interna antes de archivar.
+- Restauración desde la misma sección.
+- El archivo no altera calificaciones, reportes, exportaciones, estados ni trazabilidad.
+- Auditoría de archivo y restauración.

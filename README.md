@@ -6,6 +6,55 @@ Rama principal conectada a Supabase, publicada desde GitHub en Vercel. Este READ
 
 ---
 
+## V8.7.0 · Fase 8 — Archivo personal de inspecciones y organización operativa
+
+Fecha: 25 de julio de 2026.
+
+Esta fase agrega un archivo personal y no destructivo para evitar que la sección **Mis inspecciones** de Calidad se llene con registros ya terminados.
+
+### Archivo personal
+
+- Calidad, Gerencia de Calidad e IT pueden archivar inspecciones terminadas cuando tienen el permiso `inspections.archive`.
+- El archivo es individual: archivar una inspección no la oculta a otros usuarios.
+- La inspección no se elimina ni cambia de estado.
+- Las visitas, respuestas, adjuntos, calificaciones, puntos débiles, reportes y exportaciones permanecen intactos.
+- Solo pueden archivarse registros terminados o anulados.
+- Las inspecciones activas no pueden archivarse accidentalmente.
+
+### Interfaz
+
+- Nuevas pestañas **Activas**, **Archivadas** y **Todas** dentro de Mis inspecciones.
+- Cada pestaña muestra su cantidad de registros.
+- El botón Archivar solo aparece en registros permitidos.
+- Antes de archivar se muestra una advertencia interna que explica que la acción no elimina información.
+- Los registros archivados pueden restaurarse desde la misma sección.
+
+### Seguridad y auditoría
+
+- Nueva tabla `qpc_inspection_user_archives` protegida por RLS.
+- Cada usuario solo puede consultar su archivo personal.
+- Las escrituras se realizan mediante `qpc_set_personal_inspection_archive()`.
+- Se valida perfil activo, permiso, acceso al proyecto, asignación y estado de la inspección.
+- Archivo y restauración quedan registrados en `audit_logs`.
+- IT mantiene acceso total a la función y a todos los proyectos.
+
+### Despliegue
+
+- Ejecutar `SUPABASE_V8_7_PHASE8.sql`.
+- No requiere Edge Function nueva.
+- Publicar los archivos en `main` y esperar el despliegue automático de Vercel.
+
+### Camino pendiente para cierre de producción
+
+Después de esta fase permanecen cuatro frentes principales:
+
+1. **Eliminar la dependencia operativa restante de `app_state` y localStorage**, conservándolos únicamente como respaldo de migración.
+2. **Completar interconexiones relacionales**, especialmente ubicación estructurada en solicitudes, adjuntos de inspecciones mediante `qpc_files/file_links` y anotaciones vectoriales persistentes de mapeos.
+3. **Fidelidad final de reportes corporativos**, clonando con mayor exactitud los masters del FO-CP-10 V07, FO-CP-11 V10 y FO-GC-23 V05, y creando módulos para información manual como buenas prácticas, NC, capacitaciones y recomendaciones.
+4. **Cierre técnico de producción**, con pruebas automatizadas, revisión RLS, concurrencia, rendimiento, paginación desde servidor, responsive completo y eliminación definitiva de código legado.
+
+---
+
 ## V8.6.0 · Fase 7 — Integridad de datos y recuperación de calificaciones históricas
 
 Fecha: 25 de julio de 2026.

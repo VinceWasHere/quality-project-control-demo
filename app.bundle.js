@@ -3841,3 +3841,168 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   const priorRender=window.render;
   window.render=function(){const result=priorRender();requestAnimationFrame(()=>{syncTopScrollers();if(ui.view==='ratings')initP5Charts();});return result;};
 })();
+
+/* Quality Project Control MAIN V8.7 · Fase 8
+   Archivo personal y no destructivo de inspecciones.
+   El archivo solo organiza "Mis inspecciones" para el usuario actual; no cambia
+   el estado operativo ni excluye registros de reportes, calificaciones o auditoría.
+*/
+(function(){
+  'use strict';
+  const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL && typeof supabaseClient!=='undefined');
+  if(!MAIN_MODE)return;
+
+  const p8={loaded:false,loading:null,userId:null,archives:new Map()};
+  const list=value=>Array.isArray(value)?value:[];
+  const actor=()=>typeof currentUser==='function'?currentUser():null;
+  const authId=user=>user?.authId||user?.id||null;
+  const has=(user,code)=>Boolean(user&&(user.role==='IT'||window.qpcHasPermission?.(user,code)));
+  const terminalStatuses=new Set(['LIBERADA','NO_LIBERADA','CERRADA','IMPROCEDENTE','ANULADA']);
+  window.qpcPhase8=p8;
+
+  function inspectionStatus(inspection){return inspection?.databaseStatus||inspection?.status||'';}
+  function canArchiveInspection(user,inspection){
+    if(!has(user,'inspections.archive'))return false;
+    if(!inspection||!terminalStatuses.has(inspectionStatus(inspection)))return false;
+    if(user.role==='IT')return true;
+    return inspection.assignedQualityId===user.id||inspection.assignedQualityId===authId(user);
+  }
+
+  async function loadPersonalArchives(force=false){
+    const user=actor(),userId=authId(user);
+    if(!userId){p8.loaded=true;p8.userId=null;p8.archives.clear();return p8.archives;}
+    if(p8.loaded&&!force&&p8.userId===userId)return p8.archives;
+    if(p8.loading&&!force&&p8.userId===userId)return p8.loading;
+    p8.userId=userId;
+    p8.loading=(async()=>{
+      const {data:rows,error}=await supabaseClient
+        .from('qpc_inspection_user_archives')
+        .select('inspection_id,archived_at,archive_reason')
+        .eq('user_id',userId)
+        .order('archived_at',{ascending:false});
+      if(error)throw error;
+      p8.archives.clear();
+      list(rows).forEach(row=>p8.archives.set(row.inspection_id,row));
+      p8.loaded=true;p8.loading=null;return p8.archives;
+    })().catch(error=>{p8.loading=null;p8.loaded=false;console.error('No se cargó el archivo personal de inspecciones',error);throw error;});
+    return p8.loading;
+  }
+  window.qpcLoadPersonalInspectionArchives=loadPersonalArchives;
+
+  const priorLoadRemoteData=window.loadRemoteData;
+  window.loadRemoteData=async function(){
+    await priorLoadRemoteData();
+    try{await loadPersonalArchives(true);}catch(error){
+      // No bloquea el resto de la app si la migración todavía no fue ejecutada.
+      toast(`No se cargó el archivo de inspecciones: ${error.message}`);
+    }
+  };
+
+  function archiveConfirmation(inspection,restore=false){
+    return new Promise(resolve=>{
+      document.getElementById('p8ArchiveConfirmRoot')?.remove();
+      const root=document.createElement('div');root.id='p8ArchiveConfirmRoot';
+      const code=escapeHtml(inspection?.code||'esta inspección');
+      root.innerHTML=`<div class="file-viewer-backdrop p8-confirm-backdrop"><section class="qpc-confirm-dialog p8-archive-dialog" role="dialog" aria-modal="true" aria-labelledby="p8ArchiveTitle"><div class="p8-warning-icon" aria-hidden="true">${restore?'↺':'!'}</div><h3 id="p8ArchiveTitle">${restore?'Restaurar inspección':'¿Archivar inspección?'}</h3><p>${restore?`La inspección <strong>${code}</strong> volverá a aparecer en su lista activa.`:`La inspección <strong>${code}</strong> dejará de aparecer en la pestaña Activas de <em>Mis inspecciones</em>.`}</p>${restore?'':`<div class="alert alert-warning"><strong>No se eliminará información.</strong> Las visitas, calificaciones, archivos, reportes y trazabilidad permanecerán intactos. Podrá restaurarla desde la pestaña Archivadas.</div>`}<div class="button-row"><button class="btn btn-secondary" data-p8-confirm-cancel>Cancelar</button><button class="btn ${restore?'btn-primary':'btn-danger'}" data-p8-confirm-accept>${restore?'Restaurar':'Sí, archivar'}</button></div></section></div>`;
+      document.body.appendChild(root);
+      const finish=value=>{root.remove();document.removeEventListener('keydown',onKey);resolve(value);};
+      const onKey=event=>{if(event.key==='Escape')finish(false);};
+      document.addEventListener('keydown',onKey);
+      root.querySelector('[data-p8-confirm-cancel]')?.addEventListener('click',()=>finish(false));
+      root.querySelector('[data-p8-confirm-accept]')?.addEventListener('click',()=>finish(true));
+      root.querySelector('.p8-confirm-backdrop')?.addEventListener('click',event=>{if(event.target===event.currentTarget)finish(false);});
+      setTimeout(()=>root.querySelector('[data-p8-confirm-cancel]')?.focus(),0);
+    });
+  }
+
+  async function setArchive(inspectionId,archived){
+    const inspection=list(data?.inspections).find(item=>item.id===inspectionId),user=actor();
+    if(!inspection)throw new Error('No se encontró la inspección.');
+    if(!archived&&!p8.archives.has(inspectionId))return;
+    if(archived&&!canArchiveInspection(user,inspection))throw new Error('Solo puede archivar inspecciones terminadas que estén asignadas a su usuario.');
+    if(!await archiveConfirmation(inspection,!archived))return;
+    const {data:result,error}=await supabaseClient.rpc('qpc_set_personal_inspection_archive',{
+      p_inspection_id:inspectionId,
+      p_archived:archived,
+      p_reason:''
+    });
+    if(error)throw error;
+    if(result?.error)throw new Error(result.error);
+    await loadPersonalArchives(true);
+    toast(archived?'Inspección archivada. Puede restaurarla cuando lo necesite.':'Inspección restaurada en su lista activa.');
+    render();
+  }
+
+  const baseInspectionsTable=window.inspectionsTable||inspectionsTable;
+  const enhancedInspectionsTable=function(rows,user){
+    const html=baseInspectionsTable(rows,user);
+    if(ui.view!=='myInspections'||!has(user,'inspections.archive')||!rows.length)return html;
+    const tpl=document.createElement('template');tpl.innerHTML=html;
+    tpl.content.querySelectorAll('tbody tr').forEach(row=>{
+      const open=row.querySelector('[data-open]');if(!open)return;
+      const id=open.dataset.open,inspection=list(data?.inspections).find(item=>item.id===id);if(!inspection)return;
+      const archived=p8.archives.has(id),actions=row.querySelector('.actions');
+      if(archived){
+        row.classList.add('inspection-archived-row');
+        row.querySelector('td:nth-child(9)')?.insertAdjacentHTML('beforeend','<br><span class="badge badge-gray">Archivada por usted</span>');
+        actions?.insertAdjacentHTML('beforeend',`<button class="btn btn-outline" data-p8-restore-inspection="${id}">Restaurar</button>`);
+      }else if(canArchiveInspection(user,inspection)){
+        actions?.insertAdjacentHTML('beforeend',`<button class="btn btn-secondary p8-archive-button" data-p8-archive-inspection="${id}">Archivar</button>`);
+      }
+    });
+    return tpl.innerHTML;
+  };
+  window.inspectionsTable=enhancedInspectionsTable;
+  inspectionsTable=enhancedInspectionsTable;
+
+  const enhancedRenderMyInspections=function(user){
+    const all=user.role==='EJECUCION'
+      ?list(data.inspections).filter(i=>i.createdBy===user.id)
+      :user.role==='IT'
+        ?list(data.inspections)
+        :canOperateQuality(user)
+          ?list(data.inspections).filter(i=>i.assignedQualityId===user.id)
+          :list(data.inspections);
+    const canArchive=has(user,'inspections.archive');
+    if(!canArchive){
+      return `<div class="page-head"><div><h2>${user.role==='EJECUCION'?'Mi historial de inspecciones':'Mis inspecciones de Calidad'}</h2><p>${user.role==='EJECUCION'?'Abra una inspección para ver cada visita y los puntos descontados.':'Inspecciones tomadas o asignadas a su usuario.'}</p></div>${user.role==='EJECUCION'?'<div class="button-row"><button class="btn btn-primary" data-nav="newRequest">＋ Nueva solicitud</button></div>':''}</div>${enhancedInspectionsTable(all,user)}`;
+    }
+    ui.myInspectionArchiveMode=ui.myInspectionArchiveMode||'ACTIVE';
+    const active=all.filter(item=>!p8.archives.has(item.id));
+    const archived=all.filter(item=>p8.archives.has(item.id));
+    const mode=ui.myInspectionArchiveMode;
+    const rows=(mode==='ARCHIVED'?archived:mode==='ALL'?all:active)
+      .sort((a,b)=>String(b.completedAt||b.createdAt||'').localeCompare(String(a.completedAt||a.createdAt||'')));
+    return `<div class="page-head"><div><h2>Mis inspecciones de Calidad</h2><p>Archive inspecciones terminadas para mantener limpia su lista. El archivo es personal y no altera reportes ni calificaciones.</p></div></div><div class="tabs inspection-archive-tabs" role="tablist" aria-label="Filtro de archivo"><button class="tab ${mode==='ACTIVE'?'active':''}" data-p8-archive-mode="ACTIVE">Activas <span class="p8-tab-count">${active.length}</span></button><button class="tab ${mode==='ARCHIVED'?'active':''}" data-p8-archive-mode="ARCHIVED">Archivadas <span class="p8-tab-count">${archived.length}</span></button><button class="tab ${mode==='ALL'?'active':''}" data-p8-archive-mode="ALL">Todas <span class="p8-tab-count">${all.length}</span></button></div>${mode==='ARCHIVED'&&archived.length?'<div class="alert alert-info p8-archive-note">Estas inspecciones solo están archivadas para su usuario. Continúan disponibles en calificaciones, reportes, exportaciones y auditoría.</div>':''}${enhancedInspectionsTable(rows,user)}`;
+  };
+  window.renderMyInspections=enhancedRenderMyInspections;
+  renderMyInspections=enhancedRenderMyInspections;
+
+  document.addEventListener('click',async event=>{
+    const button=event.target.closest('button');if(!button)return;
+    if(button.matches('[data-p8-archive-mode]')){
+      event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
+      ui.myInspectionArchiveMode=button.dataset.p8ArchiveMode;render();return;
+    }
+    if(button.matches('[data-p8-archive-inspection]')){
+      event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
+      const original=button.textContent;
+      try{button.disabled=true;button.textContent='Archivando…';await setArchive(button.dataset.p8ArchiveInspection,true);}
+      catch(error){console.error(error);toast(`No se pudo archivar: ${error.message}`);}
+      finally{if(button.isConnected){button.disabled=false;button.textContent=original;}}
+      return;
+    }
+    if(button.matches('[data-p8-restore-inspection]')){
+      event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
+      const original=button.textContent;
+      try{button.disabled=true;button.textContent='Restaurando…';await setArchive(button.dataset.p8RestoreInspection,false);}
+      catch(error){console.error(error);toast(`No se pudo restaurar: ${error.message}`);}
+      finally{if(button.isConnected){button.disabled=false;button.textContent=original;}}
+    }
+  },true);
+
+  // Si cambia la sesión, evita reutilizar el archivo personal del usuario anterior.
+  document.addEventListener('click',event=>{
+    if(event.target.closest('#logoutBtn')){p8.loaded=false;p8.userId=null;p8.archives.clear();ui.myInspectionArchiveMode='ACTIVE';}
+  },true);
+})();
