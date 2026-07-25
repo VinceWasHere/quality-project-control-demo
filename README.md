@@ -6,6 +6,34 @@ Rama principal conectada a Supabase, publicada desde GitHub en Vercel. Este READ
 
 ---
 
+## V8.8.1 · Hotfix — Combobox de login sin congelamiento
+
+Fecha: 25 de julio de 2026.
+
+Esta revisión corrige un bloqueo crítico introducido en V8.8.0 al abrir el listado de correos del login.
+
+### Causa corregida
+
+- El chevrón del combobox se sincronizaba mediante un `MutationObserver` que observaba cambios en `aria-expanded`.
+- El propio observador volvía a escribir `aria-expanded` sobre el botón observado, generando una cadena recursiva de mutaciones y saturando el hilo principal del navegador.
+- El resultado era la alerta **Page Unresponsive** al pulsar la flecha.
+
+### Solución
+
+- Se elimina completamente el `MutationObserver` del login.
+- El estado abierto/cerrado se actualiza de forma directa y controlada desde `initLoginCombobox()`.
+- Input, botón y menú reciben el mismo estado solo cuando el valor realmente cambia.
+- Se conserva el chevrón SVG, su rotación, la búsqueda, el teclado, Escape y la selección de cuentas `.demo`.
+- Se añade `preventScroll` a los cambios de foco para evitar movimientos inesperados de la pantalla.
+
+### Despliegue
+
+- No requiere SQL.
+- No requiere Edge Function.
+- Publicar los archivos en `main` y hacer una recarga sin caché.
+
+---
+
 ## V8.8.0 · Fase 9 — Estabilización de calificaciones, login e inspecciones personales
 
 Fecha: 25 de julio de 2026.

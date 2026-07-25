@@ -2078,16 +2078,22 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     const input=document.getElementById('loginEmail'),menu=document.getElementById('qpcLoginOptions'),toggle=document.getElementById('loginEmailToggle');
     if(!input||!menu)return;
     let active=-1;
+    const setOpen=(open)=>{
+      const expanded=Boolean(open);
+      menu.hidden=!expanded;
+      const value=String(expanded);
+      if(input.getAttribute('aria-expanded')!==value)input.setAttribute('aria-expanded',value);
+      if(toggle&&toggle.getAttribute('aria-expanded')!==value)toggle.setAttribute('aria-expanded',value);
+    };
     const draw=(force=false)=>{
       const query=normalize(input.value);
       const matches=loginEntries().filter(item=>!query||normalize(`${item.email} ${item.name} ${ROLE_LABELS[item.role]||item.role}`).includes(query)).slice(0,40);
       menu.innerHTML=matches.map((item,index)=>`<button type="button" class="qpc-combobox-option ${index===active?'active':''}" role="option" data-login-email="${escapeHtml(item.email)}"><strong>${escapeHtml(item.email)}</strong><span>${escapeHtml(ROLE_LABELS[item.role]||item.name||'Usuario')}</span></button>`).join('')||'<div class="qpc-combobox-empty">No hay coincidencias.</div>';
-      menu.hidden=!(force||document.activeElement===input||document.activeElement===toggle);
-      input.setAttribute('aria-expanded',String(!menu.hidden));
+      setOpen(force||document.activeElement===input||document.activeElement===toggle);
       menu.querySelectorAll('[data-login-email]').forEach(button=>button.addEventListener('mousedown',event=>{
-        event.preventDefault(); input.value=button.dataset.loginEmail; menu.hidden=true; input.setAttribute('aria-expanded','false');
+        event.preventDefault(); input.value=button.dataset.loginEmail; setOpen(false);
         const password=document.getElementById('loginPassword'); if(input.value.endsWith('.demo')&&password&&!password.value)password.value=DEMO_PASSWORD;
-        password?.focus();
+        password?.focus({preventScroll:true});
       }));
     };
     input.addEventListener('focus',()=>draw(true));
@@ -2097,16 +2103,21 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
       if(event.key==='ArrowDown'){event.preventDefault();active=Math.min(active+1,options.length-1);draw(true);}
       else if(event.key==='ArrowUp'){event.preventDefault();active=Math.max(active-1,0);draw(true);}
       else if(event.key==='Enter'&&active>=0&&options[active]){event.preventDefault();options[active].dispatchEvent(new MouseEvent('mousedown',{bubbles:true}));}
-      else if(event.key==='Escape'){menu.hidden=true;input.setAttribute('aria-expanded','false');}
+      else if(event.key==='Escape'){setOpen(false);toggle?.focus({preventScroll:true});}
     });
-    toggle?.addEventListener('click',()=>{input.focus();draw(menu.hidden);});
+    toggle?.addEventListener('click',()=>{
+      const willOpen=menu.hidden;
+      if(willOpen){draw(true);input.focus({preventScroll:true});}
+      else setOpen(false);
+    });
     if(!window.qpcLoginOutsideBound){
       window.qpcLoginOutsideBound=true;
       document.addEventListener('mousedown',event=>{
         if(event.target.closest('.qpc-combobox'))return;
-        const liveMenu=document.getElementById('qpcLoginOptions'),liveInput=document.getElementById('loginEmail');
+        const liveMenu=document.getElementById('qpcLoginOptions'),liveInput=document.getElementById('loginEmail'),liveToggle=document.getElementById('loginEmailToggle');
         if(liveMenu)liveMenu.hidden=true;
-        liveInput?.setAttribute('aria-expanded','false');
+        if(liveInput?.getAttribute('aria-expanded')!=='false')liveInput?.setAttribute('aria-expanded','false');
+        if(liveToggle?.getAttribute('aria-expanded')!=='false')liveToggle?.setAttribute('aria-expanded','false');
       });
     }
   }
@@ -4118,13 +4129,9 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   window.renderLogin=phase9RenderLogin;
   try{renderLogin=phase9RenderLogin;}catch(_){/* módulo estricto: window es suficiente */}
 
-  // Sincroniza el estado visual del chevrón con el combobox ya existente.
-  const comboboxObserver=new MutationObserver(()=>{
-    const input=document.getElementById('loginEmail');
-    const button=document.getElementById('loginEmailToggle');
-    if(input&&button)button.setAttribute('aria-expanded',input.getAttribute('aria-expanded')||'false');
-  });
-  comboboxObserver.observe(document.documentElement,{subtree:true,attributes:true,attributeFilter:['aria-expanded']});
+  // El estado visual del chevrón se sincroniza directamente desde
+  // initLoginCombobox(). No se utiliza MutationObserver para evitar ciclos
+  // recursivos de atributos que bloqueen el hilo principal.
 
   /* --------------------------------------------------------------
      3. Mis inspecciones
