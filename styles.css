@@ -378,3 +378,16 @@ a{color:inherit;text-decoration:none}
   .p5-metrics{grid-template-columns:1fr}
   .p5-scroll-top{height:18px}
 }
+
+/* MAIN V8.5 · Fase 6 — tablas, proyectos y exportables */
+.p5-table-shell .qpc-table-shell,.p5-table-shell .qpc-table-top-scroll{display:none!important}
+.p5-table-shell>.p5-scroll-top{display:block!important}
+.p5-table-wrap{overflow:auto;max-width:100%}
+.p5-table-wrap table{min-width:920px}
+.p2-area-list{display:grid;gap:10px;margin-top:10px}
+.p2-area{display:grid;grid-template-columns:minmax(110px,.6fr) minmax(180px,1.2fr) minmax(140px,.9fr) auto;gap:10px;align-items:end;padding:10px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}
+.p2-area input{width:100%;height:44px;border:1px solid var(--line);border-radius:11px;padding:0 12px;background:#fff;color:#101828;font:inherit;box-sizing:border-box;min-width:0}
+.p2-area input:focus{outline:none;border-color:#c8102e;box-shadow:0 0 0 3px rgba(200,16,46,.12)}
+.p2-area .btn{height:44px;white-space:nowrap}
+@media(max-width:820px){.p2-area{grid-template-columns:1fr}.p2-area .btn{width:100%}}
+.p5-export-card .btn-success{background:#157f3d;color:#fff;border-color:#157f3d}.p5-export-card .btn-success:hover{filter:brightness(.95)}

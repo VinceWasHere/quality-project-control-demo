@@ -6,6 +6,39 @@ Rama principal conectada a Supabase, publicada desde GitHub en Vercel. Este READ
 
 ---
 
+## V8.5.0 · Fase 6 — Reportes, exportables PPTX y correcciones de interfaz
+
+Fecha: 25 de julio de 2026.
+
+Esta fase corrige problemas visuales de las tablas y prepara la exportación editable de informes corporativos. Continúa usando las vistas relacionales de la Fase 5 y no requiere migración SQL adicional.
+
+### Correcciones de interfaz
+
+- Se elimina la doble barra horizontal que aparecía una encima de otra en Calificaciones.
+- Las tablas anchas mantienen una sola barra horizontal superior sincronizada con la tabla.
+- Se mejora el estilo de los campos de áreas dentro de la configuración de proyectos para que coincidan con el resto de la aplicación.
+- Se evita mostrar el valor técnico `Migrado` como nombre de taller; cuando no exista taller asignado se muestra `Sin taller asignado`.
+
+### Exportaciones
+
+- Los PDF de talleres, ingenieros y puntos débiles agregan una página de gráfico antes de la tabla.
+- El informe completo conserva vista previa PDF dentro del visor interno.
+- Se agregan páginas preparadas para completar manualmente información que la plataforma no puede inferir por sí sola, como buenas prácticas, NC, capacitaciones y actividades de atención especial.
+- Se agrega exportación **PPTX editable** para el informe completo.
+- El PPTX genera una estructura semanal `FO-CP-10 V07` o mensual `FO-CP-11 V10`, con portada, agenda, resumen de planillas, gráficos, comparativo por ingenieros, puntos débiles y hojas pendientes para completar con evidencias.
+
+### Dependencias
+
+- Se agrega `pptxgenjs` por CDN para generar PowerPoint editable desde el navegador.
+
+### Archivos de despliegue
+
+- No requiere SQL nuevo.
+- No requiere Edge Function nueva.
+- Actualizar el branch `main` y esperar el despliegue de Vercel.
+
+---
+
 ## V8.4.0 · Fase 5 — Calificaciones, puntos débiles y exportaciones corporativas
 
 Fecha: 25 de julio de 2026.
