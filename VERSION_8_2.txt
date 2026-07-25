@@ -1,0 +1,2 @@
+Quality Project Control MAIN V8.2.0 · Fase 3
+Inspecciones, visitas, respuestas, estados, promedios y códigos relacionales.

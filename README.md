@@ -329,3 +329,101 @@ No elimina ni modifica el JSON original. `app_state` se mantiene como respaldo d
 - Equipos, instructivos y mapeos aún deben migrarse a tablas relacionales.
 - Los dropdowns estructurados se conectarán a cada formulario operativo durante sus respectivas fases.
 - El bundle continúa siendo único y determinista, pero la conversión final a Vite/TypeScript modular permanece pendiente.
+
+---
+
+## V8.2.0 · Fase 3 — Inspecciones, visitas, puntuación y códigos transaccionales
+
+Fecha: 24 de julio de 2026.
+
+Esta fase migra el flujo principal de inspecciones fuera de `app_state`. Las solicitudes, visitas, respuestas, decisiones, estados y códigos pasan a tablas relacionales con RLS y operaciones atómicas mediante una Edge Function.
+
+### Tablas agregadas
+
+- `qpc_inspections`
+- `qpc_inspection_visits`
+- `qpc_visit_answers`
+- `qpc_inspection_status_history`
+- `qpc_inspection_request_sequences`
+- `qpc_inspection_closure_sequences`
+
+### Flujo operativo
+
+- Ejecución solo crea solicitudes de **liberación**.
+- Calidad toma la solicitud y realiza la visita inicial de liberación.
+- Calidad puede iniciar un **seguimiento** sin que Ejecución genere una nueva solicitud.
+- Calidad puede iniciar el **cierre** por su cuenta.
+- Una visita de cierre finalizada cambia la inspección a `CERRADA` y genera el código de cierre.
+- Las visitas anteriores no se sobrescriben.
+- Cada visita conserva su puntaje, respuestas, observaciones, tipo e inspector.
+- La inspección conserva como resultado actual el promedio de todas las visitas finalizadas.
+
+### Puntuación y N/A
+
+- Las respuestas N/A se excluyen del numerador y del denominador.
+- N/A no suma, no descuenta y no se registra como punto débil.
+- La puntuación técnica, preparación/visita y final se recalculan en PostgreSQL al finalizar.
+- El navegador presenta el resultado, pero la base de datos vuelve a calcularlo para evitar alteraciones del cliente.
+
+### Códigos automáticos
+
+Solicitud:
+
+- `I-LLC-260724`
+- `I-LLC-260724-02`
+
+La secuencia es independiente por proyecto y fecha.
+
+Cierre:
+
+- `VP0001`
+- `VP0002`
+
+La secuencia es independiente por proyecto e inspector de Calidad. Las iniciales se obtienen del primer nombre y el último componente del nombre visible del inspector.
+
+### Seguridad
+
+- Lectura protegida por RLS y acceso al proyecto.
+- Ejecución ve sus solicitudes.
+- Calidad y roles autorizados ven las inspecciones del proyecto según permisos.
+- Las escrituras se realizan exclusivamente mediante la Edge Function `inspection-workflow`.
+- La Edge Function valida el JWT, el perfil activo, acceso al proyecto y permisos efectivos.
+- Los RPC sensibles solo pueden ejecutarse con `service_role`.
+
+### Migración
+
+La migración importa de forma no destructiva las inspecciones y visitas existentes desde `app_state`.
+
+- `app_state` no se elimina.
+- La copia anterior de inspecciones queda como respaldo.
+- Después de esta fase, el frontend ya no vuelve a escribir inspecciones dentro del JSON compartido.
+- Equipos, instructivos y mapeos continúan temporalmente en `app_state` hasta la Fase 4.
+
+### Despliegue requerido
+
+1. Ejecutar `SUPABASE_V8_2_PHASE3.sql` o `supabase/migrations/20260724_003_inspections_visits_workflow.sql` en Supabase SQL Editor.
+2. Crear la Edge Function `inspection-workflow` con `supabase/functions/inspection-workflow/index.ts`.
+3. Configurar la función con `verify_jwt = false`; el código valida explícitamente el token del usuario.
+4. Subir el contenido de la carpeta al branch `main`.
+5. Esperar el despliegue automático de Vercel y hacer una recarga sin caché.
+
+### Pruebas recomendadas
+
+1. Entrar como Ingeniero de Ejecución y crear una solicitud de liberación.
+2. Entrar como Calidad y tomar la solicitud.
+3. Completar la visita de liberación usando al menos un N/A.
+4. Confirmar que el N/A no reduce el resultado.
+5. Iniciar una visita de seguimiento desde el detalle.
+6. Confirmar que ambas visitas conservan puntajes separados y que la inspección muestra el promedio.
+7. Iniciar cierre, finalizarlo y verificar el código secuencial.
+8. Crear dos solicitudes el mismo día y comprobar el sufijo `-02`.
+9. Cambiar de proyecto y verificar que sus secuencias sean independientes.
+
+### Alcance pendiente
+
+- Migración relacional de equipos, eventos de calibración y verificación.
+- Migración relacional de instructivos y versiones.
+- Migración relacional de mapeos, archivos y anotaciones.
+- Eliminación definitiva de `app_state` al finalizar las migraciones.
+- Motor corporativo completo de reportes y exportaciones.
+- Conversión final del bundle a módulos Vite/TypeScript.

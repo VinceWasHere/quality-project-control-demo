@@ -323,3 +323,12 @@ a{color:inherit;text-decoration:none}
   .p2-block,.p2-level{padding:10px}
   .p2-save-row{position:static}
 }
+
+/* V8.2 · Fase 3 */
+.workflow-card{margin-top:16px;border-left:4px solid var(--red,#c8102e)}
+.workflow-card .button-row{flex-wrap:wrap}
+.workflow-card select{min-width:0}
+@media (max-width:720px){
+  .workflow-card .form-grid{grid-template-columns:1fr}
+  .workflow-card .button-row .btn{width:100%}
+}
