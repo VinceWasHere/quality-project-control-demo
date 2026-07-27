@@ -1,3 +1,18 @@
+# Quality Project Control MAIN V9.2 — Fase 13
+
+## Enfoque
+Mejora avanzada de reportes y contenido corporativo.
+
+## Cambios
+- El módulo **Contenido de informes** ahora muestra estado de preparación por sección.
+- Las métricas superiores se separan correctamente y ya no se pegan los números con el texto.
+- Se agrega una matriz de secciones requeridas y opcionales para semanal y mensual.
+- El editor de registros incluye guía contextual según la sección.
+- Se agrega catálogo relacional de requisitos de informe.
+- Se prepara soporte para evidencias múltiples mediante `qpc_report_entry_files`.
+
+---
+
 # Quality Project Control — MAIN
 
 Rama principal conectada a Supabase, publicada desde GitHub en Vercel. Este README conserva el historial acumulativo completo y ordena las versiones desde la más reciente hasta la más antigua.
