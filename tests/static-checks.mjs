@@ -10,7 +10,10 @@ const phase23=fs.readFileSync(new URL('../supabase/migrations/20260727_022_devic
 const sw=fs.readFileSync(new URL('../qpc-sw.js',import.meta.url),'utf8');
 const manifest=fs.readFileSync(new URL('../manifest.webmanifest',import.meta.url),'utf8');
 const checks=[
-  ['cache 10.2.0',index.includes('app.bundle.js?v=10.2.0')&&index.includes('styles.css?v=10.2.0')],
+  ['cache 10.3.0',index.includes('app.bundle.js?v=10.3.0')&&index.includes('styles.css?v=10.3.0')],
+  ['perfil universal e IT',app.includes('Mi perfil debe estar disponible para absolutamente todos los usuarios')&&app.includes('window.qpcOpenProfile')],
+  ['drawer móvil accesible',app.includes('qpc-mobile-drawer-close')&&css.includes('.qpc-mobile-drawer-close')&&css.includes('qpc-mobile-drawer-open')],
+  ['grids móviles normalizados',css.includes('.content .grid[style*="grid-template-columns"]')&&css.includes('grid-template-columns:minmax(0,1fr)!important')],
   ['reloj vivo',app.includes('qpcLiveClock')&&app.includes('setInterval(updateClock,1000)')],
   ['panel comparación',app.includes('Comparar versiones publicadas')&&phase18.includes('reports.library.compare')],
   ['panel validación',app.includes('Validación previa a publicación')&&app.includes('qpc_report_validation_for_period')],

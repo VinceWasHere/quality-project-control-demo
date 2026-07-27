@@ -6222,3 +6222,124 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
 })();
 
 /* MAIN V10.2.0 · Fase 23: notificaciones web por dispositivo. */
+
+/* MAIN V10.3.0 · Fase 24 — navegación y experiencia móvil */
+;(()=>{
+  const PROFILE_ITEM=['profile','◉','Mi perfil'];
+  const MANAGEMENT_VIEWS=new Set(['users','projects','audit','integrity']);
+
+  function normalizeItems(raw){
+    const unique=[];
+    (Array.isArray(raw)?raw:[]).forEach(item=>{
+      if(!Array.isArray(item)||!item[0]||unique.some(existing=>existing[0]===item[0]))return;
+      unique.push(item);
+    });
+    return unique;
+  }
+
+  // Mi perfil debe estar disponible para absolutamente todos los usuarios,
+  // incluido Tecnología (IT), aun si una envoltura anterior reconstruye el menú.
+  const previousNavItems=window.navItems;
+  window.navItems=function(user){
+    let items=normalizeItems(typeof previousNavItems==='function'?previousNavItems(user):[])
+      .filter(item=>item[0]!=='profile');
+    const mappingIndex=items.findIndex(item=>item[0]==='mappings');
+    const managementIndex=items.findIndex(item=>MANAGEMENT_VIEWS.has(item[0]));
+    const insertAt=mappingIndex>=0?mappingIndex+1:(managementIndex>=0?managementIndex:items.length);
+    items.splice(insertAt,0,[...PROFILE_ITEM]);
+    return items;
+  };
+  try{navItems=window.navItems;}catch(_){/* binding global no reasignable */}
+
+  function closeMobileDrawer(){
+    const sidebar=document.getElementById('sidebar');
+    const overlay=document.getElementById('overlay');
+    const menu=document.getElementById('menuBtn');
+    sidebar?.classList.remove('open');
+    overlay?.classList.add('hidden');
+    menu?.setAttribute('aria-expanded','false');
+    document.body.classList.remove('qpc-mobile-drawer-open');
+  }
+
+  function openMobileDrawer(){
+    const sidebar=document.getElementById('sidebar');
+    const overlay=document.getElementById('overlay');
+    const menu=document.getElementById('menuBtn');
+    sidebar?.classList.add('open');
+    overlay?.classList.remove('hidden');
+    menu?.setAttribute('aria-expanded','true');
+    document.body.classList.add('qpc-mobile-drawer-open');
+    requestAnimationFrame(()=>sidebar?.querySelector('.nav-btn.active,.nav-btn')?.focus({preventScroll:true}));
+  }
+
+  function goToView(view){
+    if(!view)return;
+    try{if(ui?.view==='newRequest'&&typeof captureRequestDraft==='function')captureRequestDraft();}catch(_){/* no-op */}
+    closeMobileDrawer();
+    ui.view=view;
+    if(!['detail','evaluate'].includes(view))ui.selectedId=null;
+    render();
+    requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));
+  }
+
+  const previousBindGlobal=window.bindGlobal||globalThis.bindGlobal;
+  window.bindGlobal=function(){
+    if(typeof previousBindGlobal==='function')previousBindGlobal.apply(this,arguments);
+    const sidebar=document.getElementById('sidebar');
+    const brand=sidebar?.querySelector('.brand');
+    const menu=document.getElementById('menuBtn');
+    const overlay=document.getElementById('overlay');
+
+    if(menu){
+      menu.setAttribute('aria-label','Abrir menú de navegación');
+      menu.setAttribute('aria-controls','sidebar');
+      menu.setAttribute('aria-expanded',sidebar?.classList.contains('open')?'true':'false');
+      menu.addEventListener('click',()=>requestAnimationFrame(openMobileDrawer));
+    }
+    overlay?.addEventListener('click',closeMobileDrawer);
+
+    if(brand&&!brand.querySelector('.qpc-mobile-drawer-close')){
+      const close=document.createElement('button');
+      close.type='button';
+      close.className='qpc-mobile-drawer-close';
+      close.setAttribute('aria-label','Cerrar menú de navegación');
+      close.innerHTML='<span aria-hidden="true">×</span>';
+      close.addEventListener('click',closeMobileDrawer);
+      brand.appendChild(close);
+    }
+
+    sidebar?.querySelectorAll('.nav-btn').forEach(button=>{
+      button.setAttribute('aria-current',button.classList.contains('active')?'page':'false');
+      button.title=button.textContent.trim();
+    });
+  };
+  try{bindGlobal=window.bindGlobal;}catch(_){/* binding global no reasignable */}
+
+  // En móvil se usa delegación en captura para que el drawer no bloquee ninguna
+  // opción, especialmente Mi perfil. Evita dobles listeners heredados.
+  document.addEventListener('click',event=>{
+    const avatar=event.target.closest('.top-right .qpc-avatar,.top-right .avatar');
+    if(avatar&&typeof currentUser==='function'&&currentUser()){
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      goToView('profile');
+      return;
+    }
+    if(!window.matchMedia('(max-width:900px)').matches)return;
+    const navButton=event.target.closest('#sidebar .nav-btn[data-nav]');
+    if(!navButton)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    goToView(navButton.dataset.nav);
+  },true);
+
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape')closeMobileDrawer();
+  });
+  window.addEventListener('resize',()=>{
+    if(window.innerWidth>900)closeMobileDrawer();
+  },{passive:true});
+
+  // Atajo programático para pruebas y para futuras notificaciones/deep links.
+  window.qpcOpenProfile=()=>goToView('profile');
+})();

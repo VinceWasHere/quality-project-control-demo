@@ -1,4 +1,4 @@
-const QPC_VERSION = '10.2.0';
+const QPC_VERSION = '10.3.0';
 
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));

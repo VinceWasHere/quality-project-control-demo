@@ -1,3 +1,16 @@
+# V10.3 — Fase 24 · Experiencia móvil y navegación accesible
+
+- Se normaliza el diseño de todas las vistas en teléfonos: formularios, tarjetas, paneles laterales, instructivos relacionados, mapeos, perfil y tablas.
+- Los grids con columnas definidas en línea se convierten correctamente a una sola columna en móvil.
+- El menú lateral utiliza ancho adaptable, safe areas de iPhone, desplazamiento vertical y botón de cierre visible.
+- Todas las opciones del menú funcionan mediante navegación delegada y el drawer se cierra de forma segura después de seleccionar una vista.
+- **Mi perfil** queda disponible para todos los roles, incluyendo Tecnología (IT).
+- El avatar superior funciona como acceso directo a **Mi perfil**.
+- Se evita el scroll horizontal de la página completa; las tablas anchas conservan su propio desplazamiento controlado.
+- No requiere SQL ni cambios en Edge Functions.
+
+---
+
 # V10.2 — Fase 23 · Notificaciones del dispositivo
 
 - El usuario puede aceptar o rechazar notificaciones del navegador desde Mi perfil.
