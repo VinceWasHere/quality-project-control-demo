@@ -1,0 +1,2 @@
+Quality Project Control MAIN V9.1 — Fase 12
+Incluye SQL corregido V2 para role_permissions(permission_id), permisos de integridad y vista de puntos descontados.

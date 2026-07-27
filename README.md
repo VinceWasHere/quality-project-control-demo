@@ -6,6 +6,27 @@ Rama principal conectada a Supabase, publicada desde GitHub en Vercel. Este READ
 
 ---
 
+## V9.1.0 · Fase 12 — Contenido de informes, integridad de datos y descuentos por punto evaluado
+
+Fecha: 27 de julio de 2026.
+
+### Cambios principales
+
+- Se corrigió la presentación de métricas en **Contenido de informes** para que los bloques “Registros del periodo”, “Sección seleccionada” y “Con evidencia” se vean como tarjetas reales, sin el texto corrido que aparecía en una sola línea.
+- Se mejoró la vista de **Integridad de datos** con acciones más útiles sobre cada incidencia: ahora se puede abrir directamente la inspección relacionada, resolver, ignorar o reabrir con confirmación previa.
+- Se agregó una nota contextual para las incidencias `LEGACY_BASE64_MAPPING_ANNOTATION`, explicando que provienen de mapeos históricos guardados en Base64.
+- En el detalle de cada visita, la tabla de descuentos ahora muestra claramente **en qué punto de evaluación** se restaron puntos, incluyendo código del punto, nombre del criterio, tipo (técnico o visita/preparación), etapa, respuesta, valor obtenido, descuento y observación.
+- Se añadieron chips resumen encima de la tabla de descuentos para identificar rápidamente los criterios afectados.
+- Se actualizaron referencias de caché a `9.1.0`.
+
+### Despliegue
+
+- No requiere SQL nuevo para esta fase.
+- Reemplazar los archivos del branch `main` por esta versión y permitir que Vercel publique de nuevo.
+- Después del despliegue, hacer una recarga sin caché.
+
+---
+
 ## V9.0.1 · Hotfix — Arranque y navegación de Integridad de datos
 
 Fecha: 27 de julio de 2026.
