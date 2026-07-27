@@ -4499,7 +4499,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   document.addEventListener('click',event=>{if(event.target.closest('[data-view="exports"],button[data-nav="exports"]'))loadEntries().catch(()=>{});},true);
 })();
 
-/* Quality Project Control · MAIN V9.0.0 · Fase 11
+/* Quality Project Control · MAIN V9.0.1 · Hotfix de arranque
    Recursos relacionales, anotaciones persistentes, integridad y fidelidad de informes.
 */
 (function(){
@@ -4681,7 +4681,15 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   }
 
   const previousNavItems=window.navItems;
-  window.navItems=function(current){const items=previousNavItems(current);if((current?.role==='IT'||window.qpcHasPermission?.(current,'data.integrity.view'))&&!items.some(item=>item.id==='integrity'))items.push({id:'integrity',label:'Integridad de datos',icon:'◫'});return items;};
+  window.navItems=function(current){
+    const rawItems=typeof previousNavItems==='function'?previousNavItems(current):[];
+    const items=Array.isArray(rawItems)?rawItems.filter(Array.isArray):[];
+    const canViewIntegrity=current?.role==='IT'||window.qpcHasPermission?.(current,'data.integrity.view');
+    if(canViewIntegrity&&!items.some(item=>item[0]==='integrity')){
+      items.push(['integrity','◫','Integridad de datos']);
+    }
+    return items;
+  };
   try{navItems=window.navItems;}catch(_){/* global lexical binding not writable */}
   const previousRenderView=window.renderView;
   window.renderView=function(current){if(ui.view==='integrity')return integrityView();return previousRenderView(current);};

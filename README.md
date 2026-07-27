@@ -6,6 +6,28 @@ Rama principal conectada a Supabase, publicada desde GitHub en Vercel. Este READ
 
 ---
 
+## V9.0.1 · Hotfix — Arranque y navegación de Integridad de datos
+
+Fecha: 27 de julio de 2026.
+
+### Corrección crítica
+
+- Se corrigió el error `object is not iterable (cannot read property Symbol(Symbol.iterator))` que podía aparecer durante el arranque.
+- La causa era que el módulo **Integridad de datos** agregaba su opción de navegación como un objeto, mientras que el resto de la aplicación utiliza tuplas con el formato `[vista, icono, etiqueta]`.
+- Al renderizar el menú, el objeto se intentaba desestructurar como una matriz y el arranque regresaba al login mostrando un mensaje incorrecto de conexión con Supabase.
+- La opción ahora se agrega como `['integrity', '◫', 'Integridad de datos']`.
+- También se filtran defensivamente entradas de navegación con un formato inválido para evitar que una extensión futura vuelva a bloquear el inicio de sesión.
+- Se actualizó el control de caché de `app.bundle.js`, CSS e iconos a `9.0.1`.
+- El paquete conserva la migración V9.0 corregida con `extensions.digest(...)`.
+
+### Despliegue
+
+- No requiere SQL adicional si la migración V9.0 corregida ya fue ejecutada.
+- No requiere cambios en Edge Functions.
+- Reemplazar los archivos del branch `main` y realizar una recarga sin caché.
+
+---
+
 ## V9.0.0 · Fase 11 — Recursos relacionales, integridad y fidelidad corporativa
 
 Fecha: 27 de julio de 2026.

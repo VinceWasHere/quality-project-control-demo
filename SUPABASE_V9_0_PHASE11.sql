@@ -4,7 +4,8 @@
 
 begin;
 
-create extension if not exists pgcrypto;
+create schema if not exists extensions;
+create extension if not exists pgcrypto with schema extensions;
 
 -- -----------------------------------------------------------------------------
 -- 1. Permisos de integridad y recursos
@@ -266,7 +267,7 @@ begin
       v_linked=v_linked+1;
     elsif coalesce(v_item->>'dataUrl',v_item->>'data_url','')<>'' then
       insert into public.qpc_migration_issues(project_id,entity_type,entity_id,issue_code,detail,source_data,fingerprint)
-      values(v_ins.project_id,'INSPECTION',v_ins.id::text,'LEGACY_BASE64_ATTACHMENT','Adjunto Base64 histórico pendiente de carga a Storage.',v_item,encode(digest(v_ins.id::text||':attachment:'||v_index,'sha256'),'hex'))
+      values(v_ins.project_id,'INSPECTION',v_ins.id::text,'LEGACY_BASE64_ATTACHMENT','Adjunto Base64 histórico pendiente de carga a Storage.',v_item,encode(extensions.digest(convert_to(v_ins.id::text||':attachment:'||v_index,'UTF8'),'sha256'),'hex'))
       on conflict (fingerprint) do nothing;
     end if;
   end loop;
@@ -297,7 +298,7 @@ begin
       end if;
     elsif jsonb_typeof(v_annotation)='string' and trim(both '"' from v_annotation::text) like 'data:image/%' then
       insert into public.qpc_migration_issues(project_id,entity_type,entity_id,issue_code,detail,source_data,fingerprint)
-      values(v_ins.project_id,'INSPECTION',v_ins.id::text,'LEGACY_BASE64_MAPPING_ANNOTATION','Mapeo marcado histórico en Base64 pendiente de migración.',jsonb_build_object('length',length(v_annotation::text)),encode(digest(v_ins.id::text||':mapping-annotation','sha256'),'hex'))
+      values(v_ins.project_id,'INSPECTION',v_ins.id::text,'LEGACY_BASE64_MAPPING_ANNOTATION','Mapeo marcado histórico en Base64 pendiente de migración.',jsonb_build_object('length',length(v_annotation::text)),encode(extensions.digest(convert_to(v_ins.id::text||':mapping-annotation','UTF8'),'sha256'),'hex'))
       on conflict (fingerprint) do nothing;
     end if;
   end if;
