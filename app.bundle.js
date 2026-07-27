@@ -3035,7 +3035,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
         mapping_id:mapping.id,block_id:location.block_id,level_id:location.level_id,area_id:location.area_id,
         location_text:location.label,package_code:nextPackage(template,mapping),contractor:ui.requestDraft.contractor.trim(),
         scope:ui.requestDraft.scope.trim(),requested_date:ui.requestDraft.date,requested_time:ui.requestDraft.time,
-        ready:ui.requestDraft.ready,objective:template.objective,attachments,mapping_annotation:ui.requestDraft.annotationData||null,
+        ready:ui.requestDraft.ready,objective:template.objective,attachments,mapping_annotation:(window.qpcPrepareMappingAnnotation?await window.qpcPrepareMappingAnnotation(ui.requestDraft.annotationData,ui.requestDraft.annotationStrokes,inspectionKey,projectId(),mapping):ui.requestDraft.annotationData)||null,
         template_snapshot:templatePayload(template)
       }});
       phase3.loaded=false;await loadRelationalInspections(true);ui.requestDraft.annotationData=null;toast(submit?'Solicitud de liberación enviada a Calidad':'Borrador guardado');ui.view='myInspections';render();
@@ -3806,8 +3806,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
       await appendContent({doc,sectionCode:'TRAININGS',title:'CAPACITACIONES REALIZADAS',code,logo,addPdfHeader,addPlaceholderPage,autoTable:autoTableP5});
       await appendContent({doc,sectionCode:'SPECIAL_ATTENTION',title:'ACTIVIDADES DE ATENCIÓN ESPECIAL',code,logo,addPdfHeader,addPlaceholderPage,autoTable:autoTableP5});
       if(ui.reportMode==='month')await appendContent({doc,sectionCode:'LESSONS_LEARNED',title:'LECCIONES APRENDIDAS',code,logo,addPdfHeader,addPlaceholderPage,autoTable:autoTableP5});
-      await appendContent({doc,sectionCode:'CONCLUSIONS',title:'CONCLUSIONES',code,logo,addPdfHeader,addPlaceholderPage,autoTable:autoTableP5});
-      await appendContent({doc,sectionCode:'RECOMMENDATIONS',title:ui.reportMode==='week'?'CONCLUSIONES Y RECOMENDACIONES':'OBSERVACIONES Y RECOMENDACIONES',code,logo,addPdfHeader,addPlaceholderPage,autoTable:autoTableP5});
+      await appendContent({doc,sectionCode:'CONCLUSIONS|RECOMMENDATIONS',title:ui.reportMode==='week'?'CONCLUSIONES Y RECOMENDACIONES':'OBSERVACIONES Y RECOMENDACIONES',code,logo,addPdfHeader,addPlaceholderPage,autoTable:autoTableP5});
       if(ui.reportMode==='month')await appendContent({doc,sectionCode:'MOTIVATIONAL_ACTION',title:'ACCIÓN MOTIVACIONAL',code,logo,addPdfHeader,addPlaceholderPage,autoTable:autoTableP5});
     }else{
       addPlaceholderPage(doc,'TALLERES A MEJORAR POR META INCUMPLIDA',code,logo,['Criterio(s) incumplido(s).','Ubicación.','Plan de acción.','Responsable.']);
@@ -3831,6 +3830,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   }
   function addPptxHeader(slide,pptx,title,code){slide.background={color:'FFFFFF'};slide.addText('codelpa.',{x:.35,y:.22,w:1.55,h:.35,fontSize:20,bold:true,color:'C8102E'});slide.addText(code,{x:11.1,y:.25,w:1.5,h:.25,fontSize:9,color:'444444',align:'right'});slide.addShape(pptx.ShapeType.line,{x:.35,y:.72,w:12.6,h:0,line:{color:'D8DEE6',width:1}});if(title)slide.addText(title,{x:.55,y:.95,w:11.8,h:.45,fontSize:20,bold:true,color:'111827'});}
   function addPptxPlaceholder(slide,pptx,title,items){addPptxHeader(slide,pptx,title,pptxCode());slide.addShape(pptx.ShapeType.roundRect,{x:.8,y:1.65,w:11.7,h:4.6,rectRadius:.12,line:{color:'C8102E',width:1.4},fill:{color:'FFFFFF'}});slide.addText('Pendiente de completar manualmente',{x:1.05,y:1.9,w:5.4,h:.35,fontSize:16,bold:true,color:'6B7280'});slide.addText(items.map(item=>`• ${item}`).join('\n'),{x:1.08,y:2.45,w:10.9,h:3,fontSize:13,color:'111827',breakLine:false,fit:'shrink'});}
+  function addPptxSectionDivider(pptx,title,code){const slide=pptx.addSlide();slide.background={color:'FFFFFF'};slide.addText('codelpa.',{x:.45,y:.28,w:1.65,h:.35,fontSize:21,bold:true,color:'C8102E'});slide.addText(`Código:\n${code}`,{x:11.25,y:.25,w:1.45,h:.45,fontSize:8,color:'4B5563',align:'right'});slide.addShape(pptx.ShapeType.line,{x:.42,y:.82,w:12.45,h:0,line:{color:'D8DEE6',width:1}});slide.addText(title,{x:.75,y:2.55,w:11.85,h:.75,fontSize:27,bold:true,color:'111827',align:'center',valign:'mid',fit:'shrink'});return slide;}
   function addPptxTable(slide,pptx,title,headers,rows){addPptxHeader(slide,pptx,title,pptxCode());const data=[headers.map(h=>({text:String(h),options:{bold:true,color:'FFFFFF',fill:'C8102E'}})),...rows.slice(0,16).map(row=>row.map(cell=>String(cell??'')))];slide.addTable(data,{x:.35,y:1.55,w:12.6,h:4.9,border:{type:'solid',color:'D8DEE6',pt:.6},fontSize:8,color:'111827',margin:.04,fill:'FFFFFF',autoFit:true});}
   function addPptxBarSlide(slide,pptx,title,groups){addPptxHeader(slide,pptx,title,pptxCode());const max=Math.min(groups.length,12);for(let i=0;i<max;i++){const g=groups[i],y=1.45+i*.38,label=String(g.label||'').slice(0,34);slide.addText(label,{x:.65,y,w:3.4,h:.2,fontSize:7.5,color:'111827'});slide.addShape(pptx.ShapeType.rect,{x:4.2,y:y+.03,w:5.5,h:.15,fill:{color:'E5E7EB'},line:{color:'E5E7EB'}});const score=Math.max(0,Math.min(100,number(g.average)));const obj=Math.max(0,Math.min(100,number(g.objective)));slide.addShape(pptx.ShapeType.rect,{x:4.2,y:y+.03,w:5.5*score/100,h:.15,fill:{color:score>=obj?'15803D':score>=obj-5?'D97706':'C8102E'},line:{color:score>=obj?'15803D':score>=obj-5?'D97706':'C8102E'}});slide.addShape(pptx.ShapeType.line,{x:4.2+5.5*obj/100,y:y-.02,w:0,h:.28,line:{color:'F59E0B',width:1}});slide.addText(`${round1(score)}%`,{x:9.85,y:y-.03,w:.9,h:.22,fontSize:8,bold:true,color:'111827'});}}
   async function buildCompletePptx(){
@@ -3840,24 +3840,30 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     const appendPptxContent=window.qpcAppendReportPptxSection;
     let slide=pptx.addSlide();slide.background={color:'C8102E'};slide.addText('codelpa.',{x:.6,y:.55,w:2,h:.45,fontSize:25,bold:true,color:'FFFFFF'});slide.addText(ui.reportMode==='week'?'INFORME SEMANAL CALIDAD DE PROYECTOS':'CIERRE MENSUAL DE CALIDAD DE PROYECTOS',{x:.8,y:2.1,w:8.8,h:.65,fontSize:28,bold:true,color:'FFFFFF'});slide.addText(`${periodLabel()}\nCódigo: ${code}\n${projectName}`.toUpperCase(),{x:.82,y:3.1,w:5.7,h:1,fontSize:16,color:'FFFFFF'});
     slide=pptx.addSlide();addPptxHeader(slide,pptx,'AGENDA DE PRESENTACIÓN',code);slide.addText(pptxSections().join('\n'),{x:1.2,y:1.55,w:10.8,h:4.8,fontSize:18,bold:true,color:'111827',breakLine:false,fit:'shrink'});
+    addPptxSectionDivider(pptx,'BUENAS PRÁCTICAS',code);
     if(appendPptxContent)await appendPptxContent({pptx,sectionCode:'GOOD_PRACTICES',title:'BUENAS PRÁCTICAS',code,addPptxHeader,addPptxPlaceholder});
     else{slide=pptx.addSlide();addPptxPlaceholder(slide,pptx,'BUENAS PRÁCTICAS',['Insertar evidencias fotográficas.','Completar descripción, ubicación y responsable.']);}
+    addPptxSectionDivider(pptx,ui.reportMode==='week'?'RESUMEN PLANILLAS':'RESUMEN DE PLANILLAS',code);
     slide=pptx.addSlide();addPptxTable(slide,pptx,ui.reportMode==='week'?'RESUMEN SEMANAL PLANILLAS':'RESUMEN DE PLANILLAS',['Actividad','Inspecciones','Puntaje','Objetivo','Semáforo'],workshops.map(g=>[g.label,g.count,round1(g.average),round1(g.objective),traffic(g.average,g.objective)]));
-    slide=pptx.addSlide();addPptxBarSlide(slide,pptx,'RESUMEN DE OBJETIVOS DE CALIDAD',workshops);
-    slide=pptx.addSlide();addPptxTable(slide,pptx,'COMPARATIVO POR INGENIEROS',['Ingeniero','Área','Inspecciones','Resultado','Meta','1ra visita'],engineers.map(g=>[g.label,g.area,g.count,round1(g.average),90,round1(g.firstVisitPct)]));
+    if(ui.reportMode==='month'){
+      slide=pptx.addSlide();addPptxBarSlide(slide,pptx,'RESUMEN DE OBJETIVOS DE CALIDAD',workshops);
+      addPptxSectionDivider(pptx,'COMPARATIVO POR INGENIEROS',code);
+      slide=pptx.addSlide();addPptxTable(slide,pptx,'COMPARATIVO POR INGENIEROS',['Ingeniero','Área','Inspecciones','Resultado','Meta','1ra visita'],engineers.map(g=>[g.label,g.area,g.count,round1(g.average),90,round1(g.firstVisitPct)]));
+    }
+    addPptxSectionDivider(pptx,'PUNTOS DÉBILES',code);
     if(weak.length){weak.slice(0,6).forEach(group=>{const sl=pptx.addSlide();addPptxTable(sl,pptx,`PUNTOS DÉBILES · ${group.label}`,['Descripción','Evaluaciones','N/A','Fallos','Promedio','Objetivo'],group.criteria.map(c=>[c.name,c.evaluated,c.na,c.failures,c.average===null?'N/A':round1(c.average),round1(group.objective)]));});}else{slide=pptx.addSlide();addPptxPlaceholder(slide,pptx,'PUNTOS DÉBILES',['Todos los talleres alcanzan su objetivo asignado.']);}
+    addPptxSectionDivider(pptx,'TALLERES A MEJORAR POR META INCUMPLIDA',code);
     if(appendPptxContent)await appendPptxContent({pptx,sectionCode:'WORKSHOPS_TO_IMPROVE',title:'TALLERES A MEJORAR POR META INCUMPLIDA',code,addPptxHeader,addPptxPlaceholder});
     else{slide=pptx.addSlide();addPptxPlaceholder(slide,pptx,'TALLERES A MEJORAR POR META INCUMPLIDA',['Criterio(s) incumplido(s).','Ubicación.','Plan de acción.','Responsable.']);}
-    slide=pptx.addSlide();addPptxTable(slide,pptx,'SEGUIMIENTO, CALIBRACIÓN Y VERIFICACIÓN EQUIPOS',['Indicador','Cantidad'],[['Total de equipos',arr(data.equipmentRecords).length],['Filas exportables FO-GC-23',equipment.rows.length]]);
+    if(ui.reportMode==='month'){addPptxSectionDivider(pptx,'SEGUIMIENTO, CALIBRACIÓN Y VERIFICACIÓN EQUIPOS DE INSPECCIÓN, MEDICIÓN Y ENSAYOS',code);slide=pptx.addSlide();addPptxTable(slide,pptx,'SEGUIMIENTO, CALIBRACIÓN Y VERIFICACIÓN EQUIPOS',['Indicador','Cantidad'],[['Total de equipos',arr(data.equipmentRecords).length],['Filas exportables FO-GC-23',equipment.rows.length]]);}
     if(appendPptxContent){
-      await appendPptxContent({pptx,sectionCode:'NONCONFORMITIES',title:'NC’s DEL PROYECTO',code,addPptxHeader,addPptxPlaceholder});
-      if(ui.reportMode==='month')await appendPptxContent({pptx,sectionCode:'MATERIAL_TESTS',title:'PRUEBAS A MATERIALES',code,addPptxHeader,addPptxPlaceholder});
-      await appendPptxContent({pptx,sectionCode:'TRAININGS',title:'CAPACITACIONES REALIZADAS',code,addPptxHeader,addPptxPlaceholder});
-      await appendPptxContent({pptx,sectionCode:'SPECIAL_ATTENTION',title:'ACTIVIDADES DE ATENCIÓN ESPECIAL',code,addPptxHeader,addPptxPlaceholder});
-      if(ui.reportMode==='month')await appendPptxContent({pptx,sectionCode:'LESSONS_LEARNED',title:'LECCIONES APRENDIDAS',code,addPptxHeader,addPptxPlaceholder});
-      await appendPptxContent({pptx,sectionCode:'CONCLUSIONS',title:'CONCLUSIONES',code,addPptxHeader,addPptxPlaceholder});
-      await appendPptxContent({pptx,sectionCode:'RECOMMENDATIONS',title:ui.reportMode==='week'?'CONCLUSIONES Y RECOMENDACIONES':'OBSERVACIONES Y RECOMENDACIONES',code,addPptxHeader,addPptxPlaceholder});
-      if(ui.reportMode==='month')await appendPptxContent({pptx,sectionCode:'MOTIVATIONAL_ACTION',title:'ACCIÓN MOTIVACIONAL',code,addPptxHeader,addPptxPlaceholder});
+      addPptxSectionDivider(pptx,'NC’s DEL PROYECTO',code);await appendPptxContent({pptx,sectionCode:'NONCONFORMITIES',title:'NC’s DEL PROYECTO',code,addPptxHeader,addPptxPlaceholder});
+      if(ui.reportMode==='month'){addPptxSectionDivider(pptx,'PRUEBAS A MATERIALES',code);await appendPptxContent({pptx,sectionCode:'MATERIAL_TESTS',title:'PRUEBAS A MATERIALES',code,addPptxHeader,addPptxPlaceholder});}
+      addPptxSectionDivider(pptx,'CAPACITACIONES REALIZADAS',code);await appendPptxContent({pptx,sectionCode:'TRAININGS',title:'CAPACITACIONES REALIZADAS',code,addPptxHeader,addPptxPlaceholder});
+      addPptxSectionDivider(pptx,'ACTIVIDADES DE ATENCIÓN ESPECIAL',code);await appendPptxContent({pptx,sectionCode:'SPECIAL_ATTENTION',title:'ACTIVIDADES DE ATENCIÓN ESPECIAL',code,addPptxHeader,addPptxPlaceholder});
+      if(ui.reportMode==='month'){addPptxSectionDivider(pptx,'LECCIONES APRENDIDAS',code);await appendPptxContent({pptx,sectionCode:'LESSONS_LEARNED',title:'LECCIONES APRENDIDAS',code,addPptxHeader,addPptxPlaceholder});}
+      addPptxSectionDivider(pptx,ui.reportMode==='week'?'CONCLUSIONES Y RECOMENDACIONES':'OBSERVACIONES Y RECOMENDACIONES',code);await appendPptxContent({pptx,sectionCode:'CONCLUSIONS|RECOMMENDATIONS',title:ui.reportMode==='week'?'CONCLUSIONES Y RECOMENDACIONES':'OBSERVACIONES Y RECOMENDACIONES',code,addPptxHeader,addPptxPlaceholder});
+      if(ui.reportMode==='month'){addPptxSectionDivider(pptx,'ACCIÓN MOTIVACIONAL',code);await appendPptxContent({pptx,sectionCode:'MOTIVATIONAL_ACTION',title:'ACCIÓN MOTIVACIONAL',code,addPptxHeader,addPptxPlaceholder});}
     }else{
       ['NC’s DEL PROYECTO','CAPACITACIONES REALIZADAS','ACTIVIDADES DE ATENCIÓN ESPECIAL',ui.reportMode==='week'?'CONCLUSIONES Y RECOMENDACIONES':'OBSERVACIONES Y RECOMENDACIONES'].forEach(title=>{const sl=pptx.addSlide();addPptxPlaceholder(sl,pptx,title,['Hoja preparada para completar manualmente con información del periodo.']);});
     }
@@ -4452,7 +4458,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   ].filter(Boolean);}
 
   window.qpcAppendReportPdfSection=async function({doc,sectionCode,title,code,logo,addPdfHeader,addPlaceholderPage,autoTable}){
-    await loadEntries();const entries=p10.entries.filter(entry=>entry.section_code===sectionCode);
+    await loadEntries();const sectionCodes=String(sectionCode||'').split('|');const entries=p10.entries.filter(entry=>sectionCodes.includes(entry.section_code));
     if(!entries.length){addPlaceholderPage(doc,title,code,logo,['No hay registros cargados para este periodo.','La hoja queda preparada para completar manualmente.']);return;}
     const tableSections=new Set(['NONCONFORMITIES','TRAININGS','MATERIAL_TESTS']);
     if(tableSections.has(sectionCode)){
@@ -4475,7 +4481,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   };
 
   window.qpcAppendReportPptxSection=async function({pptx,sectionCode,title,code,addPptxHeader,addPptxPlaceholder}){
-    await loadEntries();const entries=p10.entries.filter(entry=>entry.section_code===sectionCode);
+    await loadEntries();const sectionCodes=String(sectionCode||'').split('|');const entries=p10.entries.filter(entry=>sectionCodes.includes(entry.section_code));
     if(!entries.length){const slide=pptx.addSlide();addPptxPlaceholder(slide,pptx,title,['No hay registros cargados para este periodo.','La lámina queda preparada para completar manualmente.']);return;}
     for(const entry of entries){
       const slide=pptx.addSlide();addPptxHeader(slide,pptx,title,code);
@@ -4491,4 +4497,211 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   // Cargar en segundo plano cuando el usuario entra a Exportaciones para que el
   // informe completo pueda incorporar los registros sin visitar antes este módulo.
   document.addEventListener('click',event=>{if(event.target.closest('[data-view="exports"],button[data-nav="exports"]'))loadEntries().catch(()=>{});},true);
+})();
+
+/* Quality Project Control · MAIN V9.0.0 · Fase 11
+   Recursos relacionales, anotaciones persistentes, integridad y fidelidad de informes.
+*/
+(function(){
+  'use strict';
+  const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL&&typeof supabaseClient!=='undefined');
+  if(!MAIN_MODE)return;
+
+  const P11_BUCKET='qpc-attachments';
+  const p11={resources:new Map(),resourcePromises:new Map(),summary:null,issues:[],loadedIntegrity:false};
+  const list=value=>Array.isArray(value)?value:[];
+  const esc=value=>typeof escapeHtml==='function'?escapeHtml(String(value??'')):String(value??'');
+  const user=()=>typeof currentUser==='function'?currentUser():null;
+  const has=(code)=>Boolean(user()&&(user().role==='IT'||window.qpcHasPermission?.(user(),code)));
+  const activeProject=()=>typeof projectId==='function'?projectId():null;
+  window.qpcPhase11=p11;
+
+  function dataUrlBlob(dataUrl){
+    const [header,body]=String(dataUrl||'').split(',');
+    if(!header||!body)throw new Error('La imagen marcada no tiene un formato válido.');
+    const mime=(header.match(/data:([^;]+)/)||[])[1]||'image/png';
+    const bytes=atob(body);const array=new Uint8Array(bytes.length);
+    for(let i=0;i<bytes.length;i++)array[i]=bytes.charCodeAt(i);
+    return new Blob([array],{type:mime});
+  }
+  function safeName(value){return String(value||'archivo').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').toLowerCase();}
+  function uuid(){return typeof crypto!=='undefined'&&crypto.randomUUID?crypto.randomUUID():`${Date.now()}-${Math.random().toString(16).slice(2)}`;}
+
+  window.qpcPrepareMappingAnnotation=async function(dataUrl,strokes,inspectionKey,project,mapping){
+    if(!dataUrl)return null;
+    if(typeof dataUrl==='object'&&dataUrl.storagePath)return dataUrl;
+    const blob=dataUrlBlob(dataUrl);
+    const path=`projects/${safeName(project||'project')}/inspections/${safeName(inspectionKey||uuid())}/mapping-annotation-${uuid()}.png`;
+    const {error}=await supabaseClient.storage.from(P11_BUCKET).upload(path,blob,{contentType:'image/png',upsert:false,cacheControl:'3600'});
+    if(error)throw new Error(`No se pudo guardar el mapeo marcado: ${error.message}`);
+    return {
+      bucket:P11_BUCKET,
+      storagePath:path,
+      name:'Mapeo marcado.png',
+      type:'image/png',
+      size:blob.size,
+      title:'Mapeo marcado',
+      mappingVersionId:mapping?.id||null,
+      strokes:list(strokes),
+      opacity:0.18,
+      toolVersion:'QPC-HIGHLIGHTER-V2'
+    };
+  };
+
+  async function signedUrl(record,expires=1800){
+    if(record?.external_url)return record.external_url;
+    if(!record?.storage_path&&!record?.storagePath)return '';
+    const {data:signed,error}=await supabaseClient.storage.from(record.bucket||P11_BUCKET).createSignedUrl(record.storage_path||record.storagePath,expires);
+    if(error)throw error;
+    return signed?.signedUrl||'';
+  }
+
+  function normalizedAttachment(row){return {
+    fileId:row.file_id,
+    linkId:row.link_id,
+    storagePath:row.storage_path,
+    bucket:row.bucket||P11_BUCKET,
+    externalUrl:row.external_url||'',
+    name:row.original_name||'Archivo',
+    type:row.mime_type||'application/octet-stream',
+    size:row.size_bytes,
+    kind:row.caption||({PHOTO:'Fotografía',PLAN:'Plano',EVIDENCE:'Evidencia'}[row.file_role]||'Documento'),
+    fileRole:row.file_role,
+    isRelational:true
+  };}
+
+  async function loadInspectionResources(inspectionId,force=false){
+    if(!inspectionId)return {attachments:[],annotation:null};
+    if(p11.resources.has(inspectionId)&&!force)return p11.resources.get(inspectionId);
+    if(p11.resourcePromises.has(inspectionId)&&!force)return p11.resourcePromises.get(inspectionId);
+    const promise=(async()=>{
+      const [filesResult,annotationResult]=await Promise.all([
+        supabaseClient.from('qpc_inspection_resource_files').select('*').eq('inspection_id',inspectionId).order('sort_order'),
+        supabaseClient.from('qpc_inspection_mapping_annotations').select('*').eq('inspection_id',inspectionId).order('updated_at',{ascending:false}).limit(1)
+      ]);
+      if(filesResult.error)throw filesResult.error;
+      if(annotationResult.error)throw annotationResult.error;
+      const result={attachments:list(filesResult.data).map(normalizedAttachment),annotation:list(annotationResult.data)[0]||null};
+      p11.resources.set(inspectionId,result);p11.resourcePromises.delete(inspectionId);
+      const inspection=list(data?.inspections).find(item=>item.id===inspectionId);
+      if(inspection){
+        if(result.attachments.length)inspection.attachments=result.attachments;
+        if(result.annotation)inspection.mappingAnnotationRecord=result.annotation;
+      }
+      return result;
+    })().catch(error=>{p11.resourcePromises.delete(inspectionId);console.error('Recursos de inspección',error);throw error;});
+    p11.resourcePromises.set(inspectionId,promise);return promise;
+  }
+  window.qpcLoadInspectionResources=loadInspectionResources;
+
+  function scheduleResourceHydration(inspectionId){
+    if(!inspectionId||p11.resources.has(inspectionId)||p11.resourcePromises.has(inspectionId))return;
+    loadInspectionResources(inspectionId).then(()=>{
+      if(ui?.view==='detail'&&ui?.selectedId===inspectionId){const y=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo({top:y,behavior:'auto'}));}
+    }).catch(error=>console.warn(error));
+  }
+
+  window.renderResources=function(inspection,mapping,docs,current){
+    const relMapping=typeof mappingById==='function'?(mappingById(inspection?.mappingId)||mapping):mapping;
+    const activity=typeof templateById==='function'?templateById(inspection?.templateId)?.activity:null;
+    const related=typeof projectDocuments==='function'?projectDocuments().filter(doc=>doc.status==='Vigente'&&(!activity||list(doc.activities).includes(activity))):list(docs);
+    const cached=p11.resources.get(inspection?.id);
+    const attachments=(cached?.attachments?.length?cached.attachments:list(inspection?.attachments)).map((attachment,index)=>({...attachment,index}));
+    const annotation=cached?.annotation||inspection?.mappingAnnotationRecord||null;
+    scheduleResourceHydration(inspection?.id);
+    const mapButton=relMapping?`<button class="btn btn-primary" data-p4-view-mapping="${esc(relMapping.id)}">Visualizar</button>`:'<button class="btn btn-secondary" disabled>Pendiente</button>';
+    const annotationCard=annotation||inspection?.mappingAnnotation?`<article class="resource-item"><strong>Mapeo marcado</strong><span>Alcance señalado por Ejecución</span><button class="btn btn-primary" data-p11-view-annotation="${esc(inspection.id)}">Visualizar</button></article>`:'';
+    const attachmentCards=attachments.map(attachment=>`<article class="resource-item"><strong>${esc(attachment.kind||'Adjunto')}</strong><span>${esc(attachment.name||'Archivo')}</span><small>${attachment.size?`${Math.max(1,Math.round(Number(attachment.size)/1024))} KB`:''}</small><div class="button-row"><button class="btn btn-primary" data-p11-open-file="${esc(inspection.id)}:${attachment.index}">Visualizar</button><button class="btn btn-outline" data-p11-download-file="${esc(inspection.id)}:${attachment.index}">Descargar</button></div></article>`).join('');
+    const docCards=related.map(doc=>`<article class="resource-item"><strong>${esc(doc.code)} ${esc(doc.version)}</strong><span>${esc(doc.title)}</span>${doc.fileId?`<button class="btn btn-primary" data-p4-view-document="${esc(doc.id)}">Visualizar</button>`:'<button class="btn btn-secondary" disabled>Pendiente</button>'}</article>`).join('');
+    return `<div class="resource-grid"><article class="resource-item"><strong>Mapeo original</strong><span>${esc(relMapping?.code||'—')} ${esc(relMapping?.version||'')}</span>${mapButton}</article>${annotationCard}${attachmentCards}${docCards}${!cached?'<article class="resource-item resource-loading"><strong>Sincronizando recursos</strong><span>Validando vínculos relacionales…</span></article>':''}</div>`;
+  };
+
+  async function attachmentRecord(inspectionId,index){
+    const resources=await loadInspectionResources(inspectionId);
+    const inspection=list(data?.inspections).find(item=>item.id===inspectionId);
+    return resources.attachments[index]||list(inspection?.attachments)[index]||null;
+  }
+  async function openFile(inspectionId,index,download=false){
+    const record=await attachmentRecord(inspectionId,index);if(!record)throw new Error('Archivo no encontrado.');
+    const url=record.dataUrl||await signedUrl(record,1800);if(!url)throw new Error('El archivo no tiene una ubicación disponible.');
+    if(download){const a=document.createElement('a');a.href=url;a.download=record.name||'archivo';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();return;}
+    showFileViewer(url,record.name||'Archivo',record.type||'application/octet-stream');
+  }
+  window.openAttachment=async function(inspectionId,index){try{await openFile(inspectionId,index,false);}catch(error){toast(error.message);}};
+  window.downloadAttachment=async function(inspectionId,index){try{await openFile(inspectionId,index,true);}catch(error){toast(error.message);}};
+
+  async function openAnnotation(inspectionId){
+    const resources=await loadInspectionResources(inspectionId);const record=resources.annotation;
+    if(record){const url=await signedUrl(record,1800);if(url){showFileViewer(url,record.original_name||'Mapeo marcado',record.mime_type||'image/png');return;}}
+    const inspection=list(data?.inspections).find(item=>item.id===inspectionId);if(typeof inspection?.mappingAnnotation==='string')showFileViewer(inspection.mappingAnnotation,'Mapeo marcado','image/png');else throw new Error('No existe una vista previa del mapeo marcado.');
+  }
+
+  // Resaltador vectorial: los trazos se conservan como datos y la vista previa se
+  // compone una sola vez con opacidad global, evitando que varias pasadas oculten el plano.
+  window.initAnnotatorCanvas=function(){
+    const canvas=document.getElementById('mapCanvas');if(!canvas)return;
+    const ctx=canvas.getContext('2d'),mapping=typeof mappingById==='function'?mappingById(ui.requestDraft.mappingId):null,base=new Image();base.crossOrigin='anonymous';
+    let ready=false,drawing=false,currentStroke=null;
+    ui.requestDraft.annotationStrokes=list(ui.requestDraft.annotationStrokes);
+    const strokes=ui.requestDraft.annotationStrokes;
+    function point(event){const rect=canvas.getBoundingClientRect();return {x:(event.clientX-rect.left)*canvas.width/rect.width,y:(event.clientY-rect.top)*canvas.height/rect.height};}
+    function renderCanvas(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+      if(ready){const scale=Math.min(canvas.width/base.width,canvas.height/base.height),w=base.width*scale,h=base.height*scale;ctx.drawImage(base,(canvas.width-w)/2,(canvas.height-h)/2,w,h);}
+      const layer=document.createElement('canvas');layer.width=canvas.width;layer.height=canvas.height;const lctx=layer.getContext('2d');
+      strokes.forEach(stroke=>{if(!stroke.points?.length)return;lctx.save();lctx.lineCap='round';lctx.lineJoin='round';lctx.lineWidth=Number(stroke.size)||18;lctx.strokeStyle=stroke.color||'#facc15';lctx.globalCompositeOperation=stroke.mode==='erase'?'destination-out':'source-over';lctx.beginPath();stroke.points.forEach((p,index)=>index?lctx.lineTo(p.x,p.y):lctx.moveTo(p.x,p.y));lctx.stroke();lctx.restore();});
+      ctx.save();ctx.globalAlpha=.18;ctx.globalCompositeOperation='multiply';ctx.drawImage(layer,0,0);ctx.restore();
+    }
+    base.onload=()=>{ready=true;renderCanvas();};base.onerror=()=>{toast('Este formato no puede resaltarse directamente. Use una imagen PNG/JPG del plano.');renderCanvas();};base.src=mapping?.file||'';
+    canvas.addEventListener('pointerdown',event=>{drawing=true;canvas.setPointerCapture(event.pointerId);currentStroke={color:document.getElementById('drawColor')?.value||'#facc15',size:Number(document.getElementById('drawSize')?.value||18),mode:ui.annotator?.eraser?'erase':'highlight',points:[point(event)]};strokes.push(currentStroke);});
+    canvas.addEventListener('pointermove',event=>{if(!drawing||!currentStroke)return;currentStroke.points.push(point(event));renderCanvas();});
+    const finish=()=>{drawing=false;currentStroke=null;};canvas.addEventListener('pointerup',finish);canvas.addEventListener('pointercancel',finish);
+    const color=document.getElementById('drawColor'),size=document.getElementById('drawSize');if(color)color.value='#facc15';if(size)size.value='18';
+    document.getElementById('eraserBtn')?.addEventListener('click',()=>{ui.annotator=ui.annotator||{};ui.annotator.eraser=!ui.annotator.eraser;document.getElementById('eraserBtn').textContent=ui.annotator.eraser?'Volver a resaltar':'Borrador';});
+    document.getElementById('clearMapBtn')?.addEventListener('click',()=>{strokes.splice(0);renderCanvas();});
+    document.getElementById('cancelAnnotation')?.addEventListener('click',()=>{ui.view='newRequest';render();});
+    document.getElementById('saveAnnotation')?.addEventListener('click',()=>{renderCanvas();ui.requestDraft.annotationData=canvas.toDataURL('image/png');ui.requestDraft.annotationStrokes=strokes;ui.view='newRequest';toast('Mapeo resaltado guardado sin ocultar el contenido inferior');render();});
+  };
+
+  async function loadIntegrity(force=false){
+    if(p11.loadedIntegrity&&!force)return;
+    const [summaryResult,issuesResult]=await Promise.all([
+      supabaseClient.from('qpc_data_integrity_summary').select('*').maybeSingle(),
+      supabaseClient.from('qpc_migration_issues').select('*').order('created_at',{ascending:false}).limit(250)
+    ]);
+    if(summaryResult.error)throw summaryResult.error;if(issuesResult.error)throw issuesResult.error;
+    p11.summary=summaryResult.data||{};p11.issues=list(issuesResult.data);p11.loadedIntegrity=true;
+  }
+  function integrityView(){
+    if(!has('data.integrity.view'))return noAccess();
+    if(!p11.loadedIntegrity)loadIntegrity().then(()=>render()).catch(error=>toast(`No se cargó la integridad: ${error.message}`));
+    const s=p11.summary||{},issues=p11.issues.filter(issue=>!activeProject()||!issue.project_id||issue.project_id===activeProject());
+    const metricCard=(label,value,foot,tone='')=>`<div class="metric-card ${tone}"><div class="metric-label">${esc(label)}</div><div class="metric-value">${esc(value??'—')}</div><div class="metric-foot">${esc(foot)}</div></div>`;
+    return `<div class="page-head"><div><h2>Integridad de datos</h2><p>Seguimiento de la migración relacional y recursos que requieren revisión.</p></div><button type="button" id="p11RefreshIntegrity" class="btn btn-outline">Actualizar</button></div><div class="grid grid-4">${metricCard('Inspecciones',s.inspections,'Registros relacionales')}${metricCard('Archivos vinculados',s.normalized_inspection_files,'Adjuntos normalizados','positive')}${metricCard('Mapeos marcados',s.mapping_annotations,'Anotaciones persistentes','positive')}${metricCard('Incidencias abiertas',s.open_migration_issues,'Requieren revisión',Number(s.open_migration_issues)?'warning':'positive')}</div><div class="card" style="margin-top:16px"><h3>Incidencias de migración</h3><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Proyecto</th><th>Entidad</th><th>Incidencia</th><th>Detalle</th><th>Estado</th><th>Acción</th></tr></thead><tbody>${issues.map(issue=>`<tr><td>${esc(new Date(issue.created_at).toLocaleString('es-DO'))}</td><td>${esc(issue.project_id||'Global')}</td><td>${esc(issue.entity_type)}<br><small>${esc(issue.entity_id||'')}</small></td><td><strong>${esc(issue.issue_code)}</strong></td><td>${esc(issue.detail)}</td><td><span class="badge ${issue.status==='OPEN'?'badge-yellow':issue.status==='RESOLVED'?'badge-green':'badge-gray'}">${esc(issue.status)}</span></td><td>${has('data.integrity.manage')?`<div class="button-row"><button class="btn btn-outline" data-p11-issue="${issue.id}" data-status="${issue.status==='RESOLVED'?'OPEN':'RESOLVED'}">${issue.status==='RESOLVED'?'Reabrir':'Resolver'}</button><button class="btn btn-secondary" data-p11-issue="${issue.id}" data-status="IGNORED">Ignorar</button></div>`:'—'}</td></tr>`).join('')||'<tr><td colspan="7"><div class="empty">No hay incidencias visibles.</div></td></tr>'}</tbody></table></div></div>`;
+  }
+
+  const previousNavItems=window.navItems;
+  window.navItems=function(current){const items=previousNavItems(current);if((current?.role==='IT'||window.qpcHasPermission?.(current,'data.integrity.view'))&&!items.some(item=>item.id==='integrity'))items.push({id:'integrity',label:'Integridad de datos',icon:'◫'});return items;};
+  try{navItems=window.navItems;}catch(_){/* global lexical binding not writable */}
+  const previousRenderView=window.renderView;
+  window.renderView=function(current){if(ui.view==='integrity')return integrityView();return previousRenderView(current);};
+  try{renderView=window.renderView;}catch(_){/* no-op */}
+
+  document.addEventListener('click',async event=>{
+    const button=event.target.closest('button');if(!button)return;
+    const stop=()=>{event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();};
+    try{
+      if(button.matches('[data-p11-open-file]')){stop();const [id,index]=button.dataset.p11OpenFile.split(':');await openFile(id,Number(index),false);return;}
+      if(button.matches('[data-p11-download-file]')){stop();const [id,index]=button.dataset.p11DownloadFile.split(':');await openFile(id,Number(index),true);return;}
+      if(button.matches('[data-p11-view-annotation]')){stop();await openAnnotation(button.dataset.p11ViewAnnotation);return;}
+      if(button.id==='p11RefreshIntegrity'){stop();p11.loadedIntegrity=false;await loadIntegrity(true);render();return;}
+      if(button.matches('[data-p11-issue]')){stop();button.disabled=true;const {error}=await supabaseClient.rpc('qpc_set_migration_issue_status',{p_issue_id:button.dataset.p11Issue,p_status:button.dataset.status});if(error)throw error;p11.loadedIntegrity=false;await loadIntegrity(true);toast('Estado de incidencia actualizado');render();return;}
+    }catch(error){console.error(error);toast(error.message||'No se pudo completar la operación.');}finally{if(button)button.disabled=false;}
+  },true);
+
+  // La vista detalle solicita los recursos solo cuando se necesitan; no se descargan
+  // archivos ni URLs firmadas durante el arranque de la aplicación.
+  const previousRender=window.render;
+  window.render=function(){const result=previousRender();if(ui?.view==='detail'&&ui?.selectedId)scheduleResourceHydration(ui.selectedId);return result;};
+  try{render=window.render;}catch(_){/* no-op */}
 })();

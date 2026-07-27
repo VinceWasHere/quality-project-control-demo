@@ -6,6 +6,59 @@ Rama principal conectada a Supabase, publicada desde GitHub en Vercel. Este READ
 
 ---
 
+## V9.0.0 · Fase 11 — Recursos relacionales, integridad y fidelidad corporativa
+
+Fecha: 27 de julio de 2026.
+
+Esta fase completa la normalización de recursos asociados a inspecciones y mejora la estructura de los informes corporativos.
+
+### Recursos de inspecciones
+
+- Nueva tabla `qpc_file_links` para relacionar archivos con inspecciones y otras entidades.
+- Los adjuntos existentes en `qpc_inspections.attachments` se migran de forma idempotente a `qpc_files` y `qpc_file_links`.
+- Las nuevas solicitudes continúan enviando metadatos compatibles, pero un trigger los normaliza automáticamente.
+- El detalle de la inspección carga archivos bajo demanda, evitando firmar y descargar recursos al iniciar la aplicación.
+- Fotografías, documentos y planos usan el visor universal y conservan descarga opcional.
+
+### Mapeos marcados
+
+- El resaltador conserva trazos vectoriales además de la vista previa PNG.
+- La vista previa se sube a Supabase Storage.
+- Los trazos se guardan en `qpc_mapping_annotations`.
+- La opacidad se aplica una sola vez a la capa completa para evitar que varias pasadas oculten el contenido inferior.
+- Las anotaciones históricas Base64 que no pueden migrarse automáticamente se registran como incidencias, sin eliminarse silenciosamente.
+
+### Integridad de datos
+
+- Nuevo módulo **Integridad de datos** para usuarios autorizados.
+- Muestra inspecciones, archivos normalizados, anotaciones y problemas abiertos.
+- Las incidencias pueden resolverse, ignorarse o reabrirse.
+- Nueva tabla `qpc_migration_issues` con trazabilidad.
+- `app_state` queda documentado como respaldo histórico y no debe recibir nuevos módulos operativos.
+
+### Informes corporativos
+
+- El PPTX semanal respeta el orden del FO-CP-10 V07: agenda, divisores de sección, buenas prácticas, resumen de planillas, puntos débiles, talleres a mejorar, NC, capacitaciones, atención especial y conclusiones/recomendaciones.
+- El PPTX mensual respeta el orden del FO-CP-11 V10 e incorpora comparativos, equipos, pruebas a materiales, lecciones aprendidas y acción motivacional.
+- Se agregan diapositivas divisoras con código de formulario, como en las presentaciones corporativas de referencia.
+- Las secciones no aplicables al periodo semanal dejan de insertarse automáticamente.
+- El PPTX continúa siendo editable y conserva láminas preparadas cuando falta información manual.
+
+### Despliegue
+
+- Ejecutar `SUPABASE_V9_0_PHASE11.sql`.
+- No requiere Edge Function nueva.
+- Publicar los archivos del paquete en el branch `main`.
+
+### Pendiente para cierre
+
+1. Pruebas end-to-end por rol y concurrencia.
+2. Revisión final de RLS y políticas de Storage.
+3. Paginación server-side y optimización de consultas de gran volumen.
+4. Retiro físico del código legado y preparación de una versión candidata a producción.
+
+---
+
 ## V8.9.0 · Fase 10 — Contenido corporativo de informes
 
 Fecha: 25 de julio de 2026.

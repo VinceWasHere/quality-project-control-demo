@@ -60,3 +60,12 @@ Los datos incluidos son demostrativos y deben validarse antes de un uso corporat
 - Se incorporó el módulo relacional de contenido corporativo de informes.
 - Las secciones siguen la estructura semanal FO-CP-10 V07 y mensual FO-CP-11 V10 suministradas por el usuario.
 - El motor de exportación existente se amplió para usar los registros del periodo en PDF y PPTX.
+
+## V9.0 · Fase 11
+
+La secuencia de secciones y las diapositivas divisoras del exportable corporativo se ajustaron tomando como referencia:
+
+- `25-09-10 FO-CP-10 V07 INFORME SEMANAL DE CALIDAD DE PROYECTOS(2).pptx`.
+- `25-09-04 FO-CP-11 V10 CIERRE MENSUAL DE CALIDAD DE PROYECTOS AGOSTO(2).pptx`.
+
+Las plantillas originales no se incrustan en el frontend por su peso. El exportador reproduce su orden, código documental, identidad CODELPA y hojas editables mediante PptxGenJS.

@@ -491,3 +491,13 @@ a{color:inherit;text-decoration:none}
   .p10-entry-meta{display:grid;gap:7px}
   .p10-editor-head{flex-direction:column}
 }
+
+/* MAIN V9.0 · Fase 11 */
+.resource-loading{opacity:.72;border-style:dashed}
+.resource-item small{display:block;color:var(--muted,#667085);margin-top:4px}
+.qpc-integrity-ok{color:#15803d}
+.qpc-integrity-warning{color:#b45309}
+@media (max-width:760px){
+  .resource-grid{grid-template-columns:1fr!important}
+  [data-view="integrity"] .table-wrap{max-width:100%;overflow:auto}
+}
