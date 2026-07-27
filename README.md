@@ -6,6 +6,62 @@ Rama principal conectada a Supabase, publicada desde GitHub en Vercel. Este READ
 
 ---
 
+## V8.9.0 · Fase 10 — Contenido corporativo de informes
+
+Fecha: 25 de julio de 2026.
+
+Esta fase incorpora a Supabase la información que completa los informes corporativos y que no puede deducirse únicamente de las planillas de inspección.
+
+### Nuevo módulo: Contenido de informes
+
+- Nueva sección disponible para usuarios autorizados.
+- Periodos semanales de jueves a miércoles y periodos mensuales.
+- Registros para:
+  - Buenas prácticas.
+  - Talleres a mejorar por meta incumplida.
+  - NC del proyecto.
+  - Capacitaciones realizadas.
+  - Actividades de atención especial.
+  - Pruebas a materiales.
+  - Lecciones aprendidas.
+  - Conclusiones.
+  - Recomendaciones y observaciones.
+  - Acción motivacional.
+- Cada registro puede incluir título, descripción, ubicación, responsable, plan de acción, referencia, cantidad, resultado, notas y evidencia.
+- Las evidencias se almacenan en Supabase Storage y se visualizan desde el visor interno.
+- Edición contextual sin enviar al usuario al inicio de la página.
+- Archivo no destructivo con confirmación y auditoría.
+
+### Integración con exportables
+
+- El informe completo PDF usa los registros del periodo en lugar de mostrar únicamente hojas vacías.
+- Buenas prácticas y talleres a mejorar generan páginas con espacio fotográfico y datos.
+- NC, capacitaciones y pruebas a materiales generan tablas corporativas.
+- Actividades de atención especial, lecciones, conclusiones y recomendaciones generan páginas de texto.
+- El PPTX editable incorpora los mismos registros y conserva láminas preparadas cuando una sección no tiene datos.
+- Las secciones semanales y mensuales se adaptan al FO-CP-10 V07 y FO-CP-11 V10.
+
+### Base de datos y seguridad
+
+- Nueva tabla `qpc_report_entries`.
+- Nuevos permisos `reports.content.view` y `reports.content.manage`.
+- RLS por proyecto.
+- Escrituras mediante RPC seguras.
+- Auditoría de creación, modificación y archivo.
+- IT mantiene acceso total.
+
+### Despliegue
+
+- Ejecutar `SUPABASE_V8_9_PHASE10.sql`.
+- No requiere Edge Function nueva.
+- Publicar los archivos del paquete en el branch `main`.
+
+### Pendiente para cierre
+
+1. Fidelidad visual final de los PPTX/PDF utilizando los masters corporativos exactos.
+2. Retirar la dependencia operativa restante de `app_state` y normalizar adjuntos/anotaciones pendientes.
+3. Pruebas automatizadas, revisión de RLS, concurrencia, rendimiento y limpieza definitiva de código legado.
+
 ## V8.8.1 · Hotfix — Combobox de login sin congelamiento
 
 Fecha: 25 de julio de 2026.

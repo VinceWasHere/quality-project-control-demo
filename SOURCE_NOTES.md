@@ -54,3 +54,9 @@ Los datos incluidos son demostrativos y deben validarse antes de un uso corporat
 - `asset-workflow_index.ts`: operaciones seguras de los módulos de activos.
 - `assets/favicon-codelpa-c.svg`: favicon con una sola C.
 - `README.md`: historial acumulativo reorganizado de más reciente a más antiguo.
+
+## V8.9.0
+
+- Se incorporó el módulo relacional de contenido corporativo de informes.
+- Las secciones siguen la estructura semanal FO-CP-10 V07 y mensual FO-CP-11 V10 suministradas por el usuario.
+- El motor de exportación existente se amplió para usar los registros del periodo en PDF y PPTX.

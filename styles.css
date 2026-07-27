@@ -462,3 +462,32 @@ a{color:inherit;text-decoration:none}
 #p5AreaChart{
   max-height:330px;
 }
+
+/* ================================================================
+   MAIN V8.9.0 · Fase 10 · Contenido corporativo de informes
+   ================================================================ */
+.p10-filters{margin-bottom:16px}
+.p10-metrics{margin:16px 0}
+.p10-entry-list{display:grid;gap:14px}
+.p10-entry-card{display:grid;grid-template-columns:54px minmax(0,1fr);gap:14px;align-items:start}
+.p10-entry-icon{width:46px;height:46px;border-radius:14px;background:#fde7eb;color:#b30c29;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px}
+.p10-entry-body{min-width:0}
+.p10-entry-top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.p10-entry-top h3{margin:8px 0 4px}
+.p10-order{font-size:12px;color:#6b7280;background:#f1f5f9;padding:5px 8px;border-radius:999px;white-space:nowrap}
+.p10-entry-meta{display:flex;flex-wrap:wrap;gap:8px 14px;margin:12px 0;color:#475569;font-size:13px}
+.p10-entry-meta span{display:inline-flex;gap:4px}
+.p10-action{margin:12px 0;padding:12px 14px;border-left:4px solid #c8102e;background:#fff5f6;border-radius:0 10px 10px 0}
+.p10-action p{margin:5px 0 0}
+.p10-editor{margin:0 0 14px;border:1px solid #d8dee6;background:#fff}
+.p10-editor-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+.p10-editor-head h3{margin:7px 0 0}
+.p10-editor textarea{resize:vertical;min-height:74px}
+.p10-entry-card + .p10-editor{margin-top:-4px}
+@media (max-width:700px){
+  .p10-entry-card{grid-template-columns:1fr}
+  .p10-entry-icon{width:40px;height:40px}
+  .p10-entry-top{flex-direction:column}
+  .p10-entry-meta{display:grid;gap:7px}
+  .p10-editor-head{flex-direction:column}
+}
