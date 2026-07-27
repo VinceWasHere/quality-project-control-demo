@@ -1,3 +1,20 @@
+# Quality Project Control MAIN V9.3 — Fase 14
+
+## Enfoque
+Evidencias múltiples reales para el contenido corporativo y exportables.
+
+## Cambios
+- Carga de hasta 12 evidencias activas por registro.
+- Galería integrada con miniaturas, visor y descarga.
+- Leyendas editables y orden configurable.
+- Selección de evidencia principal.
+- Retiro individual con confirmación y auditoría.
+- PDF y PPTX incorporan varias fotografías por registro.
+- Migración automática de la evidencia principal histórica a la galería.
+- README acumulativo con la versión más reciente primero.
+
+---
+
 # Quality Project Control MAIN V9.2 — Fase 13
 
 ## Enfoque

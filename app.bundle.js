@@ -4788,3 +4788,250 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   document.addEventListener('click',event=>{const b=event.target.closest('[data-p12-section]');if(!b)return;event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();ui.p10Section=b.dataset.p12Section;ui.p10EntryId=null;render();},true);
   setTimeout(()=>{if(ui?.view==='report-content'&&typeof render==='function')render();},0);
 })();
+
+/* ================================================================
+   Quality Project Control · MAIN V9.3.0 · Fase 14
+   Evidencias múltiples reales, galería y exportación enriquecida.
+   ================================================================ */
+(()=>{
+  'use strict';
+  const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL&&typeof supabaseClient!=='undefined');
+  if(!MAIN_MODE)return;
+  window.QPC_VERSION='9.3.0';
+
+  const p14={key:'',loading:null,files:[],signed:new Map()};
+  const list=value=>Array.isArray(value)?value:[];
+  const text=value=>String(value??'').trim();
+  const esc=value=>typeof escapeHtml==='function'?escapeHtml(String(value??'')):String(value??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  const user=()=>typeof currentUser==='function'?currentUser():null;
+  const can=code=>Boolean(user()&&(user().role==='IT'||window.qpcHasPermission?.(user(),code)));
+  const project=()=>typeof projectId==='function'?projectId():ui.projectId;
+  const reportEntries=()=>list(window.qpcReportEntriesForCurrentPeriod?.()||window.qpcPhase10?.entries);
+  const bucket='qpc-attachments';
+  const sections={
+    GOOD_PRACTICES:{label:'Buenas prácticas',short:'Buena práctica',icon:'✓',weekly:true,monthly:true,evidence:true,required:true,manual:'Fotografía, descripción, ubicación y responsable.'},
+    WORKSHOPS_TO_IMPROVE:{label:'Talleres a mejorar por meta incumplida',short:'Taller a mejorar',icon:'!',weekly:true,monthly:true,evidence:true,required:true,manual:'Criterio incumplido, ubicación, plan de acción y responsable.'},
+    NONCONFORMITIES:{label:'NC’s del proyecto',short:'No conformidad',icon:'NC',weekly:true,monthly:true,evidence:true,required:false,manual:'Número o referencia de NC, descripción, estado y evidencia disponible.'},
+    TRAININGS:{label:'Capacitaciones realizadas',short:'Capacitación',icon:'▣',weekly:true,monthly:true,evidence:true,required:false,manual:'Cantidad, tema, ubicación y evidencia.'},
+    SPECIAL_ATTENTION:{label:'Actividades de atención especial',short:'Atención especial',icon:'◆',weekly:true,monthly:true,evidence:true,required:true,manual:'Texto listo para la lámina y evidencias relacionadas.'},
+    MATERIAL_TESTS:{label:'Pruebas a materiales',short:'Prueba a material',icon:'⌁',weekly:false,monthly:true,evidence:true,required:false,manual:'Probeta, ensayo, ubicación, resultado y soporte.'},
+    LESSONS_LEARNED:{label:'Lecciones aprendidas',short:'Lección aprendida',icon:'◇',weekly:false,monthly:true,evidence:false,required:false,manual:'Aprendizaje del periodo.'},
+    CONCLUSIONS:{label:'Conclusiones',short:'Conclusión',icon:'∴',weekly:true,monthly:false,evidence:false,required:true,manual:'Conclusión del informe semanal.'},
+    RECOMMENDATIONS:{label:'Recomendaciones / observaciones',short:'Recomendación',icon:'→',weekly:true,monthly:true,evidence:false,required:true,manual:'Observaciones y recomendaciones accionables.'},
+    MOTIVATIONAL_ACTION:{label:'Acción motivacional',short:'Acción motivacional',icon:'★',weekly:false,monthly:true,evidence:false,required:false,manual:'Frase o actividad motivacional.'}
+  };
+  const order=Object.keys(sections);
+  window.qpcPhase14=p14;
+
+  function stateKey(){return `${project()}|${ui.reportMode}|${ui.reportValue}`;}
+  function validSections(){return order.filter(code=>ui.reportMode==='week'?sections[code].weekly:sections[code].monthly);}
+  function ensureState(){
+    ui.reportMode=ui.reportMode==='week'?'week':'month';
+    if(ui.reportMode==='week'&&!/^\d{4}-\d{2}-\d{2}$/.test(String(ui.reportValue||'')))ui.reportValue=typeof qualityWeekStart==='function'?qualityWeekStart(new Date().toISOString().slice(0,10)):new Date().toISOString().slice(0,10);
+    if(ui.reportMode==='month'&&!/^\d{4}-\d{2}$/.test(String(ui.reportValue||'')))ui.reportValue=new Date().toISOString().slice(0,7);
+    if(!validSections().includes(ui.p10Section))ui.p10Section=validSections()[0];
+  }
+  function periodLabel(){
+    if(ui.reportMode==='week')return typeof qualityWeekLabel==='function'?qualityWeekLabel(ui.reportValue):ui.reportValue;
+    try{return new Date(`${ui.reportValue}-01T12:00:00`).toLocaleDateString('es-DO',{month:'long',year:'numeric'});}catch(_){return ui.reportValue;}
+  }
+  function activeProjectName(){try{return list(data.projects).find(item=>item.id===project())?.name||project()||'Proyecto';}catch(_){return project()||'Proyecto';}}
+  function sectionEntries(code){return reportEntries().filter(entry=>entry.section_code===code);}
+  function evidenceFor(entryId){return p14.files.filter(file=>file.entry_id===entryId).sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0)||String(a.created_at||'').localeCompare(String(b.created_at||'')));}
+  function evidenceCount(entryId){return evidenceFor(entryId).length;}
+  function isImage(file){return String(file?.mime_type||'').startsWith('image/');}
+  function isPdf(file){return String(file?.mime_type||'')==='application/pdf';}
+  function humanSize(bytes){const value=Number(bytes||0);if(!value)return '';if(value<1024)return `${value} B`;if(value<1048576)return `${(value/1024).toFixed(1)} KB`;return `${(value/1048576).toFixed(1)} MB`;}
+  function safeName(value){return text(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,110)||'archivo';}
+  function keepRender(){const y=window.scrollY;render();requestAnimationFrame(()=>{window.scrollTo({top:y,behavior:'auto'});hydrateThumbs();});}
+
+  async function loadEvidence(force=false){
+    ensureState();const key=stateKey();
+    if(!force&&p14.key===key)return p14.files;
+    if(p14.loading&&!force)return p14.loading;
+    p14.loading=(async()=>{
+      const {data:rows,error}=await supabaseClient.rpc('qpc_report_evidence_for_period',{p_project_id:project(),p_period_mode:ui.reportMode,p_period_value:ui.reportValue});
+      if(error)throw error;
+      p14.files=list(rows);p14.key=key;p14.loading=null;return p14.files;
+    })().catch(error=>{p14.loading=null;console.error('Evidencias de informes',error);throw error;});
+    return p14.loading;
+  }
+  window.qpcLoadReportEvidence=loadEvidence;
+  window.qpcReportEvidenceForEntry=evidenceFor;
+
+  async function signed(file,expires=1800){
+    const cached=p14.signed.get(file.file_id);if(cached&&cached.expires>Date.now())return cached.url;
+    const {data:row,error}=await supabaseClient.storage.from(file.bucket||bucket).createSignedUrl(file.storage_path,expires);
+    if(error)throw error;const url=row?.signedUrl||'';p14.signed.set(file.file_id,{url,expires:Date.now()+(expires-60)*1000});return url;
+  }
+  async function hydrateThumbs(){
+    const nodes=[...document.querySelectorAll('[data-p14-thumb]')];
+    await Promise.all(nodes.map(async node=>{
+      const file=p14.files.find(item=>item.link_id===node.dataset.p14Thumb);if(!file||!isImage(file)||node.dataset.loaded==='1')return;
+      try{node.src=await signed(file,900);node.dataset.loaded='1';}catch(_){node.closest('.report-evidence-tile')?.classList.add('evidence-error');}
+    }));
+  }
+
+  function sectionOptions(selected){return validSections().map(code=>`<option value="${code}" ${selected===code?'selected':''}>${esc(sections[code].label)}</option>`).join('');}
+  function periodInput(){return ui.reportMode==='week'?`<input id="p10Period" type="date" value="${esc(ui.reportValue)}"><small>Semana de Calidad: jueves a miércoles.</small>`:`<input id="p10Period" type="month" value="${esc(ui.reportValue)}">`;}
+  function metric(label,value,helper,tone=''){return `<article class="report-kpi ${tone}"><span>${esc(label)}</span><strong>${esc(value)}</strong><small>${esc(helper)}</small></article>`;}
+  function readiness(){
+    const relevant=validSections().filter(code=>sections[code].required);
+    const done=relevant.filter(code=>{const rows=sectionEntries(code);return rows.length>0&&(!sections[code].evidence||rows.some(row=>evidenceCount(row.id)>0));});
+    return {relevant,done,pct:relevant.length?Math.round(done.length/relevant.length*100):100};
+  }
+  function sectionStatus(code){
+    const cfg=sections[code],rows=sectionEntries(code),evidences=rows.reduce((sum,row)=>sum+evidenceCount(row.id),0),good=rows.length>0&&(!cfg.evidence||evidences>0);
+    return `<div class="section-status"><div><strong>${esc(cfg.label)}</strong><small>${rows.length} registro(s)${cfg.evidence?` · ${evidences} evidencia(s)`:''}</small></div><span class="badge ${good?'badge-green':cfg.required?'badge-yellow':'badge-gray'}">${good?'Listo':cfg.required?'Pendiente':'Opcional'}</span></div>`;
+  }
+  function sectionButton(code){
+    const cfg=sections[code],rows=sectionEntries(code),ev=rows.reduce((sum,row)=>sum+evidenceCount(row.id),0),active=ui.p10Section===code;
+    return `<button type="button" class="report-section-button ${active?'active':''}" data-p12-section="${code}"><span class="report-section-icon">${esc(cfg.icon)}</span><span class="report-section-info"><strong>${esc(cfg.label)}</strong><small>${rows.length} registro(s)${cfg.evidence?` · ${ev} evidencia(s)`:''}</small></span><span class="report-section-count">${rows.length}</span></button>`;
+  }
+
+  function fileGlyph(file){return isImage(file)?'▧':isPdf(file)?'PDF':'DOC';}
+  function evidenceTile(file,editable=false){
+    const caption=file.caption||file.original_name||'Evidencia';
+    return `<article class="report-evidence-tile ${file.is_primary?'primary':''}">
+      <div class="report-evidence-preview">${isImage(file)?`<img alt="${esc(caption)}" data-p14-thumb="${file.link_id}">`:`<span>${fileGlyph(file)}</span>`}${file.is_primary?'<b>Principal</b>':''}</div>
+      <div class="report-evidence-copy"><strong title="${esc(file.original_name)}">${esc(file.original_name||'Archivo')}</strong><small>${esc(caption)}${file.size_bytes?` · ${humanSize(file.size_bytes)}`:''}</small></div>
+      <div class="report-evidence-actions"><button type="button" class="btn btn-outline btn-small" data-p14-view="${file.link_id}">Ver</button><button type="button" class="btn btn-secondary btn-small" data-p14-download="${file.link_id}">Descargar</button>${editable?`<button type="button" class="btn btn-outline btn-small" data-p14-up="${file.link_id}" aria-label="Mover evidencia hacia arriba">↑</button><button type="button" class="btn btn-outline btn-small" data-p14-down="${file.link_id}" aria-label="Mover evidencia hacia abajo">↓</button>${file.is_primary?'':`<button type="button" class="btn btn-outline btn-small" data-p14-primary="${file.link_id}">Principal</button>`}<button type="button" class="btn btn-danger btn-small" data-p14-remove="${file.link_id}">Quitar</button>`:''}</div>
+      ${editable?`<div class="report-evidence-caption"><input id="p14Caption-${file.link_id}" value="${esc(file.caption||'')}" placeholder="Leyenda para el informe"><button type="button" class="btn btn-outline btn-small" data-p14-save-caption="${file.link_id}">Guardar leyenda</button></div>`:''}
+    </article>`;
+  }
+  function evidenceGallery(entryId,editable=false){
+    const files=evidenceFor(entryId);
+    if(!files.length)return `<div class="report-evidence-empty">Sin evidencias cargadas.</div>`;
+    return `<div class="report-evidence-gallery">${files.map(file=>evidenceTile(file,editable)).join('')}</div>`;
+  }
+
+  function entryEditor(entry={},isNew=false){
+    const section=entry.section_code||ui.p10Section,cfg=sections[section]||sections.GOOD_PRACTICES,nextOrder=(sectionEntries(section).length+1)*10;
+    return `<article class="card report-inline-editor" data-p10-editor><div class="p10-editor-head"><div><span class="badge badge-blue">${isNew?'Nuevo registro':'Editar registro'}</span><h3>${esc(cfg.label)}</h3></div><button type="button" class="btn btn-secondary" data-p10-cancel>Cancelar</button></div>
+      <div class="form-grid"><div class="field"><label>Sección</label><select id="p10EntrySection">${sectionOptions(section)}</select></div><div class="field"><label>Orden en la sección</label><input id="p10EntryOrder" type="number" min="0" step="10" value="${esc(entry.sort_order??nextOrder)}"></div><div class="field full"><label>Título / criterio principal</label><input id="p10EntryTitle" value="${esc(entry.title||'')}" placeholder="${esc(cfg.short)}"></div><div class="field full"><label>Descripción para el informe</label><textarea id="p10EntryDescription" rows="4" placeholder="Texto que aparecerá en la lámina o PDF.">${esc(entry.description||'')}</textarea></div><div class="field"><label>Ubicación</label><input id="p10EntryLocation" value="${esc(entry.location_text||'')}" placeholder="Bloque, nivel, habitación o área"></div><div class="field"><label>Responsable</label><input id="p10EntryResponsible" value="${esc(entry.responsible||'')}"></div><div class="field full"><label>Plan de acción</label><textarea id="p10EntryAction" rows="3" placeholder="Talleres a mejorar, NC o acciones correctivas.">${esc(entry.action_plan||'')}</textarea></div><div class="field"><label>Código / referencia</label><input id="p10EntryReference" value="${esc(entry.reference_code||'')}" placeholder="NC, probeta, actividad, etc."></div><div class="field"><label>Cantidad</label><input id="p10EntryQuantity" type="number" min="0" value="${entry.quantity??''}"></div><div class="field"><label>Resultado / estado</label><input id="p10EntryStatus" value="${esc(entry.result_status||'')}"></div><div class="field full"><label>Evidencias nuevas</label><input id="p14EntryFiles" type="file" multiple accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"><small>Puede seleccionar varias fotografías o documentos. Máximo 12 evidencias activas por registro.</small></div><div class="field full"><label>Leyenda para las evidencias nuevas</label><input id="p14NewCaption" placeholder="Ej.: Vista general del área antes de la corrección"></div><div class="field full"><label>Notas internas</label><textarea id="p10EntryNotes" rows="2">${esc(entry.notes||'')}</textarea></div></div>
+      ${!isNew?`<section class="report-existing-evidence"><div class="section-title"><div><h4>Evidencias del registro</h4><p class="helper">Ordene, cambie la principal, edite la leyenda o retire archivos.</p></div><span class="badge badge-blue">${evidenceCount(entry.id)} archivo(s)</span></div>${evidenceGallery(entry.id,true)}</section>`:''}
+      <div class="report-help-card"><strong>Guía de la sección</strong><ul><li>${esc(cfg.manual)}</li><li>Las evidencias se incorporan al PDF y al PPTX editable.</li><li>La evidencia marcada como principal se usa primero en las portadas de cada registro.</li></ul></div><div class="button-row" style="margin-top:14px"><button type="button" id="p14SaveEntry" class="btn btn-primary" data-entry-id="${esc(entry.id||'')}">Guardar registro</button><button type="button" class="btn btn-secondary" data-p10-cancel>Cancelar</button></div></article>`;
+  }
+
+  function entryCard(entry){
+    const cfg=sections[entry.section_code]||sections.GOOD_PRACTICES,files=evidenceFor(entry.id);
+    return `<article class="card report-entry-card"><div class="report-entry-icon">${esc(cfg.icon)}</div><div><div class="report-entry-top"><div><span class="badge badge-blue">${esc(cfg.short)}</span><h3>${esc(entry.title||cfg.label)}</h3></div><span class="report-section-count">#${Number(entry.sort_order||0)}</span></div>${entry.description?`<p>${esc(entry.description)}</p>`:'<p class="helper">Sin descripción.</p>'}<div class="report-entry-meta">${entry.reference_code?`<span><strong>Referencia:</strong> ${esc(entry.reference_code)}</span>`:''}${entry.location_text?`<span><strong>Ubicación:</strong> ${esc(entry.location_text)}</span>`:''}${entry.responsible?`<span><strong>Responsable:</strong> ${esc(entry.responsible)}</span>`:''}${entry.quantity!==null&&entry.quantity!==undefined?`<span><strong>Cantidad:</strong> ${esc(entry.quantity)}</span>`:''}${entry.result_status?`<span><strong>Estado:</strong> ${esc(entry.result_status)}</span>`:''}</div>${entry.action_plan?`<div class="report-placeholder-note"><strong>Plan de acción:</strong> ${esc(entry.action_plan)}</div>`:''}<div class="report-entry-evidence-head"><span class="report-chip ${files.length?'ok':cfg.evidence?'warn':'ok'}">${files.length?`${files.length} evidencia(s)`:cfg.evidence?'Sin evidencia':'No requiere evidencia'}</span></div>${files.length?evidenceGallery(entry.id,false):''}<div class="button-row report-entry-buttons">${can('reports.content.manage')?`<button type="button" class="btn btn-outline" data-p10-edit="${entry.id}">Editar</button><button type="button" class="btn btn-danger" data-p14-archive-entry="${entry.id}">Archivar</button>`:''}</div>${ui.p10EntryId===entry.id?entryEditor(entry,false):''}</div></article>`;
+  }
+
+  function renderReportContentV93(current){
+    ensureState();
+    if(!(current?.role==='IT'||window.qpcHasPermission?.(current,'reports.content.view')))return typeof noAccess==='function'?noAccess():'<div class="alert alert-danger">No tiene permiso para esta vista.</div>';
+    if(!window.qpcPhase10?.loaded&&!window.qpcPhase10?.loading)window.qpcLoadReportContent?.().then(()=>render()).catch(error=>toast(error.message));
+    if(p14.key!==stateKey()&&!p14.loading)loadEvidence().then(()=>render()).catch(error=>toast(`No se cargaron evidencias: ${error.message}`));
+    const all=reportEntries(),section=ui.p10Section,selected=sectionEntries(section),ready=readiness(),totalEvidence=all.reduce((sum,row)=>sum+evidenceCount(row.id),0),missing=ready.relevant.length-ready.done.length,manage=can('reports.content.manage');
+    setTimeout(hydrateThumbs,0);
+    return `<div class="report-content-shell"><div class="page-head"><div><h2>Contenido de informes</h2><p>Prepare el contenido manual y sus evidencias para los informes corporativos.</p></div>${manage?'<button type="button" id="p10NewEntry" class="btn btn-primary">＋ Agregar registro</button>':''}</div><section class="card"><div class="report-toolbar"><div class="field"><label>Tipo de informe</label><select id="p10Mode"><option value="week" ${ui.reportMode==='week'?'selected':''}>Semanal · FO-CP-10 V07</option><option value="month" ${ui.reportMode==='month'?'selected':''}>Mensual · FO-CP-11 V10</option></select></div><div class="field"><label>${ui.reportMode==='week'?'Semana':'Mes'}</label>${periodInput()}</div><div class="field"><label>Sección</label><select id="p10Section">${sectionOptions(section)}</select></div><div class="field"><label>Periodo visible</label><input readonly value="${esc(periodLabel())}"></div></div></section><section class="report-kpi-grid">${metric('Registros del periodo',all.length,'Todas las secciones')}${metric('Sección seleccionada',selected.length,sections[section]?.label||'Sección')}${metric('Evidencias cargadas',totalEvidence,'Fotografías y documentos',totalEvidence?'positive':'')}${metric('Secciones pendientes',missing,`${ready.done.length} de ${ready.relevant.length} requeridas`,missing?'warning':'positive')}</section><section class="report-readiness"><article class="card report-readiness-score"><span class="badge badge-blue">Preparación del informe</span><div class="readiness-number">${ready.pct}%</div><div class="readiness-bar"><span style="width:${ready.pct}%"></span></div><p class="helper">Periodo: ${esc(periodLabel())} · Proyecto: ${esc(activeProjectName())}</p><div class="report-chip-row"><span class="report-chip ok">Formato ${ui.reportMode==='week'?'FO-CP-10 V07':'FO-CP-11 V10'}</span><span class="report-chip ${missing?'warn':'ok'}">${missing?`${missing} sección(es) pendientes`:'Contenido requerido completo'}</span></div></article><article class="card"><h3>Estado por sección</h3><div class="section-status-grid">${validSections().map(sectionStatus).join('')}</div></article></section>${ui.p10EntryId==='__NEW__'?entryEditor({section_code:section},true):''}<section class="report-content-layout"><aside class="card section-nav-panel"><h3>Secciones del informe</h3><p class="helper">Seleccione una sección para revisar contenido y evidencias.</p><div class="report-section-list">${validSections().map(sectionButton).join('')}</div></aside><main><div class="section-title"><div><h3>${esc(sections[section]?.label||'Sección')}</h3><p class="helper">${esc(sections[section]?.manual||'Información complementaria del informe.')}</p></div><span class="badge ${selected.length?'badge-green':'badge-yellow'}">${selected.length?`${selected.length} registro(s)`:'Pendiente'}</span></div>${window.qpcPhase10?.loading||p14.loading?'<div class="card">Cargando contenido y evidencias…</div>':selected.length?`<div class="report-entry-list">${selected.map(entryCard).join('')}</div>`:`<div class="report-empty-panel"><h3>Sin registros en esta sección</h3><p>${manage?'Use “Agregar registro” para completar la lámina.':'Calidad todavía no ha registrado información.'}</p>${manage?'<button type="button" id="p10NewEntry" class="btn btn-primary">＋ Agregar registro</button>':''}</div>`}</main></section></div>`;
+  }
+
+  const previousRenderView=window.renderView;
+  window.renderView=function(current){if(ui.view==='report-content')return renderReportContentV93(current);return previousRenderView(current);};
+  try{renderView=window.renderView;}catch(_){/* no-op */}
+
+  function formValue(id){return document.getElementById(id)?.value??'';}
+  async function uploadFile(file,entryId,section){
+    if(file.size>50*1024*1024)throw new Error(`${file.name}: supera 50 MB.`);
+    const actor=user()?.authId||user()?.auth_id||user()?.id||authenticatedUser?.id;if(!actor)throw new Error('No se identificó la sesión.');
+    const path=`reports/${actor}/${project()}/${ui.reportMode}/${ui.reportValue}/${section}/${entryId}/${Date.now()}-${safeName(file.name)}`;
+    const {error}=await supabaseClient.storage.from(bucket).upload(path,file,{contentType:file.type||undefined,cacheControl:'3600',upsert:false});if(error)throw error;
+    return {bucket,storage_path:path,original_name:file.name,mime_type:file.type||'application/octet-stream',size_bytes:file.size};
+  }
+  async function removePhysical(bucketName,path){if(!path)return;try{await supabaseClient.storage.from(bucketName||bucket).remove([path]);}catch(error){console.warn('No se eliminó el archivo físico',error);}}
+  async function saveEntry(button){
+    const section=formValue('p10EntrySection')||ui.p10Section,existing=reportEntries().find(row=>row.id===button.dataset.entryId),selectedFiles=[...(document.getElementById('p14EntryFiles')?.files||[])],currentCount=existing?evidenceCount(existing.id):0;
+    if(currentCount+selectedFiles.length>12){toast('Cada registro admite hasta 12 evidencias activas.');return;}
+    const total=selectedFiles.reduce((sum,file)=>sum+file.size,0);if(total>150*1024*1024){toast('La selección supera 150 MB en total.');return;}
+    const payload={id:button.dataset.entryId||null,project_id:project(),period_mode:ui.reportMode,period_value:ui.reportValue,section_code:section,title:text(formValue('p10EntryTitle')),description:text(formValue('p10EntryDescription')),location_text:text(formValue('p10EntryLocation')),responsible:text(formValue('p10EntryResponsible')),action_plan:text(formValue('p10EntryAction')),reference_code:text(formValue('p10EntryReference')),quantity:formValue('p10EntryQuantity'),result_status:text(formValue('p10EntryStatus')),notes:text(formValue('p10EntryNotes')),sort_order:Number(formValue('p10EntryOrder')||0),metadata:existing?.metadata||{}};
+    const uploaded=[];let entryId='';
+    try{
+      button.disabled=true;button.textContent='Guardando…';
+      const {data:result,error}=await supabaseClient.rpc('qpc_upsert_report_entry',{p_entry:payload,p_file:null});if(error)throw error;
+      entryId=list(result)[0]?.entry_id||button.dataset.entryId;if(!entryId)throw new Error('No se recibió el identificador del registro.');
+      const caption=text(formValue('p14NewCaption'));
+      for(let index=0;index<selectedFiles.length;index++){
+        const file=selectedFiles[index],meta=await uploadFile(file,entryId,section);uploaded.push(meta);
+        const {error:attachError}=await supabaseClient.rpc('qpc_attach_report_entry_file',{p_entry_id:entryId,p_file:meta,p_caption:caption||file.name,p_sort_order:(currentCount+index+1)*10});
+        if(attachError){await removePhysical(meta.bucket,meta.storage_path);throw attachError;}
+      }
+      ui.p10Section=section;ui.p10EntryId=null;p14.key='';await Promise.all([window.qpcLoadReportContent?.(true),loadEvidence(true)]);toast(selectedFiles.length?`Registro guardado con ${selectedFiles.length} evidencia(s) nueva(s).`:'Registro guardado.');keepRender();
+    }catch(error){console.error(error);toast(`No se pudo guardar: ${error.message}`);}finally{button.disabled=false;button.textContent='Guardar registro';}
+  }
+
+  function customConfirm(title,message,confirmLabel='Confirmar'){
+    return new Promise(resolve=>{const host=document.createElement('div');host.className='file-viewer-backdrop';host.innerHTML=`<section class="qpc-confirm-dialog" role="dialog" aria-modal="true"><h3>${esc(title)}</h3><p>${esc(message)}</p><div class="button-row"><button type="button" class="btn btn-secondary" data-no>Cancelar</button><button type="button" class="btn btn-danger" data-yes>${esc(confirmLabel)}</button></div></section>`;document.body.appendChild(host);const finish=value=>{host.remove();resolve(value);};host.querySelector('[data-no]').onclick=()=>finish(false);host.querySelector('[data-yes]').onclick=()=>finish(true);host.onclick=event=>{if(event.target===host)finish(false);};});
+  }
+  async function openEvidence(linkId,download=false){
+    const file=p14.files.find(item=>item.link_id===linkId);if(!file)throw new Error('Evidencia no encontrada.');const url=await signed(file,1800);if(download){const anchor=document.createElement('a');anchor.href=url;anchor.download=file.original_name||'archivo';anchor.rel='noopener';document.body.appendChild(anchor);anchor.click();anchor.remove();}else showFileViewer(url,file.original_name||'Evidencia',file.mime_type||'');
+  }
+  async function updateEvidence(linkId,caption,makePrimary=false){const {error}=await supabaseClient.rpc('qpc_update_report_entry_file',{p_link_id:linkId,p_caption:caption,p_make_primary:makePrimary});if(error)throw error;p14.key='';await loadEvidence(true);keepRender();}
+  async function reorderEvidence(linkId,direction){
+    const currentFile=p14.files.find(item=>item.link_id===linkId);if(!currentFile)return;const files=evidenceFor(currentFile.entry_id),index=files.findIndex(item=>item.link_id===linkId),target=index+direction;if(target<0||target>=files.length)return;[files[index],files[target]]=[files[target],files[index]];const {error}=await supabaseClient.rpc('qpc_reorder_report_entry_files',{p_entry_id:currentFile.entry_id,p_link_ids:files.map(item=>item.link_id)});if(error)throw error;p14.key='';await loadEvidence(true);keepRender();
+  }
+  async function removeEvidence(linkId){
+    const file=p14.files.find(item=>item.link_id===linkId);if(!file)return;if(!(await customConfirm('¿Quitar evidencia?',`${file.original_name} dejará de aparecer en este registro y en los exportables.`,'Sí, quitar')))return;
+    const {data:rows,error}=await supabaseClient.rpc('qpc_archive_report_entry_file',{p_link_id:linkId});if(error)throw error;const row=list(rows)[0]||{};if(row.remove_storage_path)await removePhysical(row.remove_bucket,row.remove_storage_path);p14.key='';await loadEvidence(true);toast('Evidencia retirada.');keepRender();
+  }
+  async function archiveEntry(entryId){
+    const entry=reportEntries().find(item=>item.id===entryId);if(!entry)return;if(!(await customConfirm('¿Archivar registro?',`${entry.title||sections[entry.section_code]?.label} dejará de aparecer en el informe. Sus evidencias serán retiradas de la biblioteca activa.`,'Sí, archivar')))return;
+    const {data:files,error}=await supabaseClient.rpc('qpc_archive_report_entry_v2',{p_entry_id:entryId});if(error)throw error;for(const file of list(files))if(file.storage_path)await removePhysical(file.bucket,file.storage_path);p14.key='';await Promise.all([window.qpcLoadReportContent?.(true),loadEvidence(true)]);toast('Registro archivado.');keepRender();
+  }
+
+  document.addEventListener('click',async event=>{
+    const button=event.target.closest('button');if(!button)return;
+    const stop=()=>{event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();};
+    try{
+      if(button.id==='p14SaveEntry'){stop();await saveEntry(button);return;}
+      if(button.matches('[data-p14-view]')){stop();await openEvidence(button.dataset.p14View,false);return;}
+      if(button.matches('[data-p14-download]')){stop();await openEvidence(button.dataset.p14Download,true);return;}
+      if(button.matches('[data-p14-primary]')){stop();await updateEvidence(button.dataset.p14Primary,null,true);toast('Evidencia principal actualizada.');return;}
+      if(button.matches('[data-p14-save-caption]')){stop();const id=button.dataset.p14SaveCaption;await updateEvidence(id,formValue(`p14Caption-${id}`),false);toast('Leyenda actualizada.');return;}
+      if(button.matches('[data-p14-up]')){stop();await reorderEvidence(button.dataset.p14Up,-1);return;}
+      if(button.matches('[data-p14-down]')){stop();await reorderEvidence(button.dataset.p14Down,1);return;}
+      if(button.matches('[data-p14-remove]')){stop();await removeEvidence(button.dataset.p14Remove);return;}
+      if(button.matches('[data-p14-archive-entry]')){stop();await archiveEntry(button.dataset.p14ArchiveEntry);return;}
+    }catch(error){console.error(error);toast(error.message||'No se pudo completar la operación.');}finally{button.disabled=false;}
+  },true);
+
+  document.addEventListener('change',event=>{
+    if(['p10Mode','p10Period','p10Section','projectSelector','activeProjectSelect'].includes(event.target.id)||event.target.matches('[data-project-select]')){p14.key='';p14.files=[];p14.signed.clear();}
+  },true);
+
+  async function fileData(file){
+    if(!isImage(file))return null;const url=await signed(file,1800),response=await fetch(url);if(!response.ok)throw new Error(`No se pudo cargar ${file.original_name}.`);const blob=await response.blob();return await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(blob);});
+  }
+  function imageFormat(data){return data?.startsWith('data:image/png')?'PNG':data?.startsWith('data:image/webp')?'WEBP':'JPEG';}
+  function entryDetails(entry){return [entry.reference_code?`Código / referencia: ${entry.reference_code}`:'',entry.location_text?`Ubicación: ${entry.location_text}`:'',entry.responsible?`Responsable: ${entry.responsible}`:'',entry.quantity!==null&&entry.quantity!==undefined?`Cantidad: ${entry.quantity}`:'',entry.result_status?`Resultado / estado: ${entry.result_status}`:'',entry.action_plan?`Plan de acción: ${entry.action_plan}`:''].filter(Boolean);}
+
+  window.qpcAppendReportPdfSection=async function({doc,sectionCode,title,code,logo,addPdfHeader,addPlaceholderPage,autoTable}){
+    await Promise.all([window.qpcLoadReportContent?.(),loadEvidence()]);const codes=String(sectionCode||'').split('|'),entries=reportEntries().filter(entry=>codes.includes(entry.section_code));
+    if(!entries.length){addPlaceholderPage(doc,title,code,logo,['No hay registros cargados para este periodo.','La hoja queda preparada para completar manualmente.']);return;}
+    const tableSections=new Set(['NONCONFORMITIES','TRAININGS','MATERIAL_TESTS']);
+    if(codes.length===1&&tableSections.has(codes[0])){doc.addPage('a4','landscape');addPdfHeader(doc,title,code,logo);autoTable(doc,['Referencia','Descripción','Ubicación','Responsable','Cantidad','Resultado','Evidencias'],entries.map(e=>[e.reference_code,e.title||e.description,e.location_text,e.responsible,e.quantity??'',e.result_status,evidenceCount(e.id)]),32,{fontSize:8});return;}
+    for(const entry of entries){
+      const files=evidenceFor(entry.id),images=files.filter(isImage),documents=files.filter(file=>!isImage(file));
+      doc.addPage('a4','landscape');addPdfHeader(doc,title,code,logo);doc.setTextColor(17,24,39);doc.setFontSize(17);doc.text(entry.title||sections[entry.section_code]?.short||title,18,43,{maxWidth:258});
+      const firstImages=images.slice(0,2);if(firstImages.length){for(let i=0;i<firstImages.length;i++){let data=null;try{data=await fileData(firstImages[i]);}catch(error){console.warn(error);}const x=18+i*60,w=firstImages.length===1?118:57;if(data){doc.addImage(data,imageFormat(data),x,54,w,92,undefined,'FAST');doc.setDrawColor(216,222,230);doc.rect(x,54,w,92);}else{doc.setFillColor(245,247,250);doc.rect(x,54,w,92,'F');}}}
+      else{doc.setFillColor(245,247,250);doc.roundedRect(18,54,118,92,3,3,'F');doc.setTextColor(107,114,128);doc.setFontSize(11);doc.text('Espacio para evidencia fotográfica.',77,99,{align:'center',maxWidth:100});}
+      doc.setTextColor(17,24,39);doc.setFontSize(10);let y=58;const description=doc.splitTextToSize(entry.description||'Sin descripción.',130);doc.text(description,147,y);y+=description.length*5+6;for(const line of entryDetails(entry)){const parts=doc.splitTextToSize(line,130);if(y+parts.length*5>164)break;doc.text(parts,147,y);y+=parts.length*5+4;}if(documents.length){const names=doc.splitTextToSize(`Documentos adjuntos: ${documents.map(f=>f.original_name).join(', ')}`,130);if(y+names.length*5<183)doc.text(names,147,y);}
+      const extras=images.slice(2);for(let start=0;start<extras.length;start+=4){doc.addPage('a4','landscape');addPdfHeader(doc,`${title} · Evidencias`,code,logo);const group=extras.slice(start,start+4);for(let i=0;i<group.length;i++){const col=i%2,row=Math.floor(i/2),x=18+col*133,yImg=43+row*76;let data=null;try{data=await fileData(group[i]);}catch(error){console.warn(error);}if(data)doc.addImage(data,imageFormat(data),x,yImg,124,60,undefined,'FAST');doc.setFontSize(8);doc.setTextColor(71,85,105);doc.text(group[i].caption||group[i].original_name,x,yImg+66,{maxWidth:124});}}
+    }
+  };
+
+  window.qpcAppendReportPptxSection=async function({pptx,sectionCode,title,code,addPptxHeader,addPptxPlaceholder}){
+    await Promise.all([window.qpcLoadReportContent?.(),loadEvidence()]);const codes=String(sectionCode||'').split('|'),entries=reportEntries().filter(entry=>codes.includes(entry.section_code));
+    if(!entries.length){const slide=pptx.addSlide();addPptxPlaceholder(slide,pptx,title,['No hay registros cargados para este periodo.','La lámina queda preparada para completar manualmente.']);return;}
+    for(const entry of entries){
+      const files=evidenceFor(entry.id),images=files.filter(isImage),documents=files.filter(file=>!isImage(file)),slide=pptx.addSlide();addPptxHeader(slide,pptx,title,code);slide.addText(entry.title||sections[entry.section_code]?.short||title,{x:.65,y:1.35,w:11.8,h:.4,fontSize:19,bold:true,color:'111827',fit:'shrink'});
+      const first=images.slice(0,2);if(first.length){for(let i=0;i<first.length;i++){let data=null;try{data=await fileData(first[i]);}catch(error){console.warn(error);}if(data)slide.addImage({data,x:.65+i*2.9,y:1.95,w:first.length===1?5.65:2.75,h:4.35});}}
+      else{slide.addShape(pptx.ShapeType.roundRect,{x:.65,y:1.95,w:5.65,h:4.35,rectRadius:.08,line:{color:'D8DEE6',width:1},fill:{color:'F4F6F8'}});slide.addText('Espacio para evidencia fotográfica',{x:1.1,y:3.85,w:4.75,h:.5,fontSize:13,color:'6B7280',align:'center'});}
+      const details=[entry.description||'Sin descripción.',...entryDetails(entry),documents.length?`Documentos adjuntos: ${documents.map(f=>f.original_name).join(', ')}`:''].filter(Boolean).join('\n\n');slide.addText(details,{x:6.6,y:1.95,w:6.05,h:4.45,fontSize:12,color:'111827',valign:'top',fit:'shrink',margin:.08});
+      const extras=images.slice(2);for(let start=0;start<extras.length;start+=4){const evidenceSlide=pptx.addSlide();addPptxHeader(evidenceSlide,pptx,`${title} · Evidencias`,code);const group=extras.slice(start,start+4);for(let i=0;i<group.length;i++){const col=i%2,row=Math.floor(i/2),x=.65+col*6.05,y=1.55+row*2.75;let data=null;try{data=await fileData(group[i]);}catch(error){console.warn(error);}if(data)evidenceSlide.addImage({data,x,y,w:5.65,h:2.25});evidenceSlide.addText(group[i].caption||group[i].original_name,{x,y:y+2.28,w:5.65,h:.3,fontSize:9,color:'64748B',fit:'shrink'});}}
+    }
+  };
+
+  setTimeout(()=>{if(ui?.view==='report-content'){loadEvidence().then(()=>render()).catch(()=>{});}},0);
+})();
