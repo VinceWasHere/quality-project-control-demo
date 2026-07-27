@@ -1,5 +1,20 @@
 # Quality Project Control — MAIN
 
+## V9.9 · Fase 20 — Consulta documental antes de solicitar inspecciones
+
+- Los ingenieros de Ejecución pueden visualizar los instructivos relacionados directamente desde **Solicitar inspección**.
+- Cada instructivo muestra código, versión, estado de disponibilidad y un botón **Visualizar** dentro del visor universal.
+- Los archivos pendientes se identifican sin ofrecer acciones que fallen.
+- El listado se actualiza automáticamente al cambiar la planilla/taller.
+- El mapeo original también se abre en el visor interno, sin salir de la aplicación.
+- La tarjeta informa cuántos instructivos relacionados están disponibles.
+- Se añadieron ajustes responsive para que los controles funcionen en PC y móvil.
+- No se requieren cambios SQL ni Edge Functions.
+
+---
+
+# Quality Project Control — MAIN
+
 ## V9.8 · Fase 19 — Validación inteligente y control de publicación
 
 - Se agregó un checklist obligatorio por sección para informes semanales y mensuales.

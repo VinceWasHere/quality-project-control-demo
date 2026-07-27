@@ -660,3 +660,20 @@ a{color:inherit;text-decoration:none}
 .p19-override-form{display:grid;gap:12px}.p19-override-form textarea{width:100%}
 @media(max-width:900px){.p19-validation-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.p19-check-row{grid-template-columns:1fr 1fr}.p19-check-title{grid-column:1/-1}.p19-check-row .p19-note{grid-column:1/-1}.p19-check-row .btn{width:100%}.p19-progress-summary{text-align:left}}
 @media(max-width:560px){.p19-validation-head{flex-direction:column}.p19-progress-summary{width:100%;box-sizing:border-box}.p19-validation-stats{grid-template-columns:1fr 1fr}.p19-validation-alert{flex-direction:column}.p19-check-row{grid-template-columns:1fr}.p19-check-title,.p19-check-row .p19-note,.p19-warning{grid-column:1}}
+
+
+/* V9.9 · Fase 20 — Recursos relacionados dentro de la solicitud */
+.p20-related-card{display:grid;gap:12px}
+.p20-related-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.p20-related-head h3{margin:0 0 4px}
+.p20-doc-count{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:5px 10px;border-radius:999px;background:#eef5f8;color:#0b4d6a;font-size:.78rem;font-weight:800;white-space:nowrap}
+.p20-related-doc{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px;border:1px solid var(--border,#d8e1ea);border-radius:14px;background:#fff}
+.p20-related-doc-copy{display:grid;gap:4px;min-width:0}
+.p20-related-doc-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.p20-related-doc strong,.p20-related-doc .helper{overflow-wrap:anywhere}
+.p20-view-doc{flex:0 0 auto}
+@media(max-width:640px){
+  .p20-related-head,.p20-related-doc{align-items:stretch;flex-direction:column}
+  .p20-doc-count{align-self:flex-start}
+  .p20-view-doc{width:100%}
+}

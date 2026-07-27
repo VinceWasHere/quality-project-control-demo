@@ -5746,3 +5746,80 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     if(['p10Mode','p10Period','activeProjectSelect','projectSelector'].includes(event.target?.id)){state.key='';state.rows=[];}
   },true);
 })();
+
+
+/* Quality Project Control MAIN V9.9 · Fase 20
+   Previsualización de instructivos y mapeos desde la solicitud de inspección. */
+(()=>{
+  const previousRenderNewRequest = window.renderNewRequest;
+
+  function p20Esc(value){
+    return typeof escapeHtml === 'function' ? escapeHtml(value ?? '') : String(value ?? '')
+      .replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;');
+  }
+
+  function relatedDocumentsForCurrentTemplate(){
+    const template = typeof templateById === 'function' ? templateById(ui?.requestDraft?.templateId) : null;
+    const activity = template?.activity || '';
+    const rows = typeof projectDocuments === 'function' ? projectDocuments() : [];
+    const matching = (Array.isArray(rows) ? rows : []).filter(doc=>{
+      const activities = Array.isArray(doc.activities) ? doc.activities : [doc.activity].filter(Boolean);
+      return activities.includes(activity) && String(doc.status || 'Vigente').toLowerCase() !== 'obsoleto';
+    });
+    return matching.sort((a,b)=>{
+      const byCode=String(a.code||'').localeCompare(String(b.code||''),'es',{numeric:true,sensitivity:'base'});
+      if(byCode)return byCode;
+      return Number(b.versionNumber||0)-Number(a.versionNumber||0);
+    });
+  }
+
+  function renderRelatedDocumentsCard(){
+    const docs=relatedDocumentsForCurrentTemplate();
+    const available=docs.filter(doc=>Boolean(doc.fileId||doc.fileRecord||doc.file||doc.storagePath));
+    const rows=docs.map(doc=>{
+      const canView=Boolean(doc.fileId||doc.fileRecord||doc.file||doc.storagePath);
+      return `<article class="p20-related-doc">
+        <div class="p20-related-doc-copy">
+          <div class="p20-related-doc-heading">
+            <span class="doc-code">${p20Esc(doc.code)} ${p20Esc(doc.version||'')}</span>
+            <span class="badge ${canView?'badge-green':'badge-yellow'}">${canView?'Disponible':'Pendiente'}</span>
+          </div>
+          <strong>${p20Esc(doc.title)}</strong>
+          ${doc.note?`<span class="helper">${p20Esc(doc.note)}</span>`:''}
+        </div>
+        ${canView
+          ? `<button type="button" class="btn btn-outline p20-view-doc" data-p4-view-document="${p20Esc(doc.id)}">Visualizar</button>`
+          : '<button type="button" class="btn btn-secondary" disabled>Sin archivo</button>'}
+      </article>`;
+    }).join('');
+    return `<div class="card p20-related-card" style="margin-top:16px">
+      <div class="p20-related-head">
+        <div><h3>Instructivos relacionados</h3><p class="helper">Consulte el instructivo vigente antes de enviar la solicitud.</p></div>
+        <span class="p20-doc-count">${available.length}/${docs.length} disponibles</span>
+      </div>
+      ${rows || '<div class="alert alert-info">No hay instructivos relacionados con la planilla seleccionada.</div>'}
+    </div>`;
+  }
+
+  window.renderNewRequest=function(user){
+    let html=previousRenderNewRequest(user);
+    if(user?.role!=='EJECUCION' || typeof html!=='string')return html;
+
+    const relatedMarker='<div class="card" style="margin-top:16px"><h3>Instructivos relacionados</h3>';
+    const start=html.lastIndexOf(relatedMarker);
+    const tail='</div></aside></div>';
+    const tailIndex=html.lastIndexOf(tail);
+    if(start>=0 && tailIndex>start){
+      html=html.slice(0,start)+renderRelatedDocumentsCard()+html.slice(tailIndex+6);
+    }
+
+    const mapping=typeof mappingById==='function' ? mappingById(ui?.requestDraft?.mappingId) : null;
+    if(mapping?.id){
+      html=html.replace(
+        /<a class="btn btn-outline" href="[^"]*" target="_blank">Abrir original<\/a>/,
+        `<button type="button" class="btn btn-outline" data-p4-view-mapping="${p20Esc(mapping.id)}">Visualizar mapeo</button>`
+      );
+    }
+    return html;
+  };
+})();

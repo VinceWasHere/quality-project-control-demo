@@ -1,34 +1,24 @@
-# Despliegue MAIN V9.8 — Fase 19
+# Despliegue MAIN V9.9 — Fase 20
 
-## Objetivo
-Agregar un checklist inteligente de validación y un control obligatorio antes de publicar informes oficiales.
+## Alcance
+Esta fase habilita la visualización de instructivos relacionados y del mapeo original desde el formulario **Solicitar inspección**.
 
-## 1. Supabase
-Ejecutar en SQL Editor:
+## Pasos
+1. Sustituya el contenido del branch `main` por los archivos de esta carpeta.
+2. Confirme el commit en GitHub.
+3. Espere el despliegue automático de Vercel.
+4. Realice una recarga sin caché.
 
-`supabase/migrations/20260727_019_report_validation_gate.sql`
+## No requiere
+- SQL nuevo.
+- Edge Function nueva.
+- Cambios manuales en Supabase.
 
-No requiere Edge Function nueva.
-
-## 2. GitHub y Vercel
-1. Reemplazar el contenido del branch `main` por esta carpeta.
-2. Confirmar el commit.
-3. Esperar el despliegue automático de Vercel.
-4. Hacer una recarga sin caché.
-
-## 3. Pruebas
-1. Abrir **Contenido de informes**.
-2. Confirmar el panel **Validación previa a publicación**.
-3. Abrir el checklist y revisar cada sección.
-4. Marcar una sección con contenido como **Completa**.
-5. Marcar una sección vacía como **No aplica**.
-6. Intentar publicar con secciones pendientes: Supabase debe bloquearlo.
-7. Con Gerente de Calidad, Presidencia o IT, registrar una excepción con justificación y publicar.
-8. Modificar un registro del informe: la sección debe volver a **Pendiente** y la excepción debe revocarse.
-
-## Permisos
-- Calidad: ver y gestionar checklist.
-- Gerente de Calidad: ver, gestionar y autorizar excepción.
-- Gerencia: consultar.
-- Presidencia: consultar y autorizar excepción.
-- IT: acceso total.
+## Prueba recomendada
+1. Inicie sesión como Ingeniero de Ejecución.
+2. Entre a **Solicitar inspección**.
+3. Seleccione una planilla que tenga instructivos relacionados.
+4. Pulse **Visualizar** en un instructivo disponible.
+5. Confirme que el documento se abre en el visor interno.
+6. Cambie de planilla y verifique que la lista se actualiza.
+7. Pulse **Visualizar mapeo** y confirme que no se abre una pestaña nueva.
