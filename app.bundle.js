@@ -5369,3 +5369,243 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   },true);
   document.addEventListener('change',event=>{if(['activeProjectSelect','projectSelector'].includes(event.target.id)){state.project='';state.rows=[];}},true);
 })();
+
+/* ================================================================
+   Quality Project Control · MAIN V9.7.0 · Fase 18
+   Comparación de versiones oficiales + reloj vivo por zona horaria.
+   ================================================================ */
+(()=>{
+  'use strict';
+
+  const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL&&typeof supabaseClient!=='undefined');
+  if(!MAIN_MODE)return;
+
+  /* --------------------------------------------------------------
+     1. Reloj vivo visible en login y dentro de la aplicación.
+     -------------------------------------------------------------- */
+  let clockTimer=null;
+
+  function activeTimezone(){
+    try{
+      const info=typeof projectInfo==='function'?projectInfo():null;
+      return info?.timezone||'America/Santo_Domingo';
+    }catch(_){return 'America/Santo_Domingo';}
+  }
+  function clockParts(){
+    const now=new Date(),timeZone=activeTimezone();
+    try{
+      return {
+        date:new Intl.DateTimeFormat('es-DO',{timeZone,weekday:'short',day:'2-digit',month:'short',year:'numeric'}).format(now),
+        time:new Intl.DateTimeFormat('es-DO',{timeZone,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true}).format(now),
+        zone:timeZone==='America/Santo_Domingo'?'República Dominicana':timeZone
+      };
+    }catch(_){
+      return {date:now.toLocaleDateString('es-DO'),time:now.toLocaleTimeString('es-DO'),zone:'Hora local'};
+    }
+  }
+  function updateClock(){
+    const node=document.getElementById('qpcLiveClock');
+    if(!node)return;
+    const value=clockParts();
+    const date=node.querySelector('[data-clock-date]'),time=node.querySelector('[data-clock-time]');
+    if(date)date.textContent=value.date;
+    if(time)time.textContent=value.time;
+    node.title=`${value.date} · ${value.time} · ${value.zone}`;
+  }
+  function clockMarkup(login=false){
+    const value=clockParts();
+    return `<div id="qpcLiveClock" class="qpc-live-clock ${login?'qpc-login-clock':''}" role="timer" aria-label="Fecha y hora actual"><span data-clock-date>${escapeHtml(value.date)}</span><strong data-clock-time>${escapeHtml(value.time)}</strong></div>`;
+  }
+  function ensureClock(){
+    const existing=document.getElementById('qpcLiveClock');
+    const appHost=document.querySelector('.topbar .top-right');
+    const loginHost=document.querySelector('.login-card');
+    const desiredHost=appHost||loginHost;
+    if(!desiredHost)return;
+    if(existing&&!desiredHost.contains(existing))existing.remove();
+    if(!document.getElementById('qpcLiveClock')){
+      if(appHost)appHost.insertAdjacentHTML('afterbegin',clockMarkup(false));
+      else{
+        const anchor=loginHost.querySelector('h2');
+        if(anchor)anchor.insertAdjacentHTML('beforebegin',clockMarkup(true));
+        else loginHost.insertAdjacentHTML('afterbegin',clockMarkup(true));
+      }
+    }
+    updateClock();
+    if(!clockTimer)clockTimer=window.setInterval(updateClock,1000);
+  }
+
+  const previousRenderClock=window.render;
+  window.render=function(){
+    const result=previousRenderClock.apply(this,arguments);
+    requestAnimationFrame(ensureClock);
+    return result;
+  };
+  document.addEventListener('DOMContentLoaded',ensureClock,{once:true});
+  document.addEventListener('change',event=>{
+    if(['activeProjectSelect','projectSelector'].includes(event.target?.id))setTimeout(updateClock,0);
+  },true);
+  setTimeout(ensureClock,0);
+
+  /* --------------------------------------------------------------
+     2. Comparación de versiones oficiales publicadas.
+     -------------------------------------------------------------- */
+  const state={project:'',rows:[],loaded:false,loading:null,baseId:'',compareId:'',base:null,compare:null,diff:null};
+  const actor=()=>typeof currentUser==='function'?currentUser():null;
+  const can=code=>Boolean(actor()&&(actor().role==='IT'||window.qpcHasPermission?.(actor(),code)));
+  const esc=value=>typeof escapeHtml==='function'?escapeHtml(String(value??'')):String(value??'');
+  const activeProject=()=>typeof projectId==='function'?projectId():ui.activeProjectId;
+  const array=value=>Array.isArray(value)?value:[];
+  const periodLabel=(mode,value)=>mode==='month'
+    ?new Date(`${value}-01T12:00:00`).toLocaleDateString('es-DO',{month:'long',year:'numeric'})
+    :`Semana del ${new Date(`${value}T12:00:00`).toLocaleDateString('es-DO')}`;
+  const publicationLabel=row=>`${periodLabel(row.period_mode,row.period_value)} · V${String(row.revision_number).padStart(2,'0')}`;
+
+  async function loadPublications(force=false){
+    const project=activeProject();
+    if(!force&&state.loaded&&state.project===project)return state.rows;
+    if(state.loading)return state.loading;
+    state.project=project;state.loaded=false;
+    state.loading=(async()=>{
+      const {data,error}=await supabaseClient.rpc('qpc_report_publications_for_project',{p_project_id:project});
+      if(error)throw error;
+      state.rows=array(data);
+      if(!state.compareId&&state.rows[0])state.compareId=String(state.rows[0].id);
+      if(!state.baseId&&state.rows[1])state.baseId=String(state.rows[1].id);
+      state.loaded=true;
+      return state.rows;
+    })().catch(error=>{console.error('Comparación de publicaciones',error);state.rows=[];state.loaded=true;return [];}).finally(()=>{state.loading=null;});
+    return state.loading;
+  }
+
+  function comparePanel(){
+    if(!can('reports.library.compare'))return '';
+    if((!state.loaded||state.project!==activeProject())&&!state.loading){loadPublications().then(()=>window.render?.());}
+    const count=state.rows.length;
+    return `<section class="card p18-compare-card"><div class="p18-compare-head"><div><span class="badge badge-blue">Control de cambios</span><h3>Comparar versiones publicadas</h3><p class="helper">Identifique registros agregados, eliminados o modificados entre dos versiones oficiales.</p></div><div class="p18-compare-count"><strong>${count}</strong><span>disponibles</span></div></div>${count<2?'<div class="alert alert-info">Se necesitan al menos dos publicaciones para realizar una comparación.</div>':`<div class="form-grid p18-compare-controls"><div class="field"><label>Versión base</label><select id="p18BasePublication">${state.rows.map((row,index)=>`<option value="${esc(row.id)}" ${String(row.id)===String(state.baseId||(state.rows[1]?.id))?'selected':''}>${esc(publicationLabel(row))}</option>`).join('')}</select></div><div class="field"><label>Versión a comparar</label><select id="p18ComparePublication">${state.rows.map(row=>`<option value="${esc(row.id)}" ${String(row.id)===String(state.compareId||(state.rows[0]?.id))?'selected':''}>${esc(publicationLabel(row))}</option>`).join('')}</select></div></div><div class="button-row"><button type="button" id="p18CompareBtn" class="btn btn-primary">Comparar versiones</button></div>`}</section>`;
+  }
+
+  const previousRenderView=window.renderView;
+  window.renderView=function(user){
+    let html=previousRenderView(user);
+    if(ui.view==='report-content'&&can('reports.library.compare')){
+      const marker='<section class="card p15-report-actions">';
+      html=String(html).includes(marker)?String(html).replace(marker,`${comparePanel()}${marker}`):`${comparePanel()}${html}`;
+    }
+    return html;
+  };
+
+  function modalRoot(){
+    let root=document.getElementById('p18ModalRoot');
+    if(!root){root=document.createElement('div');root.id='p18ModalRoot';document.body.appendChild(root);}
+    return root;
+  }
+  function closeModal(){modalRoot().innerHTML='';}
+  function showModal(title,body,footer=''){
+    modalRoot().innerHTML=`<div class="p15-modal-backdrop"><section class="p15-modal p18-modal" role="dialog" aria-modal="true"><header class="qpc-modal-head"><h3>${esc(title)}</h3><button type="button" class="btn btn-secondary" data-p18-close aria-label="Cerrar">×</button></header><div class="qpc-modal-body">${body}</div><footer class="qpc-modal-foot">${footer||'<button type="button" class="btn btn-secondary" data-p18-close>Cerrar</button>'}</footer></section></div>`;
+  }
+
+  async function fetchPublication(id){
+    const {data,error}=await supabaseClient.from('qpc_report_publications').select('*').eq('id',id).single();
+    if(error)throw error;
+    return data;
+  }
+  function entryKey(entry){return String(entry.id||`${entry.section_code||''}|${entry.title||''}|${entry.sort_order??''}`);}
+  function normalizedEntry(entry){
+    const fields=['section_code','title','description','location_text','responsible','action_plan','reference','quantity','result','notes','sort_order','include_in_report','layout_mode','is_active','archived_at'];
+    return Object.fromEntries(fields.map(field=>[field,entry?.[field]??null]));
+  }
+  function changedFields(a,b){
+    const left=normalizedEntry(a),right=normalizedEntry(b),rows=[];
+    for(const key of Object.keys(left))if(JSON.stringify(left[key])!==JSON.stringify(right[key]))rows.push({field:key,base:left[key],compare:right[key]});
+    return rows;
+  }
+  function evidenceKey(item){return `${item.entry_id||''}|${item.file_id||item.storage_path||item.original_name||''}`;}
+  function planKey(item){return String(item.id||item.entry_id||`${item.section_code||''}|${item.sort_order??''}`);}
+  function collectionDelta(baseRows,compareRows,keyFn){
+    const a=new Map(array(baseRows).map(item=>[keyFn(item),item])),b=new Map(array(compareRows).map(item=>[keyFn(item),item]));
+    return {
+      added:[...b.keys()].filter(key=>!a.has(key)).map(key=>b.get(key)),
+      removed:[...a.keys()].filter(key=>!b.has(key)).map(key=>a.get(key))
+    };
+  }
+  function buildDiff(basePub,comparePub){
+    const baseEntries=array(basePub.snapshot?.entries),compareEntries=array(comparePub.snapshot?.entries);
+    const a=new Map(baseEntries.map(item=>[entryKey(item),item])),b=new Map(compareEntries.map(item=>[entryKey(item),item]));
+    const added=[...b.keys()].filter(key=>!a.has(key)).map(key=>b.get(key));
+    const removed=[...a.keys()].filter(key=>!b.has(key)).map(key=>a.get(key));
+    const modified=[];
+    for(const key of [...a.keys()].filter(key=>b.has(key))){
+      const fields=changedFields(a.get(key),b.get(key));
+      if(fields.length)modified.push({key,base:a.get(key),compare:b.get(key),fields});
+    }
+    const evidence=collectionDelta(basePub.snapshot?.evidence,comparePub.snapshot?.evidence,evidenceKey);
+    const slides=collectionDelta(basePub.snapshot?.slide_plan,comparePub.snapshot?.slide_plan,planKey);
+    return {added,removed,modified,evidence,slides};
+  }
+  function entryTitle(entry){return entry?.title||entry?.description||entry?.reference||'Registro sin título';}
+  function fieldLabel(field){return ({section_code:'Sección',title:'Título',description:'Descripción',location_text:'Ubicación',responsible:'Responsable',action_plan:'Plan de acción',reference:'Referencia',quantity:'Cantidad',result:'Resultado',notes:'Notas',sort_order:'Orden',include_in_report:'Incluir en informe',layout_mode:'Diseño',is_active:'Activo',archived_at:'Archivado'})[field]||field;}
+  function printable(value){if(value===null||value===undefined||value==='')return '—';if(typeof value==='boolean')return value?'Sí':'No';return String(value);}
+
+  function diffTable(diff){
+    const rows=[];
+    for(const entry of diff.added)rows.push(`<tr><td><span class="badge badge-green">Agregado</span></td><td>${esc(entry.section_code||'OTROS')}</td><td><strong>${esc(entryTitle(entry))}</strong></td><td>Nuevo registro</td><td>—</td><td>${esc(entry.description||entry.title||'')}</td></tr>`);
+    for(const entry of diff.removed)rows.push(`<tr><td><span class="badge badge-red">Eliminado</span></td><td>${esc(entry.section_code||'OTROS')}</td><td><strong>${esc(entryTitle(entry))}</strong></td><td>Registro retirado</td><td>${esc(entry.description||entry.title||'')}</td><td>—</td></tr>`);
+    for(const change of diff.modified){
+      for(const field of change.fields)rows.push(`<tr><td><span class="badge badge-yellow">Modificado</span></td><td>${esc(change.compare.section_code||change.base.section_code||'OTROS')}</td><td><strong>${esc(entryTitle(change.compare||change.base))}</strong></td><td>${esc(fieldLabel(field.field))}</td><td>${esc(printable(field.base))}</td><td>${esc(printable(field.compare))}</td></tr>`);
+    }
+    return rows.length?`<div class="table-wrap p18-diff-table"><table><thead><tr><th>Cambio</th><th>Sección</th><th>Registro</th><th>Campo</th><th>Versión base</th><th>Versión comparada</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`:'<div class="alert alert-success">Las dos versiones tienen el mismo contenido textual y de organización.</div>';
+  }
+  function diffSummary(diff){
+    return `<div class="p18-metrics"><div class="metric-card"><span>Agregados</span><strong>${diff.added.length}</strong></div><div class="metric-card"><span>Eliminados</span><strong>${diff.removed.length}</strong></div><div class="metric-card"><span>Modificados</span><strong>${diff.modified.length}</strong></div><div class="metric-card"><span>Evidencias ±</span><strong>+${diff.evidence.added.length} / −${diff.evidence.removed.length}</strong></div><div class="metric-card"><span>Láminas ±</span><strong>+${diff.slides.added.length} / −${diff.slides.removed.length}</strong></div></div>`;
+  }
+
+  async function compareSelected(button){
+    const baseId=document.getElementById('p18BasePublication')?.value||state.baseId;
+    const compareId=document.getElementById('p18ComparePublication')?.value||state.compareId;
+    if(!baseId||!compareId)throw new Error('Seleccione las dos versiones.');
+    if(baseId===compareId)throw new Error('Seleccione dos versiones diferentes.');
+    state.baseId=baseId;state.compareId=compareId;
+    button.disabled=true;button.textContent='Comparando…';
+    const [basePub,comparePub]=await Promise.all([fetchPublication(baseId),fetchPublication(compareId)]);
+    state.base=basePub;state.compare=comparePub;state.diff=buildDiff(basePub,comparePub);
+    try{await supabaseClient.rpc('qpc_log_report_library_action',{p_project_id:activeProject(),p_action:'COMPARE',p_base_publication_id:baseId,p_compare_publication_id:compareId});}catch(_){/* auditoría no bloqueante */}
+    showModal('Comparación de versiones',`<div class="p18-version-pair"><div><small>Versión base</small><strong>${esc(publicationLabel(basePub))}</strong></div><span aria-hidden="true">→</span><div><small>Versión comparada</small><strong>${esc(publicationLabel(comparePub))}</strong></div></div>${diffSummary(state.diff)}${diffTable(state.diff)}`,`<button type="button" id="p18DownloadDiff" class="btn btn-primary">Descargar comparación CSV</button><button type="button" data-p18-json="base" class="btn btn-outline">Snapshot base JSON</button><button type="button" data-p18-json="compare" class="btn btn-outline">Snapshot comparado JSON</button><button type="button" class="btn btn-secondary" data-p18-close>Cerrar</button>`);
+    button.disabled=false;button.textContent='Comparar versiones';
+  }
+
+  function saveBlob(name,blob){
+    const url=URL.createObjectURL(blob),link=document.createElement('a');
+    link.href=url;link.download=name;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  function csvCell(value){const text=String(value??'');return /[",\n]/.test(text)?`"${text.replace(/"/g,'""')}"`:text;}
+  function downloadDiff(){
+    if(!state.diff)return;
+    const rows=[['Tipo','Sección','Registro','Campo','Versión base','Versión comparada']];
+    for(const entry of state.diff.added)rows.push(['Agregado',entry.section_code||'OTROS',entryTitle(entry),'Nuevo registro','',entry.description||entry.title||'']);
+    for(const entry of state.diff.removed)rows.push(['Eliminado',entry.section_code||'OTROS',entryTitle(entry),'Registro retirado',entry.description||entry.title||'','']);
+    for(const item of state.diff.modified)for(const field of item.fields)rows.push(['Modificado',item.compare.section_code||item.base.section_code||'OTROS',entryTitle(item.compare||item.base),fieldLabel(field.field),printable(field.base),printable(field.compare)]);
+    const csv='\uFEFF'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
+    saveBlob(`comparacion_informes_${state.base?.period_value||'base'}_vs_${state.compare?.period_value||'comparada'}.csv`,new Blob([csv],{type:'text/csv;charset=utf-8'}));
+  }
+  function downloadSnapshot(which){
+    const pub=which==='base'?state.base:state.compare;if(!pub)return;
+    saveBlob(`snapshot_${pub.period_mode}_${pub.period_value}_V${String(pub.revision_number).padStart(2,'0')}.json`,new Blob([JSON.stringify(pub.snapshot,null,2)],{type:'application/json'}));
+    try{supabaseClient.rpc('qpc_log_report_library_action',{p_project_id:activeProject(),p_action:'EXPORT_SNAPSHOT',p_base_publication_id:pub.id,p_compare_publication_id:null});}catch(_){/* no bloqueante */}
+  }
+
+  document.addEventListener('change',event=>{
+    if(event.target?.id==='p18BasePublication')state.baseId=event.target.value;
+    if(event.target?.id==='p18ComparePublication')state.compareId=event.target.value;
+    if(['activeProjectSelect','projectSelector'].includes(event.target?.id)){state.project='';state.rows=[];state.loaded=false;state.baseId='';state.compareId='';}
+  },true);
+  document.addEventListener('click',async event=>{
+    const button=event.target.closest('button');if(!button)return;
+    try{
+      if(button.id==='p18CompareBtn'){event.preventDefault();await compareSelected(button);return;}
+      if(button.id==='p18DownloadDiff'){event.preventDefault();downloadDiff();return;}
+      if(button.matches('[data-p18-json]')){event.preventDefault();downloadSnapshot(button.dataset.p18Json);return;}
+      if(button.matches('[data-p18-close]')){event.preventDefault();closeModal();return;}
+    }catch(error){console.error(error);toast(error.message||'No se pudo completar la comparación.');button.disabled=false;if(button.id==='p18CompareBtn')button.textContent='Comparar versiones';}
+  },true);
+})();

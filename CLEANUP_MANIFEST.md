@@ -1,9 +1,10 @@
-# Manifiesto de limpieza y estructura — V9.6
+# Manifiesto de limpieza y estructura — V9.7
 
-La limpieza de V9.5 se conserva. V9.6 agrega únicamente:
+La estructura limpia iniciada en V9.5 se conserva.
 
-- `supabase/migrations/20260727_017_report_publication_library.sql`
-- Código de la Fase 17 consolidado al final de `app.bundle.js`
-- Estilos de la Fase 17 consolidados en `styles.css`
+V9.7 agrega únicamente:
+- `supabase/migrations/20260727_018_report_comparison_and_clock.sql`
+- Código consolidado de Fase 18 al final de `app.bundle.js`
+- Estilos consolidados de Fase 18 en `styles.css`
 
-No se restauraron archivos históricos, scripts duplicados ni documentos de deployment por fase.
+No se reintroducen archivos históricos duplicados ni capas JavaScript separadas.

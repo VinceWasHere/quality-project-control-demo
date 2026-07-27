@@ -1,5 +1,19 @@
 # Quality Project Control — MAIN
 
+## V9.7 · Fase 18 — Comparación de versiones y reloj vivo
+
+- Se agregó un reloj en vivo con día, fecha y hora para todos los usuarios, visible tanto en el login como en la cabecera de la aplicación.
+- El reloj usa la zona horaria configurada en el proyecto y se actualiza cada segundo sin volver a renderizar la página.
+- La biblioteca de informes incorpora comparación entre dos versiones oficiales publicadas.
+- La comparación identifica registros agregados, eliminados y modificados, además de cambios en evidencias y organización de láminas.
+- El resultado puede descargarse como CSV y cada snapshot oficial puede descargarse como JSON.
+- Las acciones de comparación y exportación quedan registradas en Auditoría.
+- Se mantiene la estructura limpia del repositorio y el historial del README más reciente primero.
+
+---
+
+# Quality Project Control — MAIN
+
 ## V9.6 · Fase 17 — Biblioteca de informes publicados
 
 - Cada publicación crea un snapshot inmutable del contenido, evidencias y organización de láminas.

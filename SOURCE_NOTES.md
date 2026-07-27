@@ -1,3 +1,6 @@
+# Notas de fuente
 
-## V9.6 · Fase 17
-La biblioteca de publicaciones usa snapshots JSON inmutables. Los archivos físicos no se duplican; el snapshot conserva sus referencias de Storage y la restauración reutiliza los `file_id` activos.
+## V9.7 · Fase 18
+- El reloj usa la zona horaria guardada en `qpc_projects.timezone`; por defecto, `America/Santo_Domingo`.
+- La comparación trabaja sobre snapshots inmutables creados por la Fase 17.
+- No modifica publicaciones ni el contenido actual del periodo.
