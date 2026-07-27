@@ -1345,7 +1345,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     const emails = (window.qpcLoginDirectory?.length ? window.qpcLoginDirectory : (data?.users?.length?data.users:USERS)).filter(u=>u.email);
     return `<div class="login-shell">
       <section class="login-brand"><div><div class="brand-lockup"><img class="brand-logo-main" src="assets/codelpa_logo_white.png" alt="CODELPA"><div><strong>QUALITY PROJECT CONTROL</strong><div style="font-size:13px;color:#c9d9e8">Gestión de Calidad de Proyectos</div></div></div><h1>Inspecciones, visitas, equipos y reportes con trazabilidad completa.</h1><p>Acceda con su cuenta autorizada para consultar el proyecto, registrar inspecciones y administrar la información de Calidad.</p><div class="feature-grid"><div class="feature">✓ Desglose por criterio y visita</div><div class="feature">✓ Reportes semanales y mensuales</div><div class="feature">✓ Archivos privados en ${IS_MAIN?'Supabase':'demo local'}</div><div class="feature">✓ Visor integrado de documentos</div></div></div><div class="login-note">${IS_MAIN?'Versión principal conectada a Supabase.':'Demo estática para GitHub Pages.'}</div></section>
-      <section class="login-panel"><div class="login-card"><img class="form-logo" src="assets/codelpa_logo_red.png" alt="CODELPA"><h2>Iniciar sesión</h2><p>Escriba su correo o selecciónelo desde el listado.</p><div id="loginError"></div><div class="field"><label>Correo electrónico</label><input id="loginEmail" list="loginEmailOptions" type="email" placeholder="usuario@codelpa.demo" autocomplete="username"><datalist id="loginEmailOptions">${emails.map(u=>`<option value="${escapeHtml(u.email)}">${escapeHtml(ROLE_LABELS[u.role]||u.full_name||'Usuario')}</option>`).join('')}</datalist></div><div class="field" style="margin-top:14px"><label>Contraseña</label><input id="loginPassword" type="password" placeholder="••••" autocomplete="current-password"></div><button id="loginBtn" class="btn btn-primary btn-lg" style="width:100%;margin-top:18px">Entrar</button><div class="login-demo-hint">Para las cuentas terminadas en <strong>.demo</strong>, la contraseña es <strong>${DEMO_PASSWORD}</strong>.</div></div></section>
+      <section class="login-panel"><div class="login-card"><img class="form-logo" src="assets/codelpa_logo_red.png" alt="CODELPA"><h2>Iniciar sesión</h2><p>Escriba su correo o selecciónelo desde el listado.</p><div id="loginError"></div><div class="field"><label>Correo electrónico</label><input id="loginEmail" list="loginEmailOptions" type="email" placeholder="usuario@codelpa.demo" autocomplete="username"><datalist id="loginEmailOptions">${emails.map(u=>`<option value="${escapeHtml(u.email)}">${escapeHtml(ROLE_LABELS[u.role]||u.full_name||'Usuario')}</option>`).join('')}</datalist></div><div class="field" style="margin-top:14px"><label>Contraseña</label><input id="loginPassword" type="password" placeholder="••••" autocomplete="current-password"></div><button id="loginBtn" class="btn btn-primary btn-lg" style="width:100%;margin-top:18px">Entrar</button><div class="login-demo-hint"><span>Pulse la palomita del correo para ver las cuentas registradas.</span><span>Para las cuentas terminadas en <strong>.demo</strong>, la contraseña es <strong>${DEMO_PASSWORD}</strong>.</span><button id="p15OpenItRecovery" type="button" class="login-recovery-link">Recuperar acceso de Tecnología (IT)</button></div></div></section>
     </div>`;
   };
 
@@ -1353,7 +1353,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   window.bindGlobal=function(){
     priorBindGlobal();
     const email=document.getElementById('loginEmail');
-    if(email){ email.addEventListener('input',()=>{ if(email.value.endsWith('.demo')){ const p=document.getElementById('loginPassword'); if(p && !p.value) p.value=DEMO_PASSWORD; } }); }
+    if(email){ email.addEventListener('input',()=>{/* V9.4: la contraseña siempre se escribe manualmente. */}); }
   };
 
   const priorBoot = window.qpcBootstrapV613;
@@ -2072,7 +2072,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     return `<div class="login-shell"><section class="login-brand"><div><div class="brand-lockup"><img class="brand-logo-main" src="assets/codelpa_logo_white.png" alt="CODELPA"><div><strong>QUALITY PROJECT CONTROL</strong><div style="font-size:13px;color:#c9d9e8">Gestión de Calidad de Proyectos</div></div></div><h1>Inspecciones, visitas, equipos y reportes con trazabilidad completa.</h1><p>Acceda con su cuenta autorizada para consultar el proyecto, registrar inspecciones y administrar la información de Calidad.</p><div class="feature-grid"><div class="feature">✓ Desglose por criterio y visita</div><div class="feature">✓ Reportes semanales y mensuales</div><div class="feature">✓ Archivos privados en ${MAIN_MODE?'Supabase':'demo local'}</div><div class="feature">✓ Visor integrado de documentos</div></div></div><div class="login-note">${MAIN_MODE?'Versión principal conectada a Supabase.':'Demo estática para GitHub Pages.'}</div></section>
       <section class="login-panel"><div class="login-card"><img class="form-logo" src="assets/codelpa_logo_red.png" alt="CODELPA"><h2>Iniciar sesión</h2><p>Escriba su correo o selecciónelo desde el listado integrado.</p><div id="loginError"></div>
       <div class="field qpc-combobox"><label for="loginEmail">Correo electrónico</label><div class="qpc-combobox-control"><input id="loginEmail" type="email" name="qpc-login-email" placeholder="usuario@codelpa.demo" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="qpcLoginOptions"><button id="loginEmailToggle" type="button" aria-label="Mostrar correos">⌄</button></div><div id="qpcLoginOptions" class="qpc-combobox-menu" role="listbox" hidden></div></div>
-      <div class="field" style="margin-top:14px"><label for="loginPassword">Contraseña</label><input id="loginPassword" type="password" name="qpc-login-password" placeholder="••••" autocomplete="off"></div><button id="loginBtn" class="btn btn-primary btn-lg" style="width:100%;margin-top:18px">Entrar</button><div class="login-demo-hint">Para las cuentas terminadas en <strong>.demo</strong>, la contraseña es <strong>${DEMO_PASSWORD}</strong>.</div></div></section></div>`;
+      <div class="field" style="margin-top:14px"><label for="loginPassword">Contraseña</label><input id="loginPassword" type="password" name="qpc-login-password" placeholder="••••" autocomplete="off"></div><button id="loginBtn" class="btn btn-primary btn-lg" style="width:100%;margin-top:18px">Entrar</button><div class="login-demo-hint"><span>Pulse la palomita del correo para ver las cuentas registradas.</span><span>Para las cuentas terminadas en <strong>.demo</strong>, la contraseña es <strong>${DEMO_PASSWORD}</strong>.</span><button id="p15OpenItRecovery" type="button" class="login-recovery-link">Recuperar acceso de Tecnología (IT)</button></div></div></section></div>`;
   };
 
   function initLoginCombobox(){
@@ -2093,7 +2093,8 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
       setOpen(force||document.activeElement===input||document.activeElement===toggle);
       menu.querySelectorAll('[data-login-email]').forEach(button=>button.addEventListener('mousedown',event=>{
         event.preventDefault(); input.value=button.dataset.loginEmail; setOpen(false);
-        const password=document.getElementById('loginPassword'); if(input.value.endsWith('.demo')&&password&&!password.value)password.value=DEMO_PASSWORD;
+        const password=document.getElementById('loginPassword');
+        if(password)password.value='';
         password?.focus({preventScroll:true});
       }));
     };
@@ -2482,8 +2483,9 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   function projectChecksV80(selected=[]){const selectedSet=new Set(selected);return list(data.projects).filter(p=>p.isActive!==false).map(p=>`<label class="check-row"><input type="checkbox" class="usrProjectV80" value="${escapeHtml(p.id)}" ${selectedSet.has(p.id)?'checked':''}><span>${escapeHtml(p.name)}</span></label>`).join('');}
   function userEditorV80(user={}){
     const actor=currentUser(),editing=Boolean(user.id),roles=rolesActorCanManage(actor,editing?user.role:null),target={...user,role:user.role||roles[0]||'EJECUCION',authId:user.authId||user.id};
-    const canReset=!editing||effective(actor,'users.password.reset');
-    return `<div class="inline-editor user-inline-editor v80-user-editor"><h3>${editing?`Editar ${escapeHtml(user.name)}`:'Crear usuario'}</h3><div class="form-grid"><div class="field"><label>Nombre</label><input id="usrNameV80" value="${escapeHtml(user.name||'')}"></div><div class="field"><label>Correo</label><input id="usrEmailV80" type="email" value="${escapeHtml(user.email||'')}" ${editing?'readonly':''}></div><div class="field"><label>${editing?'Contraseña nueva / restaurar':'Contraseña inicial'}</label><input id="usrPasswordV80" type="password" ${canReset?'':'disabled'} placeholder="${canReset?(editing?'Dejar vacío si no cambia':'Contraseña inicial'):'Requiere users.password.reset'}"></div><div class="field"><label>Rol</label><select id="usrRoleV80">${roles.map(role=>`<option value="${role}" ${target.role===role?'selected':''}>${escapeHtml(ROLE_LABELS[role]||role)}</option>`).join('')}</select></div><div class="field"><label>Área</label><select id="usrAreaV80"><option value="">No aplica</option><option value="TERMINACION" ${user.executionArea==='TERMINACION'?'selected':''}>Terminación</option><option value="ESTRUCTURA" ${user.executionArea==='ESTRUCTURA'?'selected':''}>Estructura</option></select></div><div class="field full"><label>Proyectos permitidos</label><div class="project-checks">${projectChecksV80(user.projectIds||[projectId()])}</div></div><div class="field full"><label class="check-row"><input id="usrActiveV80" type="checkbox" ${user.isActive===false?'':'checked'}><span>Usuario activo</span></label></div></div>${permissionPanel(target)}<div class="button-row v80-save-row"><button id="saveUserV80" class="btn btn-primary">${editing?'Guardar cambios':'Crear usuario'}</button><button id="cancelUserV80" class="btn btn-secondary">Cancelar</button></div></div>`;
+    const canReset=!editing||(user.role!=='IT'&&effective(actor,'users.password.reset'))||(user.role==='IT'&&actor?.role==='IT'&&authId(actor)===authId(user));
+    const canEditEmail=!editing||effective(actor,'users.email.update')&&(user.role!=='IT'||actor?.role==='IT');
+    return `<div class="inline-editor user-inline-editor v80-user-editor"><h3>${editing?`Editar ${escapeHtml(user.name)}`:'Crear usuario'}</h3><div class="form-grid"><div class="field"><label>Nombre</label><input id="usrNameV80" value="${escapeHtml(user.name||'')}"></div><div class="field"><label>Correo</label><input id="usrEmailV80" type="email" value="${escapeHtml(user.email||'')}" data-original-email="${escapeHtml(user.email||'')}" ${canEditEmail?'':'readonly'}><small>${editing?(canEditEmail?'Al cambiarlo se actualizarán Supabase Auth, el perfil y el listado del login.':'La cuenta IT solo puede cambiar su correo desde una sesión IT.'):'Se utilizará para iniciar sesión.'}</small></div><div class="field"><label>${editing?'Contraseña nueva / restaurar':'Contraseña inicial'}</label><input id="usrPasswordV80" type="password" ${canReset?'':'disabled'} placeholder="${canReset?(editing?'Dejar vacío si no cambia':'Contraseña inicial'):'Requiere users.password.reset'}"></div><div class="field"><label>Rol</label><select id="usrRoleV80">${roles.map(role=>`<option value="${role}" ${target.role===role?'selected':''}>${escapeHtml(ROLE_LABELS[role]||role)}</option>`).join('')}</select></div><div class="field"><label>Área</label><select id="usrAreaV80"><option value="">No aplica</option><option value="TERMINACION" ${user.executionArea==='TERMINACION'?'selected':''}>Terminación</option><option value="ESTRUCTURA" ${user.executionArea==='ESTRUCTURA'?'selected':''}>Estructura</option></select></div><div class="field full"><label>Proyectos permitidos</label><div class="project-checks">${projectChecksV80(user.projectIds||[projectId()])}</div></div><div class="field full"><label class="check-row"><input id="usrActiveV80" type="checkbox" ${user.isActive===false?'':'checked'}><span>Usuario activo</span></label></div></div>${permissionPanel(target)}<div class="button-row v80-save-row"><button id="saveUserV80" class="btn btn-primary">${editing?'Guardar cambios':'Crear usuario'}</button><button id="cancelUserV80" class="btn btn-secondary">Cancelar</button></div></div>`;
   }
 
   window.renderUsers=function(actor){
@@ -2538,13 +2540,21 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     if(!fullName||!email||!role){toast('Complete nombre, correo y rol.');return;}
     if(!selected&&!password){toast('Indique la contraseña inicial.');return;}
     const target={...(selected||{}),role,authId:selected?.authId};
-    const payload={action:'upsert_user',profile:{auth_id:selected?.authId||null,legacy_id:selected?.id||`usr-${Date.now()}`,full_name:fullName,email,password,role,execution_area:document.getElementById('usrAreaV80')?.value||null,is_active:document.getElementById('usrActiveV80')?.checked!==false},project_ids:projectIds,replace_projects:true,permission_overrides:collectOverrides(role,target),replace_permission_overrides:true};
+    const payload={action:'upsert_user',profile:{auth_id:selected?.authId||null,legacy_id:selected?.id||`usr-${Date.now()}`,full_name:fullName,email,previous_email:selected?.email||null,password,role,execution_area:document.getElementById('usrAreaV80')?.value||null,is_active:document.getElementById('usrActiveV80')?.checked!==false},project_ids:projectIds,replace_projects:true,permission_overrides:collectOverrides(role,target),replace_permission_overrides:true};
     try{
       if(button){button.disabled=true;button.textContent='Guardando…';}
       const result=await invokeAdmin(payload);const p=result.profile;let record=selected;
       if(!record){record={id:p.legacy_id||payload.profile.legacy_id};data.users.push(record);}
+      const oldEmail=selected?.email||null;
       Object.assign(record,{id:p.legacy_id||record.id,authId:p.id,name:p.full_name,email:p.email,role:p.role,executionArea:p.execution_area,projectIds:result.project_ids||projectIds,isActive:p.is_active!==false,avatarDataUrl:p.avatar_data_url||record.avatarDataUrl||null});
-      await loadPermissionState(true);ui.userSelectedId=null;saveData();toast(selected?'Usuario y permisos actualizados':'Usuario creado');render();
+      const directory=list(window.qpcLoginDirectory).filter(item=>!oldEmail||String(item.email).toLowerCase()!==String(oldEmail).toLowerCase());
+      directory.push({email:p.email,full_name:p.full_name,role:p.role,is_active:p.is_active!==false});
+      window.qpcLoginDirectory=directory.sort((a,b)=>String(a.email).localeCompare(String(b.email),'es'));
+      await loadPermissionState(true);ui.userSelectedId=null;saveData();
+      const changedOwnEmail=Boolean(selected&&oldEmail&&oldEmail!==p.email&&authId(actor)===p.id);
+      toast(selected?'Usuario y permisos actualizados':'Usuario creado');
+      if(changedOwnEmail){await supabaseClient.auth.signOut();localStorage.removeItem(SESSION_KEY);render();return;}
+      render();
     }catch(error){console.error(error);toast(`No se pudo guardar: ${error.message}`);}finally{if(button){button.disabled=false;button.textContent=selected?'Guardar cambios':'Crear usuario';}}
   }
 
@@ -3871,8 +3881,20 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     slide=pptx.addSlide();slide.background={color:'C8102E'};slide.addText('¡MUCHAS GRACIAS!',{x:0,y:2.7,w:13.33,h:.7,fontSize:32,bold:true,color:'FFFFFF',align:'center'});
     await pptx.writeFile({fileName:`${ui.reportMode==='week'?'FO-CP-10':'FO-CP-11'}_${projectRecord().shortCode||project()}_${ui.reportValue}.pptx`});await logExport('complete','PPTX',rows.inspections.length);toast('PPTX editable generado. Revise las hojas pendientes antes de presentar.');
   }
-  async function exportPptxP5(kind){if(kind!=='complete')throw new Error('PPTX disponible para informe completo.');return buildCompletePptx();}
-  async function exportPdfP5(kind){if(kind==='complete')return buildCompletePdf();if(kind==='equipment')return buildEquipmentPdf();return buildTablePdf(kind);}
+  async function exportPptxP5(kind){
+    if(kind!=='complete')throw new Error('PPTX disponible para informe completo.');
+    await window.qpcLoadReportSlidePlan?.();window.qpcUseSlidePlan=true;
+    try{return await buildCompletePptx();}finally{window.qpcUseSlidePlan=false;}
+  }
+  async function exportPdfP5(kind){
+    if(kind==='complete'){
+      await window.qpcLoadReportSlidePlan?.();window.qpcUseSlidePlan=true;
+      try{return await buildCompletePdf();}finally{window.qpcUseSlidePlan=false;}
+    }
+    if(kind==='equipment')return buildEquipmentPdf();return buildTablePdf(kind);
+  }
+  window.qpcExportPdfP5=exportPdfP5;
+  window.qpcExportPptxP5=exportPptxP5;
 
   async function runButton(button,operation){const old=button.textContent;try{button.disabled=true;button.textContent='Procesando…';await operation();}catch(error){console.error(error);toast(`No se pudo generar el exportable: ${error.message}`);}finally{button.disabled=false;button.textContent=old;}}
 
@@ -4806,7 +4828,10 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   const user=()=>typeof currentUser==='function'?currentUser():null;
   const can=code=>Boolean(user()&&(user().role==='IT'||window.qpcHasPermission?.(user(),code)));
   const project=()=>typeof projectId==='function'?projectId():ui.projectId;
-  const reportEntries=()=>list(window.qpcReportEntriesForCurrentPeriod?.()||window.qpcPhase10?.entries);
+  const reportEntries=()=>{
+    const rows=list(window.qpcReportEntriesForCurrentPeriod?.()||window.qpcPhase10?.entries);
+    return window.qpcUseSlidePlan&&typeof window.qpcApplyReportSlidePlan==='function'?window.qpcApplyReportSlidePlan(rows):rows;
+  };
   const bucket='qpc-attachments';
   const sections={
     GOOD_PRACTICES:{label:'Buenas prácticas',short:'Buena práctica',icon:'✓',weekly:true,monthly:true,evidence:true,required:true,manual:'Fotografía, descripción, ubicación y responsable.'},
@@ -5012,11 +5037,11 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     const tableSections=new Set(['NONCONFORMITIES','TRAININGS','MATERIAL_TESTS']);
     if(codes.length===1&&tableSections.has(codes[0])){doc.addPage('a4','landscape');addPdfHeader(doc,title,code,logo);autoTable(doc,['Referencia','Descripción','Ubicación','Responsable','Cantidad','Resultado','Evidencias'],entries.map(e=>[e.reference_code,e.title||e.description,e.location_text,e.responsible,e.quantity??'',e.result_status,evidenceCount(e.id)]),32,{fontSize:8});return;}
     for(const entry of entries){
-      const files=evidenceFor(entry.id),images=files.filter(isImage),documents=files.filter(file=>!isImage(file));
+      const files=evidenceFor(entry.id),images=files.filter(isImage),documents=files.filter(file=>!isImage(file)),plan=window.qpcPhase15?.plan?.find(item=>String(item.entry_id)===String(entry.id)),layout=plan?.layout||'AUTO';
       doc.addPage('a4','landscape');addPdfHeader(doc,title,code,logo);doc.setTextColor(17,24,39);doc.setFontSize(17);doc.text(entry.title||sections[entry.section_code]?.short||title,18,43,{maxWidth:258});
-      const firstImages=images.slice(0,2);if(firstImages.length){for(let i=0;i<firstImages.length;i++){let data=null;try{data=await fileData(firstImages[i]);}catch(error){console.warn(error);}const x=18+i*60,w=firstImages.length===1?118:57;if(data){doc.addImage(data,imageFormat(data),x,54,w,92,undefined,'FAST');doc.setDrawColor(216,222,230);doc.rect(x,54,w,92);}else{doc.setFillColor(245,247,250);doc.rect(x,54,w,92,'F');}}}
-      else{doc.setFillColor(245,247,250);doc.roundedRect(18,54,118,92,3,3,'F');doc.setTextColor(107,114,128);doc.setFontSize(11);doc.text('Espacio para evidencia fotográfica.',77,99,{align:'center',maxWidth:100});}
-      doc.setTextColor(17,24,39);doc.setFontSize(10);let y=58;const description=doc.splitTextToSize(entry.description||'Sin descripción.',130);doc.text(description,147,y);y+=description.length*5+6;for(const line of entryDetails(entry)){const parts=doc.splitTextToSize(line,130);if(y+parts.length*5>164)break;doc.text(parts,147,y);y+=parts.length*5+4;}if(documents.length){const names=doc.splitTextToSize(`Documentos adjuntos: ${documents.map(f=>f.original_name).join(', ')}`,130);if(y+names.length*5<183)doc.text(names,147,y);}
+      const firstImages=layout==='TEXT'?[]:images.slice(0,layout==='ONE_IMAGE'?1:2);if(firstImages.length){for(let i=0;i<firstImages.length;i++){let data=null;try{data=await fileData(firstImages[i]);}catch(error){console.warn(error);}const x=18+i*60,w=firstImages.length===1?118:57;if(data){doc.addImage(data,imageFormat(data),x,54,w,92,undefined,'FAST');doc.setDrawColor(216,222,230);doc.rect(x,54,w,92);}else{doc.setFillColor(245,247,250);doc.rect(x,54,w,92,'F');}}}
+      else if(layout!=='TEXT'){doc.setFillColor(245,247,250);doc.roundedRect(18,54,118,92,3,3,'F');doc.setTextColor(107,114,128);doc.setFontSize(11);doc.text('Espacio para evidencia fotográfica.',77,99,{align:'center',maxWidth:100});}
+      const detailX=layout==='TEXT'?18:147,detailWidth=layout==='TEXT'?258:130;doc.setTextColor(17,24,39);doc.setFontSize(10);let y=58;const description=doc.splitTextToSize(entry.description||'Sin descripción.',detailWidth);doc.text(description,detailX,y);y+=description.length*5+6;for(const line of entryDetails(entry)){const parts=doc.splitTextToSize(line,detailWidth);if(y+parts.length*5>164)break;doc.text(parts,detailX,y);y+=parts.length*5+4;}if(documents.length){const names=doc.splitTextToSize(`Documentos adjuntos: ${documents.map(f=>f.original_name).join(', ')}`,detailWidth);if(y+names.length*5<183)doc.text(names,detailX,y);}
       const extras=images.slice(2);for(let start=0;start<extras.length;start+=4){doc.addPage('a4','landscape');addPdfHeader(doc,`${title} · Evidencias`,code,logo);const group=extras.slice(start,start+4);for(let i=0;i<group.length;i++){const col=i%2,row=Math.floor(i/2),x=18+col*133,yImg=43+row*76;let data=null;try{data=await fileData(group[i]);}catch(error){console.warn(error);}if(data)doc.addImage(data,imageFormat(data),x,yImg,124,60,undefined,'FAST');doc.setFontSize(8);doc.setTextColor(71,85,105);doc.text(group[i].caption||group[i].original_name,x,yImg+66,{maxWidth:124});}}
     }
   };
@@ -5025,13 +5050,143 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     await Promise.all([window.qpcLoadReportContent?.(),loadEvidence()]);const codes=String(sectionCode||'').split('|'),entries=reportEntries().filter(entry=>codes.includes(entry.section_code));
     if(!entries.length){const slide=pptx.addSlide();addPptxPlaceholder(slide,pptx,title,['No hay registros cargados para este periodo.','La lámina queda preparada para completar manualmente.']);return;}
     for(const entry of entries){
-      const files=evidenceFor(entry.id),images=files.filter(isImage),documents=files.filter(file=>!isImage(file)),slide=pptx.addSlide();addPptxHeader(slide,pptx,title,code);slide.addText(entry.title||sections[entry.section_code]?.short||title,{x:.65,y:1.35,w:11.8,h:.4,fontSize:19,bold:true,color:'111827',fit:'shrink'});
-      const first=images.slice(0,2);if(first.length){for(let i=0;i<first.length;i++){let data=null;try{data=await fileData(first[i]);}catch(error){console.warn(error);}if(data)slide.addImage({data,x:.65+i*2.9,y:1.95,w:first.length===1?5.65:2.75,h:4.35});}}
-      else{slide.addShape(pptx.ShapeType.roundRect,{x:.65,y:1.95,w:5.65,h:4.35,rectRadius:.08,line:{color:'D8DEE6',width:1},fill:{color:'F4F6F8'}});slide.addText('Espacio para evidencia fotográfica',{x:1.1,y:3.85,w:4.75,h:.5,fontSize:13,color:'6B7280',align:'center'});}
-      const details=[entry.description||'Sin descripción.',...entryDetails(entry),documents.length?`Documentos adjuntos: ${documents.map(f=>f.original_name).join(', ')}`:''].filter(Boolean).join('\n\n');slide.addText(details,{x:6.6,y:1.95,w:6.05,h:4.45,fontSize:12,color:'111827',valign:'top',fit:'shrink',margin:.08});
+      const files=evidenceFor(entry.id),images=files.filter(isImage),documents=files.filter(file=>!isImage(file)),plan=window.qpcPhase15?.plan?.find(item=>String(item.entry_id)===String(entry.id)),layout=plan?.layout||'AUTO',slide=pptx.addSlide();addPptxHeader(slide,pptx,title,code);slide.addText(entry.title||sections[entry.section_code]?.short||title,{x:.65,y:1.35,w:11.8,h:.4,fontSize:19,bold:true,color:'111827',fit:'shrink'});
+      const first=layout==='TEXT'?[]:images.slice(0,layout==='ONE_IMAGE'?1:2);if(first.length){for(let i=0;i<first.length;i++){let data=null;try{data=await fileData(first[i]);}catch(error){console.warn(error);}if(data)slide.addImage({data,x:.65+i*2.9,y:1.95,w:first.length===1?5.65:2.75,h:4.35});}}
+      else if(layout!=='TEXT'){slide.addShape(pptx.ShapeType.roundRect,{x:.65,y:1.95,w:5.65,h:4.35,rectRadius:.08,line:{color:'D8DEE6',width:1},fill:{color:'F4F6F8'}});slide.addText('Espacio para evidencia fotográfica',{x:1.1,y:3.85,w:4.75,h:.5,fontSize:13,color:'6B7280',align:'center'});}
+      const details=[entry.description||'Sin descripción.',...entryDetails(entry),documents.length?`Documentos adjuntos: ${documents.map(f=>f.original_name).join(', ')}`:''].filter(Boolean).join('\n\n');slide.addText(details,{x:layout==='TEXT'?.65:6.6,y:1.95,w:layout==='TEXT'?12:6.05,h:4.45,fontSize:12,color:'111827',valign:'top',fit:'shrink',margin:.08});
       const extras=images.slice(2);for(let start=0;start<extras.length;start+=4){const evidenceSlide=pptx.addSlide();addPptxHeader(evidenceSlide,pptx,`${title} · Evidencias`,code);const group=extras.slice(start,start+4);for(let i=0;i<group.length;i++){const col=i%2,row=Math.floor(i/2),x=.65+col*6.05,y=1.55+row*2.75;let data=null;try{data=await fileData(group[i]);}catch(error){console.warn(error);}if(data)evidenceSlide.addImage({data,x,y,w:5.65,h:2.25});evidenceSlide.addText(group[i].caption||group[i].original_name,{x,y:y+2.28,w:5.65,h:.3,fontSize:9,color:'64748B',fit:'shrink'});}}
     }
   };
 
   setTimeout(()=>{if(ui?.view==='report-content'){loadEvidence().then(()=>render()).catch(()=>{});}},0);
+})();
+
+
+/* Quality Project Control MAIN V9.4 · Fase 15
+   Herramientas de preparación de informes, cambio de correo y recuperación de IT.
+*/
+(function(){
+  'use strict';
+  const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL&&typeof supabaseClient!=='undefined');
+  if(!MAIN_MODE)return;
+  const list=v=>Array.isArray(v)?v:[];
+  const esc=v=>typeof escapeHtml==='function'?escapeHtml(String(v??'')):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  const text=v=>String(v??'').trim();
+  const state={plan:[],key:'',loading:null,modal:null,recoveryCodes:[]};
+  window.qpcPhase15=state;
+  const actor=()=>typeof currentUser==='function'?currentUser():null;
+  const project=()=>typeof projectId==='function'?projectId():ui.activeProjectId;
+  const can=code=>actor()?.role==='IT'||Boolean(window.qpcHasPermission?.(actor(),code));
+  const reportKey=()=>`${project()}|${ui.reportMode}|${ui.reportValue}`;
+  const rawEntries=()=>list(window.qpcReportEntriesForCurrentPeriod?.()||window.qpcPhase10?.entries);
+
+  function previousPeriod(){
+    if(ui.reportMode==='month'){
+      const [year,month]=String(ui.reportValue).split('-').map(Number),date=new Date(Date.UTC(year,month-2,1));
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth()+1).padStart(2,'0')}`;
+    }
+    const date=new Date(`${ui.reportValue}T12:00:00Z`);date.setUTCDate(date.getUTCDate()-7);return date.toISOString().slice(0,10);
+  }
+  function periodInput(mode,value){return mode==='month'?`<input id="p15SourcePeriod" type="month" value="${esc(value)}">`:`<input id="p15SourcePeriod" type="date" value="${esc(value)}">`;}
+  function ensureModalRoot(){let root=document.getElementById('p15ModalRoot');if(!root){root=document.createElement('div');root.id='p15ModalRoot';document.body.appendChild(root);}return root;}
+  function closeModal(){const root=ensureModalRoot();root.innerHTML='';state.modal=null;}
+  function modal(title,body,footer=''){
+    const root=ensureModalRoot();state.modal=title;
+    root.innerHTML=`<div class="qpc-modal-backdrop p15-modal-backdrop"><section class="qpc-modal p15-modal" role="dialog" aria-modal="true" aria-labelledby="p15ModalTitle"><div class="qpc-modal-head"><h3 id="p15ModalTitle">${esc(title)}</h3><button type="button" class="btn btn-secondary btn-small" data-p15-close>✕</button></div><div class="qpc-modal-body">${body}</div>${footer?`<div class="qpc-modal-foot">${footer}</div>`:''}</section></div>`;
+  }
+
+  async function loadSlidePlan(force=false){
+    const key=reportKey();if(!force&&state.key===key)return state.plan;if(state.loading&&!force)return state.loading;
+    state.loading=(async()=>{const {data,error}=await supabaseClient.rpc('qpc_report_slide_plan_for_period',{p_project_id:project(),p_period_mode:ui.reportMode,p_period_value:ui.reportValue});if(error)throw error;state.plan=list(data);state.key=key;state.loading=null;return state.plan;})().catch(error=>{state.loading=null;throw error;});return state.loading;
+  }
+  window.qpcLoadReportSlidePlan=loadSlidePlan;
+  window.qpcApplyReportSlidePlan=function(rows){
+    if(state.key!==reportKey()||!state.plan.length)return rows.slice().sort((a,b)=>Number(a.sort_order||0)-Number(b.sort_order||0));
+    const byId=new Map(state.plan.map(item=>[String(item.entry_id),item]));
+    return rows.filter(row=>byId.get(String(row.id))?.included!==false).sort((a,b)=>{
+      const pa=byId.get(String(a.id)),pb=byId.get(String(b.id));
+      return Number(pa?.sort_order??a.sort_order??0)-Number(pb?.sort_order??b.sort_order??0);
+    });
+  };
+
+  async function showCopyDialog(){
+    if(!can('reports.content.copy_period')){toast('No tiene permiso para copiar contenido entre periodos.');return;}
+    modal('Copiar contenido de otro periodo',`<div class="form-grid"><div class="field"><label>Periodo de origen</label>${periodInput(ui.reportMode,previousPeriod())}</div><div class="field"><label>Alcance</label><select id="p15CopyScope"><option value="ALL">Todas las secciones</option><option value="CURRENT">Solo la sección seleccionada</option></select></div><div class="field full"><label class="check-row"><input id="p15CopyEvidence" type="checkbox"><span>Vincular también las evidencias existentes</span></label><small>Los archivos no se duplican; se reutiliza el vínculo seguro al archivo original.</small></div></div><div class="alert alert-info">Los registros ya copiados desde el mismo origen se omiten para evitar duplicados.</div>`,`<button type="button" class="btn btn-primary" id="p15ConfirmCopy">Copiar contenido</button><button type="button" class="btn btn-secondary" data-p15-close>Cancelar</button>`);
+  }
+  async function copyPeriod(button){
+    const source=text(document.getElementById('p15SourcePeriod')?.value),scope=document.getElementById('p15CopyScope')?.value||'ALL',includeEvidence=document.getElementById('p15CopyEvidence')?.checked===true;
+    if(!source){toast('Seleccione el periodo de origen.');return;}button.disabled=true;button.textContent='Copiando…';
+    const sections=scope==='CURRENT'?[ui.p10Section]:null;
+    const {data:result,error}=await supabaseClient.rpc('qpc_clone_report_period_content',{p_project_id:project(),p_period_mode:ui.reportMode,p_source_period:source,p_target_period:ui.reportValue,p_section_codes:sections,p_include_evidence:includeEvidence});
+    if(error)throw error;closeModal();await window.qpcLoadReportContent?.(true);window.qpcPhase14&&(window.qpcPhase14.key='');await window.qpcLoadReportEvidence?.(true);toast(`Copiados: ${result?.cloned_entries??0}. Omitidos: ${result?.skipped_entries??0}.`);render();
+  }
+
+  async function showOrganizer(){
+    if(!can('reports.layout.manage')){toast('No tiene permiso para organizar las láminas.');return;}
+    await loadSlidePlan();const planById=new Map(state.plan.map(item=>[String(item.entry_id),item]));
+    const entries=rawEntries().slice().sort((a,b)=>Number(planById.get(String(a.id))?.sort_order??a.sort_order??0)-Number(planById.get(String(b.id))?.sort_order??b.sort_order??0));
+    const rows=entries.map((entry,index)=>{const plan=planById.get(String(entry.id))||{};return `<tr data-p15-entry="${esc(entry.id)}"><td><input class="p15-plan-included" type="checkbox" ${plan.included===false?'':'checked'}></td><td><input class="p15-plan-order" type="number" min="0" step="10" value="${Number(plan.sort_order??(index+1)*10)}"></td><td><strong>${esc(entry.title||entry.section_code)}</strong><small>${esc(entry.section_code)}</small></td><td><select class="p15-plan-layout"><option value="AUTO" ${plan.layout==='AUTO'||!plan.layout?'selected':''}>Automático</option><option value="ONE_IMAGE" ${plan.layout==='ONE_IMAGE'?'selected':''}>Una imagen grande</option><option value="TWO_IMAGES" ${plan.layout==='TWO_IMAGES'?'selected':''}>Dos imágenes</option><option value="TEXT" ${plan.layout==='TEXT'?'selected':''}>Texto / tabla</option></select></td><td><input class="p15-plan-notes" value="${esc(plan.notes||'')}" placeholder="Nota interna"></td></tr>`;}).join('');
+    modal('Organizar láminas del informe',`<p class="helper">Defina qué registros se incluyen, su orden y la distribución sugerida. Esta organización se aplica al PDF y al PPTX.</p><div class="table-wrap p15-plan-table"><table><thead><tr><th>Incluir</th><th>Orden</th><th>Registro</th><th>Diseño</th><th>Notas</th></tr></thead><tbody>${rows||'<tr><td colspan="5">No hay contenido manual para organizar.</td></tr>'}</tbody></table></div>`,`<button type="button" class="btn btn-primary" id="p15SavePlan">Guardar organización</button><button type="button" class="btn btn-secondary" data-p15-close>Cancelar</button>`);
+  }
+  async function savePlan(button){
+    const items=[...document.querySelectorAll('[data-p15-entry]')].map(row=>({entry_id:row.dataset.p15Entry,included:row.querySelector('.p15-plan-included')?.checked!==false,sort_order:Number(row.querySelector('.p15-plan-order')?.value||0),layout:row.querySelector('.p15-plan-layout')?.value||'AUTO',notes:text(row.querySelector('.p15-plan-notes')?.value)}));
+    button.disabled=true;button.textContent='Guardando…';const {error}=await supabaseClient.rpc('qpc_save_report_slide_plan',{p_project_id:project(),p_period_mode:ui.reportMode,p_period_value:ui.reportValue,p_items:items});if(error)throw error;await loadSlidePlan(true);closeModal();toast('Organización guardada.');
+  }
+
+  async function previewReport(button){button.disabled=true;button.textContent='Preparando…';try{await window.qpcExportPdfP5?.('complete');}finally{button.disabled=false;button.textContent='Vista previa completa';}}
+  async function downloadPptx(button){button.disabled=true;button.textContent='Generando…';try{await window.qpcExportPptxP5?.('complete');}finally{button.disabled=false;button.textContent='PPTX editable';}}
+
+  function reportActions(){
+    const copy=can('reports.content.copy_period')?'<button type="button" id="p15CopyPrevious" class="btn btn-outline">Copiar periodo anterior</button>':'';
+    const plan=can('reports.layout.manage')?'<button type="button" id="p15OrganizeSlides" class="btn btn-outline">Organizar láminas</button>':'';
+    const preview=can('exports.pdf')?'<button type="button" id="p15PreviewReport" class="btn btn-primary">Vista previa completa</button>':'';
+    const pptx=can('exports.pdf')?'<button type="button" id="p15DownloadPptx" class="btn btn-success">PPTX editable</button>':'';
+    return `<section class="card p15-report-actions"><div><h3>Preparación del entregable</h3><p class="helper">Copie contenido recurrente, organice las láminas y revise el informe antes de descargarlo.</p></div><div class="button-row">${copy}${plan}${preview}${pptx}</div></section>`;
+  }
+
+  function recoveryPanel(user){
+    if(user?.role!=='IT')return '';
+    return `<section class="card p15-it-recovery-card"><div><span class="badge badge-red">Cuenta crítica</span><h3>Kit de recuperación de Tecnología (IT)</h3><p>Genere códigos de un solo uso para recuperar esta cuenta sin depender de otro usuario de la plataforma.</p><ul><li>Los códigos se muestran una sola vez.</li><li>Guárdelos fuera de la plataforma, preferiblemente impresos o en un gestor seguro.</li><li>Generar un kit nuevo invalida los códigos anteriores no utilizados.</li></ul></div><button type="button" id="p15GenerateItCodes" class="btn btn-primary">Generar kit de recuperación</button></section>`;
+  }
+
+  const previousRenderView=window.renderView;
+  window.renderView=function(user){
+    let html=previousRenderView(user);
+    if(ui.view==='report-content')html=String(html).replace('<div class="report-content-shell">',`<div class="report-content-shell">${reportActions()}`);
+    if(ui.view==='profile'&&user?.role==='IT')html=String(html)+recoveryPanel(user);
+    return html;
+  };
+
+  function recoveryLoginDialog(){
+    modal('Recuperar cuenta de Tecnología (IT)',`<div class="alert alert-warning">Use uno de los códigos de recuperación guardados previamente por el usuario IT.</div><div class="form-grid"><div class="field full"><label>Correo de la cuenta IT</label><input id="p15RecoveryEmail" type="email" placeholder="tecnologia@codelpa.com"></div><div class="field"><label>Código de recuperación</label><input id="p15RecoveryCode" autocomplete="one-time-code" placeholder="QPC-XXXX-XXXX"></div><div class="field"><label>Contraseña nueva</label><input id="p15RecoveryPassword" type="password" autocomplete="new-password" minlength="8"></div></div><p class="helper">Si no dispone de un código, el propietario del proyecto deberá recuperar la cuenta desde Supabase Authentication.</p>`,`<button type="button" class="btn btn-primary" id="p15RecoverItAccount">Restablecer acceso</button><button type="button" class="btn btn-secondary" data-p15-close>Cancelar</button>`);
+  }
+  async function generateCodes(button){
+    if(actor()?.role!=='IT'){toast('Solo una sesión IT puede generar su kit.');return;}button.disabled=true;button.textContent='Generando…';const {data,error}=await supabaseClient.functions.invoke('admin-user-management',{body:{action:'generate_it_recovery_codes'}});if(error)throw error;const codes=list(data?.codes);state.recoveryCodes=codes;
+    const content=codes.map(code=>`<code>${esc(code)}</code>`).join('');modal('Kit de recuperación generado',`<div class="alert alert-danger">Estos códigos no volverán a mostrarse. Guárdelos ahora.</div><div class="p15-recovery-codes">${content}</div><p class="helper">Vencimiento: ${esc(data?.expires_at||'')}</p>`,`<button type="button" id="p15DownloadCodes" class="btn btn-primary">Descargar archivo</button><button type="button" class="btn btn-secondary" data-p15-close>Cerrar</button>`);
+  }
+  function downloadCodes(){const body=[`Quality Project Control · Kit de recuperación IT`,`Cuenta: ${actor()?.email||''}`,`Generado: ${new Date().toISOString()}`,'',...state.recoveryCodes].join('\n');const url=URL.createObjectURL(new Blob([body],{type:'text/plain;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='QPC_Kit_Recuperacion_IT.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  async function recoverIt(button){
+    const email=text(document.getElementById('p15RecoveryEmail')?.value).toLowerCase(),code=text(document.getElementById('p15RecoveryCode')?.value).toUpperCase(),password=document.getElementById('p15RecoveryPassword')?.value||'';
+    if(!email||!code||password.length<8){toast('Complete correo, código y una contraseña de al menos 8 caracteres.');return;}button.disabled=true;button.textContent='Restableciendo…';
+    const {data,error}=await supabaseClient.functions.invoke('admin-user-management',{body:{action:'recover_it_account',email,code,new_password:password}});if(error)throw error;if(!data?.ok)throw new Error(data?.error||'No se pudo recuperar la cuenta.');closeModal();toast('Contraseña actualizada. Ya puede iniciar sesión.');document.getElementById('loginEmail').value=email;document.getElementById('loginPassword').value='';
+  }
+
+  document.addEventListener('click',async event=>{
+    const button=event.target.closest('button');if(!button)return;const stop=()=>{event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();};
+    try{
+      if(button.matches('[data-p15-close]')){stop();closeModal();return;}
+      if(button.id==='p15CopyPrevious'){stop();await showCopyDialog();return;}
+      if(button.id==='p15ConfirmCopy'){stop();await copyPeriod(button);return;}
+      if(button.id==='p15OrganizeSlides'){stop();await showOrganizer();return;}
+      if(button.id==='p15SavePlan'){stop();await savePlan(button);return;}
+      if(button.id==='p15PreviewReport'){stop();await previewReport(button);return;}
+      if(button.id==='p15DownloadPptx'){stop();await downloadPptx(button);return;}
+      if(button.id==='p15GenerateItCodes'){stop();await generateCodes(button);return;}
+      if(button.id==='p15DownloadCodes'){stop();downloadCodes();return;}
+      if(button.id==='p15OpenItRecovery'){stop();recoveryLoginDialog();return;}
+      if(button.id==='p15RecoverItAccount'){stop();await recoverIt(button);return;}
+    }catch(error){console.error(error);toast(error.message||'No se pudo completar la operación.');if(button){button.disabled=false;}}
+  },true);
+
+  document.addEventListener('change',event=>{if(['p10Mode','p10Period','activeProjectSelect','projectSelector'].includes(event.target.id)){state.key='';state.plan=[];}},true);
 })();

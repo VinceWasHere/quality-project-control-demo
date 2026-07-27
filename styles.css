@@ -550,3 +550,41 @@ a{color:inherit;text-decoration:none}
 .report-existing-evidence{grid-column:1/-1;margin:16px 0}.report-existing-evidence h4{margin:0}
 .report-entry-buttons{margin-top:12px}.evidence-error .report-evidence-preview{background:#fff1f2;color:#be123c}
 @media(max-width:680px){.report-evidence-gallery{grid-template-columns:1fr}.report-evidence-tile{grid-template-columns:64px minmax(0,1fr)}.report-evidence-preview{width:64px;height:64px}.report-evidence-caption{grid-template-columns:1fr}.report-evidence-caption .btn{width:100%}}
+
+/* ================================================================
+   MAIN V9.4 · Fase 15
+   Preparación de informes, recuperación IT y mejoras de acceso.
+   ================================================================ */
+.login-demo-hint{display:grid;gap:5px;line-height:1.45}
+.login-recovery-link{appearance:none;border:0;background:transparent;color:#0f4c66;font:inherit;font-weight:800;padding:7px 0 0;text-align:left;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.login-recovery-link:hover{color:#c8102e}
+
+.p15-report-actions{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:16px}
+.p15-report-actions h3{margin:0 0 4px}
+.p15-report-actions .button-row{justify-content:flex-end;flex-wrap:wrap}
+.p15-it-recovery-card{display:flex;align-items:center;justify-content:space-between;gap:24px;margin-top:16px;border-left:5px solid #c8102e}
+.p15-it-recovery-card h3{margin:8px 0}
+.p15-it-recovery-card ul{margin:10px 0 0;padding-left:20px;color:#475569}
+
+#p15ModalRoot:empty{display:none}
+.p15-modal-backdrop{position:fixed;inset:0;z-index:1400;display:grid;place-items:center;padding:18px;background:rgba(15,23,42,.62);backdrop-filter:blur(3px)}
+.p15-modal{width:min(960px,100%);max-height:min(88vh,820px);display:flex;flex-direction:column;background:#fff;border:1px solid #d7e0e8;border-radius:18px;box-shadow:0 28px 80px rgba(15,23,42,.28);overflow:hidden}
+.qpc-modal-head,.qpc-modal-foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 20px;border-color:#e2e8f0}
+.qpc-modal-head{border-bottom:1px solid #e2e8f0}.qpc-modal-foot{justify-content:flex-end;border-top:1px solid #e2e8f0}
+.qpc-modal-head h3{margin:0}.qpc-modal-body{padding:20px;overflow:auto}
+.p15-plan-table{max-height:54vh;overflow:auto}
+.p15-plan-table table{min-width:820px}
+.p15-plan-table td small{display:block;color:#64748b;margin-top:3px}
+.p15-plan-table input,.p15-plan-table select{width:100%;min-width:90px}
+.p15-plan-table .p15-plan-included{width:20px;min-width:20px;height:20px}
+.p15-recovery-codes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:14px 0}
+.p15-recovery-codes code{display:block;padding:12px;border:1px dashed #94a3b8;border-radius:10px;background:#f8fafc;font-size:17px;font-weight:900;letter-spacing:.08em;text-align:center}
+
+@media(max-width:760px){
+  .p15-report-actions,.p15-it-recovery-card{align-items:stretch;flex-direction:column}
+  .p15-report-actions .button-row,.p15-it-recovery-card .btn{width:100%}
+  .p15-report-actions .button-row .btn{flex:1 1 100%}
+  .p15-recovery-codes{grid-template-columns:1fr}
+  .p15-modal-backdrop{padding:8px;align-items:end}
+  .p15-modal{max-height:92vh;border-radius:16px 16px 0 0}
+}

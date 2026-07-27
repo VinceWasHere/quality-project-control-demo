@@ -69,3 +69,8 @@ La secuencia de secciones y las diapositivas divisoras del exportable corporativ
 - `25-09-04 FO-CP-11 V10 CIERRE MENSUAL DE CALIDAD DE PROYECTOS AGOSTO(2).pptx`.
 
 Las plantillas originales no se incrustan en el frontend por su peso. El exportador reproduce su orden, código documental, identidad CODELPA y hojas editables mediante PptxGenJS.
+
+## V9.4 · Fase 15
+- `SUPABASE_V9_4_PHASE15.sql`: planificación de láminas, copia de periodos, permisos de correo y recuperación IT.
+- `admin-user-management`: cambio sincronizado de correo, generación de kit IT y recuperación break-glass.
+- `app.bundle.js`: login sin contraseña automática, panel de preparación de reportes y UI de recuperación.

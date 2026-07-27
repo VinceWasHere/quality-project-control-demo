@@ -1,3 +1,27 @@
+# Quality Project Control MAIN V9.4 — Fase 15
+
+## Enfoque
+Preparación avanzada de informes, cambio seguro de correo y recuperación autónoma de la cuenta Tecnología (IT).
+
+## Cambios
+- Seleccionar un correo desde el dropdown del login ya no completa la contraseña automáticamente.
+- El mensaje del login explica cómo abrir el listado de correos y conserva la contraseña común de las cuentas `.demo`.
+- Los usuarios autorizados pueden cambiar el correo de una cuenta; se sincroniza Supabase Auth, `profiles` y `login_directory`.
+- Las cuentas IT no pueden ser restauradas por otros roles. Cada IT puede generar un kit de diez códigos de recuperación de un solo uso y guardarlo fuera de la plataforma.
+- El módulo Contenido de informes permite copiar contenido desde otro periodo, con o sin evidencias.
+- Se agrega una vista para organizar qué registros aparecen, su orden y el diseño sugerido de cada lámina.
+- La organización se aplica a las exportaciones PDF y PPTX.
+- Se agrega vista previa completa del informe directamente desde Contenido de informes.
+- README acumulativo con la versión más reciente primero.
+
+## Despliegue
+1. Ejecutar `SUPABASE_V9_4_PHASE15.sql`.
+2. Reemplazar y desplegar nuevamente la Edge Function `admin-user-management`.
+3. Publicar los archivos del branch `main` en GitHub/Vercel.
+4. Iniciar sesión como IT y generar inmediatamente el kit de recuperación.
+
+---
+
 # Quality Project Control MAIN V9.3 — Fase 14
 
 ## Enfoque
