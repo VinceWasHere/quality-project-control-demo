@@ -10,7 +10,7 @@ const phase23=fs.readFileSync(new URL('../supabase/migrations/20260727_022_devic
 const sw=fs.readFileSync(new URL('../qpc-sw.js',import.meta.url),'utf8');
 const manifest=fs.readFileSync(new URL('../manifest.webmanifest',import.meta.url),'utf8');
 const checks=[
-  ['cache 10.3.0',index.includes('app.bundle.js?v=10.3.0')&&index.includes('styles.css?v=10.3.0')],
+  ['cache 10.4.0',index.includes('app.bundle.js?v=10.4.0')&&index.includes('styles.css?v=10.4.0')],
   ['perfil universal e IT',app.includes('Mi perfil debe estar disponible para absolutamente todos los usuarios')&&app.includes('window.qpcOpenProfile')],
   ['drawer móvil accesible',app.includes('qpc-mobile-drawer-close')&&css.includes('.qpc-mobile-drawer-close')&&css.includes('qpc-mobile-drawer-open')],
   ['grids móviles normalizados',css.includes('.content .grid[style*="grid-template-columns"]')&&css.includes('grid-template-columns:minmax(0,1fr)!important')],
@@ -31,6 +31,8 @@ const checks=[
   ['service worker push',sw.includes("addEventListener('push'")&&sw.includes('QPC_NOTIFICATION_OPEN')],
   ['preferencias dispositivo',app.includes('qpcDeviceNotifications')&&app.includes('qpc_notification_preferences')&&css.includes('.qpc-device-notification-card')],
   ['suscripciones push',phase23.includes('qpc_push_subscriptions')&&phase23.includes('qpc_notification_for_current_user')],
+  ['perfil móvil fase 25',app.includes('MAIN V10.4.0')&&app.includes('ensureProfileMenuEntry')&&app.includes("addEventListener('pointerup'")],
+  ['pdf.js multipágina',index.includes('pdf.min.js')&&app.includes('data-pdf-next')&&app.includes('pdfDocument.getPage')&&css.includes('.qpc-pdf-toolbar')],
 ];
 let failed=false;
 for(const [name,ok] of checks){console.log(`${ok?'OK':'FAIL'} ${name}`);if(!ok)failed=true;}

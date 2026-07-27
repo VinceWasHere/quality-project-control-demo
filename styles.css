@@ -833,3 +833,44 @@ a{color:inherit;text-decoration:none}
   .top-right .qpc-avatar,.top-right>.avatar,.top-right .qpc-notification-bell{width:38px!important;height:38px!important;flex-basis:38px}
   .content{padding-inline:8px}.card{padding:12px}.page-head h2{font-size:21px}
 }
+
+/* MAIN V10.4 · Fase 25 — perfil móvil y visor PDF multipágina */
+body.qpc-viewer-open{overflow:hidden}
+.qpc-pdf-file-viewer{width:min(1280px,97vw);height:min(940px,96vh)}
+.qpc-pdf-viewer-body{display:block!important;overflow:hidden!important;background:#e5e7eb!important}
+.qpc-pdf-viewer{height:100%;min-height:0;display:grid;grid-template-rows:auto minmax(0,1fr);background:#e5e7eb}
+.qpc-pdf-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:9px 12px;background:#fff;border-bottom:1px solid #d7dee7;box-shadow:0 2px 8px rgba(15,23,42,.06);z-index:2}
+.qpc-pdf-toolbar .btn{min-height:38px;padding:8px 12px}
+.qpc-pdf-toolbar-spacer{flex:1}
+.qpc-pdf-page-label{display:flex;align-items:center;gap:6px;color:#334155;font-size:14px;font-weight:700;white-space:nowrap}
+.qpc-pdf-page-label input{width:58px;min-height:38px;border:1px solid #cbd5e1;border-radius:9px;padding:6px 8px;text-align:center;font-size:16px}
+.qpc-pdf-icon-btn{width:40px;padding-inline:0!important;font-size:20px!important}
+.qpc-pdf-stage{position:relative;min-height:0;overflow:auto;overscroll-behavior:contain;padding:14px;display:block;text-align:center;background:#d7dce2;-webkit-overflow-scrolling:touch}
+.qpc-pdf-stage canvas{display:block;margin:0 auto;background:#fff;box-shadow:0 8px 30px rgba(15,23,42,.22);max-width:none}
+.qpc-pdf-loading{position:sticky;top:8px;z-index:3;display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:8px 14px;border-radius:999px;background:rgba(15,23,42,.88);color:#fff;font-size:13px;box-shadow:0 6px 18px rgba(15,23,42,.2)}
+.qpc-pdf-loading[hidden]{display:none}
+.qpc-pdf-fallback{width:100%;height:100%;display:grid;grid-template-rows:auto 1fr;gap:10px;padding:12px;background:#f8fafc}
+.qpc-pdf-fallback iframe{width:100%;height:100%;min-height:60vh;border:0;background:#fff}
+
+@media(max-width:900px){
+  #sidebar .nav-btn[data-nav="profile"]{display:flex!important;visibility:visible!important;pointer-events:auto!important}
+  .qpc-pdf-file-viewer{width:100vw;height:100dvh;max-height:none;border-radius:0}
+  .qpc-pdf-file-viewer>header{flex-direction:row;align-items:center;gap:8px;padding:8px 10px}
+  .qpc-pdf-file-viewer>header>div:first-child{min-width:0;flex:1}
+  .qpc-pdf-file-viewer>header .button-row{width:auto;flex:0 0 auto}
+  .qpc-pdf-file-viewer>header .button-row .btn{min-height:38px;padding:8px 10px}
+  .qpc-pdf-toolbar{padding:7px 8px;gap:6px;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+  .qpc-pdf-toolbar .btn{flex:0 0 auto;white-space:nowrap}
+  .qpc-pdf-toolbar-spacer{display:none}
+  .qpc-pdf-page-label{flex:0 0 auto}
+  .qpc-pdf-stage{padding:8px}
+}
+
+@media(max-width:560px){
+  .qpc-pdf-file-viewer>header{display:grid;grid-template-columns:minmax(0,1fr) auto}
+  .qpc-pdf-file-viewer>header .button-row a{display:none}
+  .qpc-pdf-toolbar .btn{font-size:13px;padding:7px 9px}
+  .qpc-pdf-page-label{font-size:12px}
+  .qpc-pdf-page-label input{width:48px;min-height:36px;font-size:15px}
+  .qpc-pdf-icon-btn{width:36px}
+}

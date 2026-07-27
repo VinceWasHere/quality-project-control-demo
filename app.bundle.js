@@ -6343,3 +6343,252 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   // Atajo programático para pruebas y para futuras notificaciones/deep links.
   window.qpcOpenProfile=()=>goToView('profile');
 })();
+
+/* MAIN V10.4.0 · Fase 25 — acceso móvil a Mi perfil y visor PDF multipágina */
+;(()=>{
+  const esc=value=>typeof escapeHtml==='function'?escapeHtml(String(value??'')):String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+
+  function signedInUser(){
+    try{return typeof currentUser==='function'?currentUser():null;}catch(_){return null;}
+  }
+
+  function closeDrawerNow(){
+    document.getElementById('sidebar')?.classList.remove('open');
+    document.getElementById('overlay')?.classList.add('hidden');
+    document.getElementById('menuBtn')?.setAttribute('aria-expanded','false');
+    document.body.classList.remove('qpc-mobile-drawer-open');
+  }
+
+  function openProfileView(){
+    if(!signedInUser())return;
+    closeDrawerNow();
+    try{
+      ui.view='profile';
+      ui.selectedId=null;
+      if(typeof render==='function')render();
+      requestAnimationFrame(()=>{
+        closeDrawerNow();
+        window.scrollTo({top:0,left:0,behavior:'auto'});
+        document.querySelector('#profileName')?.focus({preventScroll:true});
+      });
+    }catch(error){
+      console.error('No se pudo abrir Mi perfil',error);
+      if(typeof toast==='function')toast('No se pudo abrir Mi perfil. Recargue la página e inténtelo otra vez.');
+    }
+  }
+
+  function ensureProfileMenuEntry(){
+    const sidebar=document.getElementById('sidebar');
+    if(!sidebar||!signedInUser())return;
+    let button=sidebar.querySelector('.nav-btn[data-nav="profile"]');
+    if(!button){
+      button=document.createElement('button');
+      button.type='button';
+      button.className='nav-btn';
+      button.dataset.nav='profile';
+      button.innerHTML='<span aria-hidden="true">◉</span>Mi perfil';
+      const mappings=sidebar.querySelector('.nav-btn[data-nav="mappings"]');
+      const management=sidebar.querySelector('.nav-btn[data-nav="users"],.nav-btn[data-nav="projects"],.nav-btn[data-nav="audit"],.nav-btn[data-nav="integrity"]');
+      if(mappings?.nextSibling)sidebar.insertBefore(button,mappings.nextSibling);
+      else if(management)sidebar.insertBefore(button,management);
+      else sidebar.querySelector('.sidebar-footer')?.before(button);
+    }
+    button.classList.toggle('active',ui?.view==='profile');
+    button.setAttribute('aria-current',ui?.view==='profile'?'page':'false');
+    button.title='Mi perfil';
+  }
+
+  // Se utiliza pointerup para evitar que listeners heredados del drawer móvil
+  // intercepten el click antes de que se abra la vista.
+  document.addEventListener('pointerup',event=>{
+    const profileButton=event.target.closest('#sidebar .nav-btn[data-nav="profile"]');
+    const avatar=event.target.closest('.top-right .qpc-avatar,.top-right>.avatar');
+    if(!profileButton&&!avatar)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    openProfileView();
+  },true);
+
+  // Respaldo para navegación por teclado y navegadores sin Pointer Events.
+  document.addEventListener('click',event=>{
+    const target=event.target.closest('#sidebar .nav-btn[data-nav="profile"],.top-right .qpc-avatar,.top-right>.avatar');
+    if(!target)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    openProfileView();
+  },true);
+
+  const appRoot=document.getElementById('app');
+  if(appRoot){
+    let scheduled=false;
+    const scheduleEnsure=()=>{
+      if(scheduled)return;
+      scheduled=true;
+      requestAnimationFrame(()=>{scheduled=false;ensureProfileMenuEntry();});
+    };
+    new MutationObserver(scheduleEnsure).observe(appRoot,{childList:true,subtree:true});
+    scheduleEnsure();
+  }
+  window.qpcOpenProfile=openProfileView;
+
+  function fileKind(url='',type='',name=''){
+    const value=`${type} ${name} ${url}`.toLowerCase().split('?')[0].split('#')[0];
+    if(String(type).toLowerCase().includes('pdf')||/\.pdf$/.test(value))return 'pdf';
+    if(String(type).toLowerCase().startsWith('image/')||/\.(png|jpe?g|webp|gif|svg|bmp|avif)$/.test(value))return 'image';
+    if(String(type).toLowerCase().startsWith('video/')||/\.(mp4|webm|ogg|mov|m4v)$/.test(value))return 'video';
+    if(String(type).toLowerCase().startsWith('audio/')||/\.(mp3|wav|ogg|m4a|aac)$/.test(value))return 'audio';
+    if(String(type).toLowerCase().startsWith('text/')||/\.(txt|csv|json|xml|md|log)$/.test(value))return 'text';
+    return 'other';
+  }
+
+  function nativeFallback(url,name,message='El visor avanzado no pudo cargar este PDF.'){
+    return `<div class="qpc-pdf-fallback"><div class="alert alert-warning"><strong>${esc(message)}</strong><br>Puede intentar la vista nativa o descargar el documento.</div><iframe src="${esc(url)}#toolbar=1&navpanes=1" title="${esc(name)}"></iframe></div>`;
+  }
+
+  window.showFileViewer=function(url,name='Archivo',type=''){
+    try{window.__qpcViewerCleanup?.();}catch(_){/* no-op */}
+    const kind=fileKind(url,type,name);
+    const root=document.getElementById('qpcViewerRoot')||document.body.appendChild(Object.assign(document.createElement('div'),{id:'qpcViewerRoot'}));
+    let body='';
+    if(kind==='pdf'){
+      body=`<div class="qpc-pdf-viewer" data-qpc-pdf-viewer>
+        <div class="qpc-pdf-toolbar" role="toolbar" aria-label="Controles del PDF">
+          <button type="button" class="btn btn-outline" data-pdf-prev aria-label="Página anterior">‹ Anterior</button>
+          <label class="qpc-pdf-page-label">Página <input data-pdf-page type="number" min="1" value="1" inputmode="numeric" aria-label="Número de página"> de <strong data-pdf-count>—</strong></label>
+          <button type="button" class="btn btn-outline" data-pdf-next aria-label="Página siguiente">Siguiente ›</button>
+          <span class="qpc-pdf-toolbar-spacer"></span>
+          <button type="button" class="btn btn-outline qpc-pdf-icon-btn" data-pdf-zoom-out aria-label="Alejar">−</button>
+          <button type="button" class="btn btn-outline" data-pdf-fit>Ajustar</button>
+          <button type="button" class="btn btn-outline qpc-pdf-icon-btn" data-pdf-zoom-in aria-label="Acercar">+</button>
+          <button type="button" class="btn btn-outline" data-pdf-rotate aria-label="Girar página">Girar</button>
+        </div>
+        <div class="qpc-pdf-stage" data-pdf-stage>
+          <div class="qpc-pdf-loading" data-pdf-loading>Cargando documento…</div>
+          <canvas data-pdf-canvas aria-label="Página del documento PDF"></canvas>
+        </div>
+      </div>`;
+    }else if(kind==='image')body=`<img class="universal-view-image" src="${esc(url)}" alt="${esc(name)}">`;
+    else if(kind==='video')body=`<video class="universal-media" src="${esc(url)}" controls playsinline>El navegador no puede reproducir este video.</video>`;
+    else if(kind==='audio')body=`<div class="viewer-media-wrap"><audio class="universal-audio" src="${esc(url)}" controls>El navegador no puede reproducir este audio.</audio></div>`;
+    else if(kind==='text')body=`<iframe src="${esc(url)}" title="${esc(name)}"></iframe>`;
+    else body=`<div class="viewer-unsupported"><h3>Vista previa no disponible</h3><p>Este tipo de archivo no puede mostrarse directamente en el navegador.</p><div class="file-meta"><strong>${esc(name)}</strong><span>${esc(type||'Tipo no identificado')}</span></div><a class="btn btn-primary" href="${esc(url)}" download>Descargar para abrir</a></div>`;
+
+    root.innerHTML=`<div class="file-viewer-backdrop"><section class="file-viewer universal-file-viewer ${kind==='pdf'?'qpc-pdf-file-viewer':''}" role="dialog" aria-modal="true" aria-label="Visor de ${esc(name)}"><header><div><strong>${esc(name)}</strong><small>${esc(type||kind)}</small></div><div class="button-row"><a class="btn btn-outline" href="${esc(url)}" download>Descargar</a><button class="btn btn-danger" data-qpc-viewer-close type="button">Cerrar</button></div></header><div class="file-viewer-body ${kind==='pdf'?'qpc-pdf-viewer-body':''}">${body}</div></section></div>`;
+    document.body.classList.add('qpc-viewer-open');
+
+    let destroyed=false,pdfDocument=null,renderTask=null,loadingTask=null,resizeTimer=null,keyHandler=null;
+    const close=()=>{
+      if(destroyed)return;
+      destroyed=true;
+      clearTimeout(resizeTimer);
+      try{renderTask?.cancel();}catch(_){/* no-op */}
+      try{loadingTask?.destroy?.();}catch(_){/* no-op */}
+      try{pdfDocument?.destroy?.();}catch(_){/* no-op */}
+      if(keyHandler)document.removeEventListener('keydown',keyHandler);
+      root.innerHTML='';
+      document.body.classList.remove('qpc-viewer-open');
+      window.__qpcViewerCleanup=null;
+    };
+    window.__qpcViewerCleanup=close;
+    root.querySelector('[data-qpc-viewer-close]')?.addEventListener('click',close);
+    root.querySelector('.file-viewer-backdrop')?.addEventListener('click',event=>{if(event.target===event.currentTarget)close();});
+
+    if(kind!=='pdf'){
+      keyHandler=event=>{if(event.key==='Escape')close();};
+      document.addEventListener('keydown',keyHandler);
+      return;
+    }
+
+    const viewer=root.querySelector('[data-qpc-pdf-viewer]');
+    const stage=viewer?.querySelector('[data-pdf-stage]');
+    const canvas=viewer?.querySelector('[data-pdf-canvas]');
+    const loading=viewer?.querySelector('[data-pdf-loading]');
+    const pageInput=viewer?.querySelector('[data-pdf-page]');
+    const pageCount=viewer?.querySelector('[data-pdf-count]');
+    const prev=viewer?.querySelector('[data-pdf-prev]');
+    const next=viewer?.querySelector('[data-pdf-next]');
+    let pageNumber=1,zoom=1,rotation=0,fitScale=1,pointerStart=null;
+
+    const updateControls=()=>{
+      if(pageInput){pageInput.value=String(pageNumber);pageInput.max=String(pdfDocument?.numPages||1);}
+      if(pageCount)pageCount.textContent=String(pdfDocument?.numPages||'—');
+      if(prev)prev.disabled=!pdfDocument||pageNumber<=1;
+      if(next)next.disabled=!pdfDocument||pageNumber>=pdfDocument.numPages;
+    };
+
+    async function renderPdfPage(resetScroll=false){
+      if(!pdfDocument||destroyed)return;
+      pageNumber=Math.max(1,Math.min(pdfDocument.numPages,Number(pageNumber)||1));
+      updateControls();
+      loading.hidden=false;loading.textContent=`Cargando página ${pageNumber}…`;
+      try{renderTask?.cancel();}catch(_){/* no-op */}
+      const page=await pdfDocument.getPage(pageNumber);
+      if(destroyed)return;
+      const natural=page.getViewport({scale:1,rotation});
+      const available=Math.max(260,(stage?.clientWidth||window.innerWidth)-28);
+      fitScale=Math.max(.25,Math.min(3,available/natural.width));
+      const viewport=page.getViewport({scale:fitScale*zoom,rotation});
+      const ratio=Math.min(window.devicePixelRatio||1,2);
+      canvas.width=Math.max(1,Math.floor(viewport.width*ratio));
+      canvas.height=Math.max(1,Math.floor(viewport.height*ratio));
+      canvas.style.width=`${Math.floor(viewport.width)}px`;
+      canvas.style.height=`${Math.floor(viewport.height)}px`;
+      const context=canvas.getContext('2d',{alpha:false});
+      context.setTransform(1,0,0,1,0,0);
+      context.fillStyle='#fff';context.fillRect(0,0,canvas.width,canvas.height);
+      renderTask=page.render({canvasContext:context,viewport,transform:ratio!==1?[ratio,0,0,ratio,0,0]:null});
+      await renderTask.promise;
+      if(destroyed)return;
+      loading.hidden=true;
+      if(resetScroll&&stage){stage.scrollTop=0;stage.scrollLeft=Math.max(0,(stage.scrollWidth-stage.clientWidth)/2);}
+    }
+
+    async function initializePdf(){
+      if(!window.pdfjsLib){
+        stage.innerHTML=nativeFallback(url,name,'No se cargó el motor PDF multipágina.');
+        return;
+      }
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      try{
+        loadingTask=window.pdfjsLib.getDocument({url});
+        pdfDocument=await loadingTask.promise;
+        if(destroyed)return;
+        updateControls();
+        await renderPdfPage(true);
+      }catch(error){
+        console.error('No se pudo renderizar el PDF con PDF.js',error);
+        stage.innerHTML=nativeFallback(url,name,'No se pudo cargar el documento en el visor multipágina.');
+      }
+    }
+
+    prev?.addEventListener('click',()=>{if(pageNumber>1){pageNumber--;renderPdfPage(true);}});
+    next?.addEventListener('click',()=>{if(pdfDocument&&pageNumber<pdfDocument.numPages){pageNumber++;renderPdfPage(true);}});
+    pageInput?.addEventListener('change',()=>{pageNumber=Number(pageInput.value)||1;renderPdfPage(true);});
+    viewer?.querySelector('[data-pdf-zoom-in]')?.addEventListener('click',()=>{zoom=Math.min(2.75,zoom+.2);renderPdfPage(false);});
+    viewer?.querySelector('[data-pdf-zoom-out]')?.addEventListener('click',()=>{zoom=Math.max(.5,zoom-.2);renderPdfPage(false);});
+    viewer?.querySelector('[data-pdf-fit]')?.addEventListener('click',()=>{zoom=1;renderPdfPage(true);});
+    viewer?.querySelector('[data-pdf-rotate]')?.addEventListener('click',()=>{rotation=(rotation+90)%360;zoom=1;renderPdfPage(true);});
+
+    stage?.addEventListener('pointerdown',event=>{pointerStart={x:event.clientX,y:event.clientY};},{passive:true});
+    stage?.addEventListener('pointerup',event=>{
+      if(!pointerStart||!pdfDocument)return;
+      const dx=event.clientX-pointerStart.x,dy=event.clientY-pointerStart.y;pointerStart=null;
+      if(Math.abs(dx)>70&&Math.abs(dx)>Math.abs(dy)*1.4){
+        if(dx<0&&pageNumber<pdfDocument.numPages){pageNumber++;renderPdfPage(true);}
+        else if(dx>0&&pageNumber>1){pageNumber--;renderPdfPage(true);}
+      }
+    },{passive:true});
+
+    keyHandler=event=>{
+      if(event.key==='Escape'){close();return;}
+      if(event.key==='ArrowRight'||event.key==='PageDown'){if(pdfDocument&&pageNumber<pdfDocument.numPages){event.preventDefault();pageNumber++;renderPdfPage(true);}}
+      if(event.key==='ArrowLeft'||event.key==='PageUp'){if(pageNumber>1){event.preventDefault();pageNumber--;renderPdfPage(true);}}
+      if(event.key==='+'||event.key==='='){zoom=Math.min(2.75,zoom+.2);renderPdfPage(false);}
+      if(event.key==='-'){zoom=Math.max(.5,zoom-.2);renderPdfPage(false);}
+    };
+    document.addEventListener('keydown',keyHandler);
+    window.addEventListener('resize',()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(pdfDocument&&!destroyed)renderPdfPage(false);},180);},{passive:true});
+    initializePdf();
+  };
+  try{showFileViewer=window.showFileViewer;}catch(_){/* binding global no reasignable */}
+})();

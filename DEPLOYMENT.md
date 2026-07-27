@@ -1,19 +1,36 @@
-# Quality Project Control MAIN V10.3 — Fase 24
+# Despliegue MAIN V10.4 — Fase 25
 
-## Objetivo
-Corregir navegación, acceso al perfil y presentación de todas las vistas en teléfonos.
+## Alcance
+- Corrección definitiva del acceso móvil a Mi perfil.
+- Restauración de Mi perfil para Tecnología (IT).
+- Visor PDF multipágina con navegación, zoom, ajuste y giro.
 
-## Despliegue
-1. No ejecute SQL.
-2. No modifique Edge Functions.
-3. Elimine del branch `main` los archivos de la versión anterior y suba el contenido completo de esta carpeta.
-4. Espere el despliegue automático de Vercel.
-5. Cierre la pestaña anterior y haga una recarga sin caché. En iPhone, cierre Safari o la PWA y vuelva a abrirla.
+## Pasos
+1. Elimina los archivos actuales del branch `main`.
+2. Sube todo el contenido de esta carpeta.
+3. Espera el despliegue automático de Vercel.
+4. Cierra por completo la pestaña anterior. En iPhone, cierra Safari o la PWA desde el selector de aplicaciones.
+5. Abre nuevamente la plataforma y realiza una recarga sin caché cuando el navegador lo permita.
 
-## Pruebas recomendadas
-- Ingeniero de Ejecución: abrir Solicitar inspección y confirmar que formulario, mapeo, planilla e instructivos aparecen uno debajo de otro.
-- Abrir el menú, seleccionar Mi perfil y confirmar que el drawer se cierra y la vista carga.
-- Tecnología (IT): confirmar que Mi perfil aparece entre Mapeos y las vistas administrativas.
-- Pulsar el avatar de la cabecera y confirmar el acceso directo al perfil.
-- Verificar a 320, 375, 390, 430, 768 y 900 px.
-- Confirmar que las tablas se desplazan dentro de su contenedor y que la página completa no tiene scroll horizontal.
+## No requiere
+- SQL adicional.
+- Nuevas Edge Functions.
+- Cambios en Database Webhooks.
+
+## Pruebas mínimas
+### Mi perfil
+1. Inicia sesión con Ejecución, Calidad e IT desde un teléfono.
+2. Abre el menú lateral.
+3. Pulsa Mi perfil.
+4. Confirma que el drawer se cierra y aparece la vista.
+5. Repite pulsando el avatar superior.
+
+### PDF
+1. Abre Instructivos.
+2. Visualiza el PDF de Colocación de Pisos.
+3. Usa `Siguiente`, `Anterior` y el campo Página.
+4. Verifica todas las páginas sin descargar.
+5. Prueba zoom, ajuste y giro.
+
+## Dependencia web
+El visor carga la versión fijada `pdf.js 3.11.174` desde cdnjs. Si el CDN no está disponible, la aplicación muestra la vista nativa y conserva el botón Descargar.

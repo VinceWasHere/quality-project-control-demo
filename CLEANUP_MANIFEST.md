@@ -18,3 +18,7 @@ Se agregó únicamente una migración SQL y se actualizaron los archivos consoli
 - No se agregaron copias sueltas de SQL ni archivos de parche.
 
 - V10.2 agrega únicamente Service Worker, manifiesto PWA, dos iconos, una migración, una Edge Function y el generador local VAPID.
+
+
+## V10.4 — Fase 25
+No se agregaron archivos de ejecución locales adicionales. PDF.js se carga con versión fijada desde CDN y las correcciones se consolidaron en `app.bundle.js` y `styles.css`.

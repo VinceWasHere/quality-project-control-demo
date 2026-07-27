@@ -1,3 +1,16 @@
+# V10.4 — Fase 25 · Perfil móvil y visor PDF multipágina
+
+- Se refuerza el acceso a **Mi perfil** en teléfonos mediante navegación directa por `pointerup`, clic, avatar y reinserción automática de la opción cuando una composición de roles la omite.
+- **Mi perfil** vuelve a aparecer para Tecnología (IT) y para todos los demás roles.
+- El menú móvil se cierra antes de cambiar de vista, evitando que el drawer o el overlay bloqueen la pantalla de perfil.
+- El visor universal incorpora un motor PDF multipágina basado en PDF.js.
+- Los PDF permiten avanzar y retroceder páginas, escribir el número de página, ajustar al ancho, ampliar, reducir y girar.
+- En teléfonos se puede cambiar de página con los controles o deslizando horizontalmente sobre el documento.
+- Se mantiene la descarga como alternativa, pero ya no es necesaria para consultar páginas posteriores.
+- No requiere SQL ni cambios en Edge Functions.
+
+---
+
 # V10.3 — Fase 24 · Experiencia móvil y navegación accesible
 
 - Se normaliza el diseño de todas las vistas en teléfonos: formularios, tarjetas, paneles laterales, instructivos relacionados, mapeos, perfil y tablas.
