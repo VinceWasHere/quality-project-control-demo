@@ -1,5 +1,19 @@
 # Quality Project Control MAIN
 
+## V10.1 — Fase 22 · Notificaciones compactas y resumen de equipos
+
+- Las alertas de equipos vencidos o próximos a vencer se consolidan en una sola tarjeta por proyecto y destinatario.
+- La tarjeta muestra conteos separados de vencidos y próximos; al pulsarla se despliega dentro de la misma tarjeta el listado completo de equipos, sin llenar la bandeja con alertas individuales.
+- Las notificaciones individuales creadas por V10.0 se archivan automáticamente sin eliminar su historial.
+- El resumen se actualiza mediante UPSERT: si cambia el conjunto de equipos, vuelve a quedar sin leer; si no cambia, conserva su estado de lectura.
+- Se agregan filtros rápidos para Todas, Inspecciones, Informes y Equipos.
+- Supabase Realtime ahora procesa inserciones y actualizaciones de notificaciones, no solo inserciones.
+- El README conserva el historial acumulativo desde la versión más reciente hasta la más antigua.
+
+---
+
+# Quality Project Control MAIN
+
 ## V10.0 — Fase 21 · Centro de notificaciones y actividad
 
 - Se incorpora una campana de notificaciones en la cabecera para todos los usuarios autenticados.

@@ -5825,15 +5825,15 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
 })();
 
 /* ================================================================
-   Quality Project Control · MAIN V10.0.0 · Fase 21
-   Centro de notificaciones internas y actividad interconectada.
+   Quality Project Control · MAIN V10.1.0 · Fase 22
+   Centro de notificaciones compacto con resumen de equipos.
    ================================================================ */
 (()=>{
   'use strict';
   const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL&&typeof supabaseClient!=='undefined');
   if(!MAIN_MODE)return;
 
-  const ns={rows:[],loaded:false,loading:null,open:false,channel:null,channelUserId:null,userId:null,poll:null,lastEquipmentRefresh:''};
+  const ns={rows:[],loaded:false,loading:null,open:false,channel:null,channelUserId:null,userId:null,poll:null,lastEquipmentRefresh:'',filter:'ALL',expandedEquipment:new Set()};
   const list=value=>Array.isArray(value)?value:[];
   const actor=()=>typeof currentUser==='function'?currentUser():null;
   const authId=user=>user?.authId||user?.id||null;
@@ -5852,7 +5852,11 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     return new Date(value).toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'});
   }
   function categoryIcon(category){return {INSPECTION:'✓',REPORT:'▤',EQUIPMENT:'⌁',USER:'●',GENERAL:'•'}[category]||'•';}
-  function categoryLabel(category){return {INSPECTION:'Inspección',REPORT:'Informe',EQUIPMENT:'Equipo',USER:'Usuario',GENERAL:'General'}[category]||category||'General';}
+  function categoryLabel(category){return {INSPECTION:'Inspección',REPORT:'Informe',EQUIPMENT:'Equipos',USER:'Usuario',GENERAL:'General'}[category]||category||'General';}
+  function visibleRows(){return ns.filter==='ALL'?ns.rows:ns.rows.filter(row=>String(row.category||'GENERAL')===ns.filter);}
+  function categoryCount(category){return category==='ALL'?ns.rows.length:ns.rows.filter(row=>String(row.category||'GENERAL')===category).length;}
+  function equipmentItems(row){return Array.isArray(row?.metadata?.items)?row.metadata.items:[];}
+  function equipmentDueDate(value){if(!value)return 'Sin fecha';const date=new Date(`${value}T12:00:00`);return Number.isNaN(date.getTime())?String(value):date.toLocaleDateString('es-DO',{day:'2-digit',month:'2-digit',year:'numeric'});}
 
   async function refreshEquipmentOnce(){
     const user=actor(),today=new Date().toISOString().slice(0,10);
@@ -5894,7 +5898,27 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     if(avatar)avatar.insertAdjacentHTML('beforebegin',bellMarkup());else host.insertAdjacentHTML('beforeend',bellMarkup());
   }
 
+  function equipmentDigestRow(row){
+    const isUnread=!row.read_at,items=equipmentItems(row),expanded=ns.expandedEquipment.has(row.id);
+    const expired=Number(row?.metadata?.expired_count||items.filter(item=>item.status==='VENCIDO').length||0);
+    const upcoming=Number(row?.metadata?.upcoming_count||items.filter(item=>item.status==='PRÓXIMO').length||0);
+    return `<article class="qpc-notification-item qpc-equipment-digest-card ${isUnread?'is-unread':''}" data-notification-id="${esc(row.id)}">
+      <button class="qpc-notification-main" type="button" data-equipment-digest-toggle="${esc(row.id)}" aria-expanded="${expanded?'true':'false'}">
+        <span class="qpc-notification-icon qpc-notification-equipment">${esc(categoryIcon('EQUIPMENT'))}</span>
+        <span class="qpc-notification-copy"><span class="qpc-notification-meta"><em>Equipos</em><time>${esc(relativeTime(row.created_at))}</time></span><strong>${esc(row.title||'Alertas de equipos')}</strong><span>${esc(row.body||'')}</span></span>
+        <span class="qpc-equipment-digest-chevron" aria-hidden="true">⌄</span>
+      </button>
+      <div class="qpc-equipment-digest-summary"><span class="qpc-equipment-count is-expired">${expired} vencidos</span><span class="qpc-equipment-count is-upcoming">${upcoming} próximos</span>${isUnread?'<i class="qpc-notification-dot" aria-label="Sin leer"></i>':''}</div>
+      ${expanded?`<ul class="qpc-equipment-digest-list">${items.map(item=>`<li class="${item.status==='VENCIDO'?'is-expired':'is-upcoming'}"><span><strong>${esc(item.code||'Sin código')} · ${esc(item.type||'Equipo')}</strong>${item.location?`<small>${esc(item.location)}</small>`:''}${item.responsible?`<small>Responsable: ${esc(item.responsible)}</small>`:''}</span><time>${esc(equipmentDueDate(item.due_date))}</time></li>`).join('')}</ul>`:''}
+      <div class="qpc-equipment-digest-actions">
+        <button type="button" class="qpc-equipment-digest-toggle" data-equipment-digest-toggle="${esc(row.id)}">${expanded?'Ocultar listado':`Ver los ${items.length} equipos`}</button>
+        <button type="button" class="qpc-equipment-digest-open" data-notification-open="${esc(row.id)}">Abrir verificación de equipos</button>
+      </div>
+      <button class="qpc-notification-archive" type="button" data-notification-archive="${esc(row.id)}" aria-label="Archivar notificación">×</button>
+    </article>`;
+  }
   function notificationRow(row){
+    if(String(row.category)==='EQUIPMENT'&&equipmentItems(row).length)return equipmentDigestRow(row);
     const isUnread=!row.read_at;
     return `<article class="qpc-notification-item ${isUnread?'is-unread':''}" data-notification-id="${esc(row.id)}">
       <button class="qpc-notification-main" type="button" data-notification-open="${esc(row.id)}">
@@ -5906,10 +5930,13 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     </article>`;
   }
   function panelMarkup(){
+    const rows=visibleRows();
+    const filters=[['ALL','Todas'],['INSPECTION','Inspecciones'],['REPORT','Informes'],['EQUIPMENT','Equipos']];
     return `<div id="qpcNotificationOverlay" class="qpc-notification-overlay"><button class="qpc-notification-backdrop" type="button" data-notification-close aria-label="Cerrar notificaciones"></button><aside class="qpc-notification-panel" role="dialog" aria-modal="true" aria-labelledby="qpcNotificationTitle">
       <header><div><h2 id="qpcNotificationTitle">Notificaciones</h2><p>${unread()} sin leer · ${ns.rows.length} recientes</p></div><button type="button" class="qpc-notification-close" data-notification-close aria-label="Cerrar">×</button></header>
       <div class="qpc-notification-actions"><button type="button" class="btn btn-outline" id="qpcMarkAllRead" ${unread()?'':'disabled'}>Marcar todas como leídas</button><button type="button" class="btn btn-secondary" id="qpcRefreshNotifications">Actualizar</button></div>
-      <div class="qpc-notification-list">${ns.loading?'<div class="qpc-notification-empty">Cargando…</div>':ns.rows.length?ns.rows.map(notificationRow).join(''):'<div class="qpc-notification-empty"><strong>Está al día</strong><span>No hay notificaciones recientes.</span></div>'}</div>
+      <div class="qpc-notification-filters" role="tablist" aria-label="Filtrar notificaciones">${filters.map(([value,label])=>`<button type="button" role="tab" aria-selected="${ns.filter===value?'true':'false'}" class="${ns.filter===value?'is-active':''}" data-notification-filter="${value}">${label}<span>${categoryCount(value)}</span></button>`).join('')}</div>
+      <div class="qpc-notification-list">${ns.loading?'<div class="qpc-notification-empty">Cargando…</div>':rows.length?rows.map(notificationRow).join(''):'<div class="qpc-notification-empty"><strong>Sin resultados</strong><span>No hay notificaciones en esta categoría.</span></div>'}</div>
     </aside></div>`;
   }
   function renderPanel(){
@@ -5951,8 +5978,11 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     const userId=authId(actor());if(!userId||(ns.channel&&ns.channelUserId===userId))return;
     if(ns.channel){try{supabaseClient.removeChannel(ns.channel);}catch(_){ }ns.channel=null;ns.channelUserId=null;}
     ns.channel=supabaseClient.channel(`qpc-notifications-${userId}`)
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'qpc_notifications',filter:`recipient_id=eq.${userId}`},payload=>{
-        if(payload.new&&!ns.rows.some(row=>row.id===payload.new.id))ns.rows.unshift(payload.new);
+      .on('postgres_changes',{event:'*',schema:'public',table:'qpc_notifications',filter:`recipient_id=eq.${userId}`},payload=>{
+        const next=payload.new||null,oldRow=payload.old||null;
+        if(payload.eventType==='DELETE'&&oldRow?.id)ns.rows=ns.rows.filter(row=>row.id!==oldRow.id);
+        else if(next?.archived_at)ns.rows=ns.rows.filter(row=>row.id!==next.id);
+        else if(next?.id){const index=ns.rows.findIndex(row=>row.id===next.id);if(index>=0)ns.rows[index]=next;else ns.rows.unshift(next);ns.rows.sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));}
         ns.loaded=true;renderBell();if(ns.open)renderPanel();
       })
       .subscribe();
@@ -5971,6 +6001,8 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
       if(target.matches('[data-notification-close]')){event.preventDefault();closePanel();return;}
       if(target.id==='qpcRefreshNotifications'){event.preventDefault();await loadNotifications(true);return;}
       if(target.id==='qpcMarkAllRead'){event.preventDefault();target.disabled=true;await markAllRead();return;}
+      if(target.matches('[data-notification-filter]')){event.preventDefault();ns.filter=target.dataset.notificationFilter||'ALL';renderPanel();return;}
+      if(target.matches('[data-equipment-digest-toggle]')){event.preventDefault();event.stopPropagation();const id=target.dataset.equipmentDigestToggle;if(ns.expandedEquipment.has(id))ns.expandedEquipment.delete(id);else ns.expandedEquipment.add(id);renderPanel();return;}
       if(target.matches('[data-notification-open]')){event.preventDefault();await openNotification(target.dataset.notificationOpen);return;}
       if(target.matches('[data-notification-archive]')){event.preventDefault();await archiveNotification(target.dataset.notificationArchive);return;}
     }catch(error){console.error(error);toast(error.message||'No se pudo completar la acción.');}
@@ -5980,3 +6012,5 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   ns.poll=window.setInterval(()=>{if(actor())loadNotifications(true).catch(()=>{});},60000);
   setTimeout(()=>{if(actor())loadNotifications(true).catch(()=>{});renderBell();},0);
 })();
+
+/* MAIN V10.1.0 · Fase 22: digest de equipos y filtros del centro de notificaciones. */

@@ -1,30 +1,50 @@
-# Despliegue MAIN V10.0 — Fase 21
+# Despliegue MAIN V10.1 — Fase 22
 
 ## 1. Supabase
-Ejecute en SQL Editor, completo y una sola vez:
 
-`supabase/migrations/20260727_020_notifications_activity_center.sql`
+Ejecute en **Supabase → SQL Editor → New query** el archivo completo:
 
-La migración es idempotente y crea:
+`supabase/migrations/20260727_021_equipment_notification_digest.sql`
 
-- `qpc_notifications`
-- funciones para consultar, leer y archivar notificaciones;
-- triggers de inspecciones e informes;
-- generación diaria de alertas por equipos vencidos o próximos a vencer;
-- permisos y políticas RLS.
+La migración:
+
+- archiva las alertas individuales de equipos generadas por V10.0;
+- reemplaza `qpc_refresh_due_equipment_notifications()`;
+- crea una sola notificación consolidada por proyecto y destinatario;
+- guarda dentro de `metadata.items` el listado de equipos, fecha exigible y estado;
+- reactiva la notificación solo cuando aún existen alertas;
+- vuelve a marcarla como no leída únicamente cuando cambia el contenido.
+
+No requiere crear ni actualizar Edge Functions.
 
 ## 2. GitHub y Vercel
-1. Sustituya el contenido del branch `main` por esta carpeta.
+
+1. Elimine los archivos actuales del branch `main` o sustitúyalos por esta carpeta.
 2. Confirme el commit.
 3. Espere el despliegue automático de Vercel.
-4. Realice una recarga sin caché.
+4. Cierre la pestaña anterior y realice una recarga sin caché.
 
-No se requiere crear ni actualizar Edge Functions.
+## 3. Resultado esperado
 
-## 3. Prueba rápida
-1. Entre como Ingeniero de Ejecución y envíe una solicitud de liberación.
-2. Entre como Calidad: la campana debe mostrar la nueva solicitud.
-3. Tome la inspección y cambie su estado.
-4. Vuelva a entrar como Ejecución: debe recibir la actualización.
-5. Abra una notificación; la plataforma debe llevarlo al registro relacionado.
-6. Use “Marcar todas como leídas” y archive una notificación.
+1. Entre como Calidad, Gerente de Calidad o IT.
+2. Abra la campana de notificaciones.
+3. Debe aparecer una tarjeta **Alertas de equipos** por proyecto, no una tarjeta por cada equipo.
+4. La tarjeta muestra:
+   - cantidad de vencidos;
+   - cantidad de próximos a vencer;
+   - los conteos de vencidos y próximos;
+   - botón **Ver los N equipos** y expansión del listado completo dentro de la misma tarjeta;
+   - botón separado para abrir Verificación de equipos.
+5. Al pulsar la tarjeta, se abre **Verificación de equipos**.
+6. Los filtros superiores permiten mostrar Todas, Inspecciones, Informes o Equipos.
+
+## 4. Verificación SQL opcional
+
+```sql
+select recipient_id, project_id, title, body,
+       jsonb_array_length(metadata->'items') as equipos,
+       read_at, archived_at
+from public.qpc_notifications
+where event_key like 'equipment-summary:%'
+order by created_at desc;
+```

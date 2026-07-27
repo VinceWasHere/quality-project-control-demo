@@ -11,3 +11,8 @@ No se reintroducen archivos históricos duplicados ni capas JavaScript separadas
 
 ## V10.0
 Se agregó únicamente una migración SQL y se actualizaron los archivos consolidados `app.bundle.js`, `styles.css`, `index.html`, `README.md` y `DEPLOYMENT.md`. No se introdujeron nuevos archivos JavaScript de parche.
+
+
+## V10.1
+- Se añadió una única migración versionada para consolidar notificaciones de equipos.
+- No se agregaron copias sueltas de SQL ni archivos de parche.
