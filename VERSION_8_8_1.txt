@@ -1,2 +1,0 @@
-Quality Project Control MAIN V8.8.1
-Hotfix de combobox de login sin MutationObserver recursivo.

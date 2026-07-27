@@ -5190,3 +5190,80 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
 
   document.addEventListener('change',event=>{if(['p10Mode','p10Period','activeProjectSelect','projectSelector'].includes(event.target.id)){state.key='';state.plan=[];}},true);
 })();
+
+/* Quality Project Control MAIN V9.5 · Fase 16
+   Flujo de revisión/publicación de informes y consolidación del repositorio. */
+(()=>{
+  const review={key:'',cycle:null,events:[],loading:null};
+  const user=()=>currentUser?.();
+  const can=code=>Boolean(user()&&(user().role==='IT'||window.qpcHasPermission?.(user(),code)));
+  const key=()=>`${projectId()}|${ui.reportMode||'month'}|${ui.reportValue||''}`;
+  const esc16=value=>escapeHtml(String(value??''));
+  const labels={DRAFT:'Borrador',READY_FOR_REVIEW:'Listo para revisión',APPROVED:'Aprobado',PUBLISHED:'Publicado'};
+  const tones={DRAFT:'badge-gray',READY_FOR_REVIEW:'badge-yellow',APPROVED:'badge-blue',PUBLISHED:'badge-green'};
+
+  async function load(force=false){
+    const currentKey=key();
+    if(!force&&review.key===currentKey)return review;
+    if(review.loading)return review.loading;
+    review.key=currentKey;review.cycle=null;review.events=[];
+    const [project,mode,value]=currentKey.split('|');
+    review.loading=(async()=>{
+      const {data:cycle,error}=await supabaseClient.from('qpc_report_cycles').select('*').eq('project_id',project).eq('period_mode',mode).eq('period_value',value).maybeSingle();
+      if(error&&error.code!=='PGRST116')throw error;
+      review.cycle=cycle||null;
+      if(cycle?.id){
+        const {data:events,error:eventError}=await supabaseClient.from('qpc_report_cycle_events').select('*').eq('cycle_id',cycle.id).order('created_at',{ascending:false}).limit(6);
+        if(eventError)throw eventError;review.events=events||[];
+      }
+      review.loading=null;return review;
+    })().catch(error=>{review.loading=null;console.error('Report review',error);return review;});
+    return review.loading;
+  }
+  window.qpcLoadReportReview=load;
+
+  function buttons(status){
+    const items=[];
+    if(can('reports.review.manage'))items.push('<button type="button" class="btn btn-outline" data-p16-action="SAVE_DRAFT">Guardar notas</button>');
+    if(can('reports.review.manage')&&['DRAFT','READY_FOR_REVIEW'].includes(status))items.push('<button type="button" class="btn btn-primary" data-p16-action="MARK_READY">Marcar listo para revisión</button>');
+    if(can('reports.review.approve')&&status==='READY_FOR_REVIEW')items.push('<button type="button" class="btn btn-success" data-p16-action="APPROVE">Aprobar</button>');
+    if(can('reports.review.publish')&&status==='APPROVED')items.push('<button type="button" class="btn btn-primary" data-p16-action="PUBLISH">Publicar versión</button>');
+    if(can('reports.review.manage')&&['APPROVED','PUBLISHED'].includes(status))items.push('<button type="button" class="btn btn-danger" data-p16-action="REOPEN">Reabrir como borrador</button>');
+    return items.join('');
+  }
+
+  function panel(){
+    const currentKey=key();
+    if(review.key!==currentKey&&!review.loading){load().then(()=>window.render?.());}
+    const cycle=review.cycle,status=cycle?.status||'DRAFT',revision=Number(cycle?.revision_number||0);
+    const history=review.events.length?review.events.map(event=>`<li><strong>${esc16(labels[event.new_status]||event.new_status)}</strong><span>${esc16(formatDateTime(event.created_at))}</span>${event.notes?`<small>${esc16(event.notes)}</small>`:''}</li>`).join(''):'<li class="helper">Aún no hay movimientos registrados para este periodo.</li>';
+    return `<section class="card p16-review-card"><div class="p16-review-head"><div><span class="badge ${tones[status]||'badge-gray'}">${esc16(labels[status]||status)}</span><h3>Revisión y publicación</h3><p class="helper">Controle el estado oficial del informe antes de distribuirlo.</p></div><div class="p16-revision"><span>Versión publicada</span><strong>V${String(revision).padStart(2,'0')}</strong></div></div><div class="p16-review-grid"><div class="field"><label>Notas de revisión</label><textarea id="p16ReviewNotes" rows="3" placeholder="Pendientes, observaciones o aprobación del periodo.">${esc16(cycle?.review_notes||'')}</textarea></div><div><h4>Historial reciente</h4><ul class="p16-event-list">${history}</ul></div></div><div class="button-row">${review.loading?'<span class="helper">Cargando estado…</span>':buttons(status)}</div></section>`;
+  }
+
+  const previousRenderView=window.renderView;
+  window.renderView=function(current){
+    let html=previousRenderView(current);
+    if(ui.view==='report-content'){
+      const marker='<section class="card p15-report-actions">';
+      html=String(html).includes(marker)?String(html).replace(marker,`${panel()}${marker}`):`${panel()}${html}`;
+    }
+    return html;
+  };
+
+  async function act(button,action){
+    const messages={PUBLISH:'¿Está seguro de publicar esta versión? El número oficial del informe aumentará.',REOPEN:'¿Está seguro de reabrir el informe? Volverá a estado borrador.',APPROVE:'¿Confirma que revisó el contenido y desea aprobarlo?'};
+    if(messages[action]&&!window.confirm(messages[action]))return;
+    const old=button.textContent;button.disabled=true;button.textContent='Procesando…';
+    try{
+      const {data,error}=await supabaseClient.rpc('qpc_set_report_cycle_status',{p_project_id:projectId(),p_period_mode:ui.reportMode||'month',p_period_value:ui.reportValue||'',p_action:action,p_notes:document.getElementById('p16ReviewNotes')?.value||''});
+      if(error)throw error;review.key='';await load(true);toast(`Informe: ${labels[data?.status]||data?.status||'actualizado'}.`);window.render?.();
+    }finally{button.disabled=false;button.textContent=old;}
+  }
+
+  document.addEventListener('click',event=>{
+    const button=event.target.closest('[data-p16-action]');if(!button)return;
+    event.preventDefault();event.stopPropagation();event.stopImmediatePropagation();
+    act(button,button.dataset.p16Action).catch(error=>{console.error(error);toast(error.message||'No se pudo actualizar el informe.');});
+  },true);
+  document.addEventListener('change',event=>{if(['p10Mode','p10Period','activeProjectSelect','projectSelector'].includes(event.target.id)){review.key='';review.cycle=null;review.events=[];}},true);
+})();

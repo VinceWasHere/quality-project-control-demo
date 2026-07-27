@@ -1,2 +1,0 @@
-Quality Project Control MAIN V8.6.0 · Fase 7
-Integridad de datos, catálogo relacional de talleres/planillas y recuperación de calificaciones históricas.
