@@ -677,3 +677,29 @@ a{color:inherit;text-decoration:none}
   .p20-doc-count{align-self:flex-start}
   .p20-view-doc{width:100%}
 }
+
+/* MAIN V10.0 · Fase 21 · Centro de notificaciones */
+.qpc-notification-bell{position:relative;display:inline-grid;place-items:center;width:42px;height:42px;border:1px solid #d8e2ea;border-radius:50%;background:#fff;color:#0f4c66;cursor:pointer;flex:0 0 auto;transition:.18s ease}
+.qpc-notification-bell:hover,.qpc-notification-bell[aria-expanded="true"]{border-color:#c8102e;background:#fff4f5;color:#c8102e}
+.qpc-notification-bell svg{width:21px;height:21px}
+.qpc-notification-count{position:absolute;top:-4px;right:-4px;display:grid;place-items:center;min-width:19px;height:19px;padding:0 4px;border:2px solid #fff;border-radius:999px;background:#c8102e;color:#fff;font-size:10px;font-weight:800;line-height:1}
+.qpc-notifications-open{overflow:hidden}
+.qpc-notification-overlay{position:fixed;inset:0;z-index:10040;display:flex;justify-content:flex-end}
+.qpc-notification-backdrop{position:absolute;inset:0;border:0;background:rgba(15,23,42,.36);cursor:default}
+.qpc-notification-panel{position:relative;display:flex;flex-direction:column;width:min(430px,100vw);height:100%;background:#f8fafc;box-shadow:-18px 0 40px rgba(15,23,42,.18);animation:qpcNotificationIn .18s ease-out}
+@keyframes qpcNotificationIn{from{transform:translateX(22px);opacity:.55}to{transform:none;opacity:1}}
+.qpc-notification-panel>header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:22px 20px 16px;border-bottom:1px solid #dbe4ec;background:#fff}
+.qpc-notification-panel h2{margin:0;font-size:23px}.qpc-notification-panel header p{margin:4px 0 0;color:#64748b;font-size:13px}
+.qpc-notification-close{display:grid;place-items:center;width:38px;height:38px;border:1px solid #d8e2ea;border-radius:12px;background:#fff;color:#334155;font-size:25px;cursor:pointer}
+.qpc-notification-actions{display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid #dbe4ec;background:#fff}.qpc-notification-actions .btn{flex:1;padding:9px 10px;font-size:12px}
+.qpc-notification-list{flex:1;overflow:auto;padding:12px}
+.qpc-notification-item{position:relative;margin-bottom:8px;border:1px solid #dbe4ec;border-radius:15px;background:#fff;overflow:hidden}.qpc-notification-item.is-unread{border-color:#b7d4e5;background:#f7fcff;box-shadow:inset 3px 0 #0f6b8c}
+.qpc-notification-main{display:grid;grid-template-columns:40px minmax(0,1fr) 8px;gap:11px;align-items:start;width:100%;padding:14px 42px 14px 14px;border:0;background:transparent;text-align:left;cursor:pointer;color:#0f172a}
+.qpc-notification-main:hover{background:rgba(15,76,102,.035)}
+.qpc-notification-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#e8f2f7;color:#0f4c66;font-size:17px;font-style:normal;font-weight:800}.qpc-notification-report{background:#f3e8ff;color:#7e22ce}.qpc-notification-equipment{background:#fff3d6;color:#9a6700}.qpc-notification-inspection{background:#e8f8ed;color:#15803d}
+.qpc-notification-copy{display:grid;min-width:0;gap:4px}.qpc-notification-copy strong{font-size:14px;line-height:1.25}.qpc-notification-copy>span:last-child{color:#526173;font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+.qpc-notification-meta{display:flex;justify-content:space-between;gap:8px;color:#718096;font-size:10px}.qpc-notification-meta em{font-style:normal;font-weight:800;text-transform:uppercase;letter-spacing:.04em}.qpc-notification-meta time{white-space:nowrap}
+.qpc-notification-dot{align-self:center;width:8px;height:8px;border-radius:50%;background:#c8102e}
+.qpc-notification-archive{position:absolute;right:7px;top:50%;translate:0 -50%;display:grid;place-items:center;width:29px;height:29px;border:0;border-radius:9px;background:transparent;color:#94a3b8;font-size:20px;cursor:pointer}.qpc-notification-archive:hover{background:#fee2e2;color:#b91c1c}
+.qpc-notification-empty{display:grid;place-items:center;gap:5px;min-height:180px;padding:30px;color:#64748b;text-align:center}.qpc-notification-empty strong{color:#0f172a;font-size:17px}.qpc-notification-empty span{font-size:13px}
+@media(max-width:700px){.qpc-notification-bell{width:38px;height:38px}.qpc-notification-panel{width:100vw}.qpc-notification-panel>header{padding-top:18px}.qpc-notification-actions{position:sticky;top:0;z-index:1}.qpc-notification-main{grid-template-columns:36px minmax(0,1fr) 8px;padding-left:11px}.qpc-notification-icon{width:34px;height:34px}.top-right .qpc-notification-bell{order:3}}

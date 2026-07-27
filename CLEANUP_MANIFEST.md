@@ -8,3 +8,6 @@ V9.7 agrega únicamente:
 - Estilos consolidados de Fase 18 en `styles.css`
 
 No se reintroducen archivos históricos duplicados ni capas JavaScript separadas.
+
+## V10.0
+Se agregó únicamente una migración SQL y se actualizaron los archivos consolidados `app.bundle.js`, `styles.css`, `index.html`, `README.md` y `DEPLOYMENT.md`. No se introdujeron nuevos archivos JavaScript de parche.

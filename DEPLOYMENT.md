@@ -1,24 +1,30 @@
-# Despliegue MAIN V9.9 — Fase 20
+# Despliegue MAIN V10.0 — Fase 21
 
-## Alcance
-Esta fase habilita la visualización de instructivos relacionados y del mapeo original desde el formulario **Solicitar inspección**.
+## 1. Supabase
+Ejecute en SQL Editor, completo y una sola vez:
 
-## Pasos
-1. Sustituya el contenido del branch `main` por los archivos de esta carpeta.
-2. Confirme el commit en GitHub.
+`supabase/migrations/20260727_020_notifications_activity_center.sql`
+
+La migración es idempotente y crea:
+
+- `qpc_notifications`
+- funciones para consultar, leer y archivar notificaciones;
+- triggers de inspecciones e informes;
+- generación diaria de alertas por equipos vencidos o próximos a vencer;
+- permisos y políticas RLS.
+
+## 2. GitHub y Vercel
+1. Sustituya el contenido del branch `main` por esta carpeta.
+2. Confirme el commit.
 3. Espere el despliegue automático de Vercel.
 4. Realice una recarga sin caché.
 
-## No requiere
-- SQL nuevo.
-- Edge Function nueva.
-- Cambios manuales en Supabase.
+No se requiere crear ni actualizar Edge Functions.
 
-## Prueba recomendada
-1. Inicie sesión como Ingeniero de Ejecución.
-2. Entre a **Solicitar inspección**.
-3. Seleccione una planilla que tenga instructivos relacionados.
-4. Pulse **Visualizar** en un instructivo disponible.
-5. Confirme que el documento se abre en el visor interno.
-6. Cambie de planilla y verifique que la lista se actualiza.
-7. Pulse **Visualizar mapeo** y confirme que no se abre una pestaña nueva.
+## 3. Prueba rápida
+1. Entre como Ingeniero de Ejecución y envíe una solicitud de liberación.
+2. Entre como Calidad: la campana debe mostrar la nueva solicitud.
+3. Tome la inspección y cambie su estado.
+4. Vuelva a entrar como Ejecución: debe recibir la actualización.
+5. Abra una notificación; la plataforma debe llevarlo al registro relacionado.
+6. Use “Marcar todas como leídas” y archive una notificación.

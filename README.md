@@ -1,3 +1,20 @@
+# Quality Project Control MAIN
+
+## V10.0 — Fase 21 · Centro de notificaciones y actividad
+
+- Se incorpora una campana de notificaciones en la cabecera para todos los usuarios autenticados.
+- Las nuevas solicitudes de liberación notifican a Calidad, Gerente de Calidad e IT asignados al proyecto.
+- Los cambios de estado de una inspección notifican al Ingeniero de Ejecución solicitante y al responsable de Calidad.
+- La asignación de una inspección notifica al inspector correspondiente.
+- Los cambios de revisión, aprobación y publicación de informes notifican a los roles gerenciales autorizados.
+- Los equipos vencidos o próximos a vencer generan alertas para Calidad e IT sin duplicar mensajes.
+- El panel permite abrir el registro relacionado, marcar como leído, marcar todo como leído y archivar notificaciones.
+- Se añade actualización en tiempo real mediante Supabase Realtime y refresco de respaldo cada 60 segundos.
+- Las notificaciones son personales y están protegidas mediante RLS.
+- El README mantiene el historial desde la versión más reciente hasta la más antigua.
+
+---
+
 # Quality Project Control — MAIN
 
 ## V9.9 · Fase 20 — Consulta documental antes de solicitar inspecciones

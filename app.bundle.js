@@ -5823,3 +5823,160 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     return html;
   };
 })();
+
+/* ================================================================
+   Quality Project Control · MAIN V10.0.0 · Fase 21
+   Centro de notificaciones internas y actividad interconectada.
+   ================================================================ */
+(()=>{
+  'use strict';
+  const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL&&typeof supabaseClient!=='undefined');
+  if(!MAIN_MODE)return;
+
+  const ns={rows:[],loaded:false,loading:null,open:false,channel:null,channelUserId:null,userId:null,poll:null,lastEquipmentRefresh:''};
+  const list=value=>Array.isArray(value)?value:[];
+  const actor=()=>typeof currentUser==='function'?currentUser():null;
+  const authId=user=>user?.authId||user?.id||null;
+  const canView=()=>Boolean(actor()&&(actor().role==='IT'||window.qpcHasPermission?.(actor(),'notifications.view')!==false));
+  const unread=()=>ns.rows.filter(row=>!row.read_at).length;
+  const esc=value=>typeof escapeHtml==='function'?escapeHtml(value):String(value??'');
+  window.qpcNotifications=ns;
+
+  function relativeTime(value){
+    const time=new Date(value).getTime();if(!Number.isFinite(time))return '';
+    const seconds=Math.max(0,Math.floor((Date.now()-time)/1000));
+    if(seconds<60)return 'Ahora';
+    const minutes=Math.floor(seconds/60);if(minutes<60)return `Hace ${minutes} min`;
+    const hours=Math.floor(minutes/60);if(hours<24)return `Hace ${hours} h`;
+    const days=Math.floor(hours/24);if(days<7)return `Hace ${days} d`;
+    return new Date(value).toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric'});
+  }
+  function categoryIcon(category){return {INSPECTION:'✓',REPORT:'▤',EQUIPMENT:'⌁',USER:'●',GENERAL:'•'}[category]||'•';}
+  function categoryLabel(category){return {INSPECTION:'Inspección',REPORT:'Informe',EQUIPMENT:'Equipo',USER:'Usuario',GENERAL:'General'}[category]||category||'General';}
+
+  async function refreshEquipmentOnce(){
+    const user=actor(),today=new Date().toISOString().slice(0,10);
+    if(!user||!['CALIDAD','COORDINADOR_CALIDAD','IT'].includes(user.role)||ns.lastEquipmentRefresh===today)return;
+    ns.lastEquipmentRefresh=today;
+    try{await supabaseClient.rpc('qpc_refresh_due_equipment_notifications');}catch(error){console.warn('No se refrescaron alertas de equipos',error);}
+  }
+
+  async function loadNotifications(force=false){
+    const user=actor(),userId=authId(user);
+    if(!userId||!canView()){ns.rows=[];ns.loaded=true;renderBell();return ns.rows;}
+    if(ns.loaded&&!force&&ns.userId===userId)return ns.rows;
+    if(ns.loading&&!force&&ns.userId===userId)return ns.loading;
+    ns.userId=userId;
+    ns.loading=(async()=>{
+      await refreshEquipmentOnce();
+      const {data:rows,error}=await supabaseClient.rpc('qpc_notifications_for_current_user',{p_limit:60,p_unread_only:false});
+      if(error)throw error;
+      ns.rows=list(rows);ns.loaded=true;ns.loading=null;
+      renderBell();if(ns.open)renderPanel();subscribeRealtime();return ns.rows;
+    })().catch(error=>{ns.loading=null;console.error('No se cargaron las notificaciones',error);throw error;});
+    return ns.loading;
+  }
+  window.qpcLoadNotifications=loadNotifications;
+
+  function bellMarkup(){
+    const count=unread();
+    return `<button id="qpcNotificationBell" class="qpc-notification-bell" type="button" aria-label="Notificaciones${count?`, ${count} sin leer`:''}" aria-expanded="${ns.open?'true':'false'}">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      ${count?`<span class="qpc-notification-count">${count>99?'99+':count}</span>`:''}
+    </button>`;
+  }
+  function renderBell(){
+    const host=document.querySelector('.topbar .top-right');
+    if(!host||!actor()||!canView()){document.getElementById('qpcNotificationBell')?.remove();return;}
+    const current=document.getElementById('qpcNotificationBell');
+    if(current){current.outerHTML=bellMarkup();return;}
+    const avatar=host.querySelector('.qpc-avatar,.profile-avatar-img,.avatar');
+    if(avatar)avatar.insertAdjacentHTML('beforebegin',bellMarkup());else host.insertAdjacentHTML('beforeend',bellMarkup());
+  }
+
+  function notificationRow(row){
+    const isUnread=!row.read_at;
+    return `<article class="qpc-notification-item ${isUnread?'is-unread':''}" data-notification-id="${esc(row.id)}">
+      <button class="qpc-notification-main" type="button" data-notification-open="${esc(row.id)}">
+        <span class="qpc-notification-icon qpc-notification-${esc(String(row.category||'GENERAL').toLowerCase())}">${esc(categoryIcon(row.category))}</span>
+        <span class="qpc-notification-copy"><span class="qpc-notification-meta"><em>${esc(categoryLabel(row.category))}</em><time>${esc(relativeTime(row.created_at))}</time></span><strong>${esc(row.title)}</strong><span>${esc(row.body||'')}</span></span>
+        ${isUnread?'<i class="qpc-notification-dot" aria-label="Sin leer"></i>':''}
+      </button>
+      <button class="qpc-notification-archive" type="button" data-notification-archive="${esc(row.id)}" aria-label="Archivar notificación">×</button>
+    </article>`;
+  }
+  function panelMarkup(){
+    return `<div id="qpcNotificationOverlay" class="qpc-notification-overlay"><button class="qpc-notification-backdrop" type="button" data-notification-close aria-label="Cerrar notificaciones"></button><aside class="qpc-notification-panel" role="dialog" aria-modal="true" aria-labelledby="qpcNotificationTitle">
+      <header><div><h2 id="qpcNotificationTitle">Notificaciones</h2><p>${unread()} sin leer · ${ns.rows.length} recientes</p></div><button type="button" class="qpc-notification-close" data-notification-close aria-label="Cerrar">×</button></header>
+      <div class="qpc-notification-actions"><button type="button" class="btn btn-outline" id="qpcMarkAllRead" ${unread()?'':'disabled'}>Marcar todas como leídas</button><button type="button" class="btn btn-secondary" id="qpcRefreshNotifications">Actualizar</button></div>
+      <div class="qpc-notification-list">${ns.loading?'<div class="qpc-notification-empty">Cargando…</div>':ns.rows.length?ns.rows.map(notificationRow).join(''):'<div class="qpc-notification-empty"><strong>Está al día</strong><span>No hay notificaciones recientes.</span></div>'}</div>
+    </aside></div>`;
+  }
+  function renderPanel(){
+    document.getElementById('qpcNotificationOverlay')?.remove();
+    if(!ns.open)return;
+    document.body.insertAdjacentHTML('beforeend',panelMarkup());
+    document.body.classList.add('qpc-notifications-open');
+    setTimeout(()=>document.querySelector('.qpc-notification-close')?.focus(),0);
+  }
+  function closePanel(){ns.open=false;document.getElementById('qpcNotificationOverlay')?.remove();document.body.classList.remove('qpc-notifications-open');renderBell();}
+  async function openPanel(){ns.open=true;renderBell();renderPanel();try{await loadNotifications(true);}catch(error){toast(error.message||'No se pudieron cargar las notificaciones.');}}
+
+  async function markRead(id){
+    const row=ns.rows.find(item=>item.id===id);if(row&&!row.read_at)row.read_at=new Date().toISOString();
+    renderBell();if(ns.open)renderPanel();
+    const {error}=await supabaseClient.rpc('qpc_mark_notification_read',{p_notification_id:id});if(error)throw error;
+  }
+  async function markAllRead(){
+    const now=new Date().toISOString();ns.rows.forEach(row=>{if(!row.read_at)row.read_at=now;});renderBell();renderPanel();
+    const {error}=await supabaseClient.rpc('qpc_mark_all_notifications_read');if(error)throw error;
+  }
+  async function archiveNotification(id){
+    ns.rows=ns.rows.filter(row=>row.id!==id);renderBell();renderPanel();
+    const {error}=await supabaseClient.rpc('qpc_archive_notification',{p_notification_id:id});if(error)throw error;
+  }
+  async function openNotification(id){
+    const row=ns.rows.find(item=>item.id===id);if(!row)return;
+    try{await markRead(id);}catch(error){console.warn(error);}
+    closePanel();
+    if(row.action_view==='detail'&&row.entity_id){ui.selectedId=row.entity_id;ui.view='detail';}
+    else if(row.action_view==='qualityQueue')ui.view='qualityQueue';
+    else if(row.action_view==='report-content')ui.view='report-content';
+    else if(row.action_view==='equipment')ui.view='equipment';
+    else ui.view='home';
+    render();
+  }
+
+  function subscribeRealtime(){
+    const userId=authId(actor());if(!userId||(ns.channel&&ns.channelUserId===userId))return;
+    if(ns.channel){try{supabaseClient.removeChannel(ns.channel);}catch(_){ }ns.channel=null;ns.channelUserId=null;}
+    ns.channel=supabaseClient.channel(`qpc-notifications-${userId}`)
+      .on('postgres_changes',{event:'INSERT',schema:'public',table:'qpc_notifications',filter:`recipient_id=eq.${userId}`},payload=>{
+        if(payload.new&&!ns.rows.some(row=>row.id===payload.new.id))ns.rows.unshift(payload.new);
+        ns.loaded=true;renderBell();if(ns.open)renderPanel();
+      })
+      .subscribe();
+    ns.channelUserId=userId;
+  }
+
+  const previousLoad=window.loadRemoteData;
+  window.loadRemoteData=async function(){await previousLoad();try{await loadNotifications(true);}catch(error){console.warn(error.message);}};
+  const previousRender=window.render;
+  window.render=function(){const result=previousRender.apply(this,arguments);requestAnimationFrame(()=>{renderBell();if(ns.open)renderPanel();});return result;};
+
+  document.addEventListener('click',async event=>{
+    const target=event.target.closest('button');if(!target)return;
+    try{
+      if(target.id==='qpcNotificationBell'){event.preventDefault();event.stopPropagation();ns.open?closePanel():await openPanel();return;}
+      if(target.matches('[data-notification-close]')){event.preventDefault();closePanel();return;}
+      if(target.id==='qpcRefreshNotifications'){event.preventDefault();await loadNotifications(true);return;}
+      if(target.id==='qpcMarkAllRead'){event.preventDefault();target.disabled=true;await markAllRead();return;}
+      if(target.matches('[data-notification-open]')){event.preventDefault();await openNotification(target.dataset.notificationOpen);return;}
+      if(target.matches('[data-notification-archive]')){event.preventDefault();await archiveNotification(target.dataset.notificationArchive);return;}
+    }catch(error){console.error(error);toast(error.message||'No se pudo completar la acción.');}
+  },true);
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&ns.open)closePanel();});
+  supabaseClient.auth.onAuthStateChange((event)=>{if(event==='SIGNED_OUT'){closePanel();ns.rows=[];ns.loaded=false;if(ns.channel){supabaseClient.removeChannel(ns.channel);ns.channel=null;ns.channelUserId=null;}}else if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED'){setTimeout(()=>loadNotifications(true).catch(()=>{}),0);}});
+  ns.poll=window.setInterval(()=>{if(actor())loadNotifications(true).catch(()=>{});},60000);
+  setTimeout(()=>{if(actor())loadNotifications(true).catch(()=>{});renderBell();},0);
+})();
