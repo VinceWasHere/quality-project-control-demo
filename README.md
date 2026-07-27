@@ -1,5 +1,19 @@
 # Quality Project Control — MAIN
 
+## V9.8 · Fase 19 — Validación inteligente y control de publicación
+
+- Se agregó un checklist obligatorio por sección para informes semanales y mensuales.
+- Cada sección puede marcarse como Pendiente, Completa o No aplica, con notas y trazabilidad del revisor.
+- El panel muestra porcentaje de preparación, secciones pendientes, registros y evidencias.
+- La publicación queda bloqueada en Supabase mientras existan secciones pendientes.
+- Gerente de Calidad, Presidencia e IT pueden autorizar una excepción justificada y auditada.
+- Cualquier cambio posterior en contenido o evidencias devuelve la sección a Pendiente y revoca la excepción.
+- El README acumulativo conserva la versión más reciente primero.
+
+---
+
+# Quality Project Control — MAIN
+
 ## V9.7 · Fase 18 — Comparación de versiones y reloj vivo
 
 - Se agregó un reloj en vivo con día, fecha y hora para todos los usuarios, visible tanto en el login como en la cabecera de la aplicación.

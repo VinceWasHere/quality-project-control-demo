@@ -5609,3 +5609,140 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     }catch(error){console.error(error);toast(error.message||'No se pudo completar la comparación.');button.disabled=false;if(button.id==='p18CompareBtn')button.textContent='Comparar versiones';}
   },true);
 })();
+
+/* Quality Project Control MAIN V9.8 · Fase 19
+   Checklist inteligente y control previo a publicación. */
+(()=>{
+  'use strict';
+  if(!(window.QPC_SUPABASE_URL&&typeof supabaseClient!=='undefined'))return;
+  const state={key:'',rows:[],loading:null};
+  const actor=()=>typeof currentUser==='function'?currentUser():null;
+  const can=code=>Boolean(actor()&&(actor().role==='IT'||window.qpcHasPermission?.(actor(),code)));
+  const esc=value=>typeof escapeHtml==='function'?escapeHtml(String(value??'')):String(value??'');
+  const project=()=>typeof projectId==='function'?projectId():ui.activeProjectId;
+  const mode=()=>ui.reportMode||'month';
+  const period=()=>ui.reportValue||'';
+  const currentKey=()=>`${project()}|${mode()}|${period()}`;
+  const statusLabels={PENDING:'Pendiente',COMPLETE:'Completa',NOT_APPLICABLE:'No aplica'};
+
+  async function load(force=false){
+    const key=currentKey();
+    if(!force&&state.key===key&&state.rows.length)return state.rows;
+    if(state.loading)return state.loading;
+    state.key=key;
+    state.loading=(async()=>{
+      const {data,error}=await supabaseClient.rpc('qpc_report_validation_for_period',{
+        p_project_id:project(),p_period_mode:mode(),p_period_value:period()
+      });
+      if(error)throw error;
+      state.rows=Array.isArray(data)?data:[];
+      return state.rows;
+    })().catch(error=>{console.error('Validación de informe',error);state.rows=[];return [];}).finally(()=>{state.loading=null;});
+    return state.loading;
+  }
+  window.qpcLoadReportValidation=load;
+
+  function summary(){
+    const total=state.rows.length;
+    const complete=state.rows.filter(row=>row.review_status==='COMPLETE').length;
+    const na=state.rows.filter(row=>row.review_status==='NOT_APPLICABLE').length;
+    const pending=state.rows.filter(row=>row.is_blocker).length;
+    const entries=state.rows.reduce((sum,row)=>sum+Number(row.entry_count||0),0);
+    const evidence=state.rows.reduce((sum,row)=>sum+Number(row.evidence_count||0),0);
+    const pct=total?Math.round(((complete+na)/total)*100):0;
+    const override=state.rows.some(row=>row.override_active);
+    const reason=state.rows.find(row=>row.override_active)?.override_reason||'';
+    return {total,complete,na,pending,entries,evidence,pct,override,reason};
+  }
+
+  function panel(){
+    if(!can('reports.validation.view'))return '';
+    if(state.key!==currentKey()&&!state.loading)load().then(()=>window.render?.());
+    const s=summary();
+    return `<section class="card p19-validation-card"><div class="p19-validation-head"><div><span class="badge badge-blue">Control previo</span><h3>Validación previa a publicación</h3><p class="helper">Revise cada sección manual antes de publicar una versión oficial.</p></div><div class="p19-progress-summary"><strong>${s.pct}%</strong><span>${s.complete+s.na} revisadas</span><span>${s.total} secciones</span></div></div><div class="p19-progress-track" aria-label="Avance ${s.pct}%"><span style="width:${s.pct}%"></span></div><div class="p19-validation-stats"><div class="metric-card"><span>Pendientes</span><strong>${s.pending}</strong></div><div class="metric-card"><span>Completas</span><strong>${s.complete}</strong></div><div class="metric-card"><span>No aplica</span><strong>${s.na}</strong></div><div class="metric-card"><span>Evidencias</span><strong>${s.evidence}</strong></div></div><div class="p19-validation-alert ${s.pending===0?'is-ready':''}"><div><strong>${s.pending===0?'Informe validado':'Publicación bloqueada'}</strong><div>${s.pending===0?'Todas las secciones fueron revisadas.':`Faltan ${s.pending} secciones por revisar.`}</div></div>${s.override?'<span class="badge badge-red">Excepción activa</span>':''}</div>${s.override?`<div class="p19-override-note"><strong>Excepción autorizada:</strong> ${esc(s.reason)}</div>`:''}<div class="button-row"><button type="button" id="p19OpenChecklist" class="btn btn-primary">Abrir checklist</button><button type="button" id="p19RefreshValidation" class="btn btn-secondary">Actualizar</button>${can('reports.validation.override')?`<button type="button" id="p19ManageOverride" class="btn btn-outline">${s.override?'Revocar excepción':'Autorizar excepción'}</button>`:''}</div></section>`;
+  }
+
+  const previousRenderView=window.renderView;
+  window.renderView=function(user){
+    let html=previousRenderView(user);
+    if(ui.view==='report-content'&&can('reports.validation.view')){
+      const marker='<section class="card p16-review-card">';
+      const fallback='<section class="card p15-report-actions">';
+      if(String(html).includes(marker))html=String(html).replace(marker,`${panel()}${marker}`);
+      else if(String(html).includes(fallback))html=String(html).replace(fallback,`${panel()}${fallback}`);
+      else html=`${panel()}${html}`;
+    }
+    return html;
+  };
+
+  function modalRoot(){
+    let root=document.getElementById('p19ModalRoot');
+    if(!root){root=document.createElement('div');root.id='p19ModalRoot';document.body.appendChild(root);}
+    return root;
+  }
+  function closeModal(){modalRoot().innerHTML='';}
+  function showModal(title,body,footer=''){
+    modalRoot().innerHTML=`<div class="p15-modal-backdrop"><section class="p15-modal p19-modal" role="dialog" aria-modal="true"><header class="qpc-modal-head"><h3>${esc(title)}</h3><button type="button" class="btn btn-secondary" data-p19-close aria-label="Cerrar">×</button></header><div class="qpc-modal-body">${body}</div><footer class="qpc-modal-foot">${footer||'<button type="button" class="btn btn-secondary" data-p19-close>Cerrar</button>'}</footer></section></div>`;
+  }
+
+  function checklistBody(){
+    if(!state.rows.length)return '<div class="alert alert-info">No se encontraron secciones para validar.</div>';
+    return `<div class="p19-checklist">${state.rows.map(row=>`<article class="p19-check-row" data-p19-section="${esc(row.section_code)}"><div class="p19-check-title"><strong>${esc(row.section_label)}</strong><small>${row.reviewed_by_name?`Revisó ${esc(row.reviewed_by_name)}${row.reviewed_at?` · ${esc(formatDateTime(row.reviewed_at))}`:''}`:'Sin revisar'}</small></div><div class="p19-check-number"><strong>${Number(row.entry_count||0)}</strong><span>registros</span></div><div class="p19-check-number"><strong>${Number(row.evidence_count||0)}</strong><span>evidencias</span></div><div class="field"><label class="sr-only">Estado</label><select data-p19-status><option value="PENDING" ${row.review_status==='PENDING'?'selected':''}>Pendiente</option><option value="COMPLETE" ${row.review_status==='COMPLETE'?'selected':''}>Completa</option><option value="NOT_APPLICABLE" ${row.review_status==='NOT_APPLICABLE'?'selected':''}>No aplica</option></select></div><div class="field p19-note"><label class="sr-only">Notas</label><input data-p19-notes value="${esc(row.notes||'')}" placeholder="Nota de revisión"></div><button type="button" class="btn btn-outline" data-p19-save>Guardar</button>${row.warning_text?`<p class="p19-warning">${esc(row.warning_text)}</p>`:''}</article>`).join('')}</div>`;
+  }
+
+  async function openChecklist(){await load(true);showModal('Checklist de validación',checklistBody(),'<div class="p19-modal-actions"><span class="helper">Modificar contenido o evidencias devuelve la sección a Pendiente.</span><button type="button" class="btn btn-secondary" data-p19-close>Cerrar</button></div>');}
+
+  async function saveRow(button){
+    const row=button.closest('[data-p19-section]');
+    if(!row)return;
+    const old=button.textContent;button.disabled=true;button.textContent='Guardando…';
+    try{
+      const {error}=await supabaseClient.rpc('qpc_set_report_section_check',{
+        p_project_id:project(),p_period_mode:mode(),p_period_value:period(),
+        p_section_code:row.dataset.p19Section,
+        p_status:row.querySelector('[data-p19-status]')?.value||'PENDING',
+        p_notes:row.querySelector('[data-p19-notes]')?.value||''
+      });
+      if(error)throw error;
+      await load(true);showModal('Checklist de validación',checklistBody(),'<div class="p19-modal-actions"><span class="helper">Modificar contenido o evidencias devuelve la sección a Pendiente.</span><button type="button" class="btn btn-secondary" data-p19-close>Cerrar</button></div>');
+      toast('Validación actualizada.');window.render?.();
+    }finally{button.disabled=false;button.textContent=old;}
+  }
+
+  function overrideDialog(){
+    const s=summary();
+    if(s.override){
+      showModal('Revocar excepción',`<div class="alert alert-warning">La publicación volverá a quedar bloqueada mientras existan secciones pendientes.</div><p><strong>Justificación vigente:</strong> ${esc(s.reason)}</p>`,`<button type="button" id="p19RevokeOverride" class="btn btn-danger">Revocar excepción</button><button type="button" class="btn btn-secondary" data-p19-close>Cancelar</button>`);
+    }else{
+      showModal('Autorizar excepción',`<div class="p19-override-form"><div class="alert alert-warning">Utilice esta opción solamente cuando sea necesario publicar con secciones pendientes. La acción queda auditada.</div><div class="field"><label>Justificación obligatoria</label><textarea id="p19OverrideReason" rows="4" placeholder="Explique por qué se autoriza la publicación incompleta."></textarea></div></div>`,`<button type="button" id="p19EnableOverride" class="btn btn-danger">Autorizar excepción</button><button type="button" class="btn btn-secondary" data-p19-close>Cancelar</button>`);
+    }
+  }
+
+  async function setOverride(button,enabled){
+    const reason=enabled?(document.getElementById('p19OverrideReason')?.value||''):'';
+    const old=button.textContent;button.disabled=true;button.textContent='Procesando…';
+    try{
+      const {error}=await supabaseClient.rpc('qpc_set_report_validation_override',{
+        p_project_id:project(),p_period_mode:mode(),p_period_value:period(),p_enabled:enabled,p_reason:reason
+      });
+      if(error)throw error;
+      closeModal();await load(true);window.render?.();toast(enabled?'Excepción autorizada.':'Excepción revocada.');
+    }finally{button.disabled=false;button.textContent=old;}
+  }
+
+  document.addEventListener('click',async event=>{
+    const button=event.target.closest('button');if(!button)return;
+    try{
+      if(button.id==='p19OpenChecklist'){event.preventDefault();await openChecklist();return;}
+      if(button.id==='p19RefreshValidation'){event.preventDefault();await load(true);window.render?.();toast('Validación actualizada.');return;}
+      if(button.id==='p19ManageOverride'){event.preventDefault();overrideDialog();return;}
+      if(button.matches('[data-p19-save]')){event.preventDefault();await saveRow(button);return;}
+      if(button.id==='p19EnableOverride'){event.preventDefault();await setOverride(button,true);return;}
+      if(button.id==='p19RevokeOverride'){event.preventDefault();await setOverride(button,false);return;}
+      if(button.matches('[data-p19-close]')){event.preventDefault();closeModal();return;}
+    }catch(error){console.error(error);toast(error.message||'No se pudo completar la validación.');button.disabled=false;}
+  },true);
+  document.addEventListener('change',event=>{
+    if(['p10Mode','p10Period','activeProjectSelect','projectSelector'].includes(event.target?.id)){state.key='';state.rows=[];}
+  },true);
+})();
