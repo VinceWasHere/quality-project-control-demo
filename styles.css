@@ -720,3 +720,15 @@ a{color:inherit;text-decoration:none}
 .qpc-equipment-digest-list time{flex:0 0 auto;color:#64748b;font-size:10px;font-weight:700}.qpc-equipment-digest-list li.is-expired{box-shadow:inset 3px 0 #dc2626}.qpc-equipment-digest-list li.is-upcoming{box-shadow:inset 3px 0 #d97706}
 .qpc-equipment-digest-actions{display:flex;flex-wrap:wrap;gap:7px;margin:3px 42px 0 64px}.qpc-equipment-digest-toggle,.qpc-equipment-digest-open{padding:7px 10px;border:0;border-radius:9px;font-size:11px;font-weight:800;cursor:pointer}.qpc-equipment-digest-toggle{background:#eef4f7;color:#0f4c66}.qpc-equipment-digest-toggle:hover{background:#dcecf3}.qpc-equipment-digest-open{background:#0f4c66;color:#fff}.qpc-equipment-digest-open:hover{background:#0b3c51}
 @media(max-width:700px){.qpc-equipment-digest-summary,.qpc-equipment-digest-list{margin-left:54px}.qpc-equipment-digest-summary{padding-left:0}.qpc-equipment-digest-actions{margin-left:54px}.qpc-equipment-digest-actions button{width:100%}.qpc-notification-filters{padding-inline:10px}}
+
+/* MAIN V10.2 · Notificaciones del dispositivo */
+.qpc-device-notification-card{margin-top:16px}
+.qpc-device-notification-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.qpc-device-notification-head h3{margin:0 0 4px}.qpc-device-notification-head p,.qpc-device-notification-detail{margin:0;color:var(--muted)}
+.qpc-device-status{display:inline-flex;align-items:center;border-radius:999px;padding:7px 11px;font-weight:800;font-size:.82rem;white-space:nowrap}
+.qpc-device-status.is-on{background:#dcfce7;color:#166534}.qpc-device-status.is-off{background:#eef2f6;color:#425466}.qpc-device-status.is-blocked{background:#fee2e2;color:#b91c1c}
+.qpc-device-notification-detail{margin-top:10px}
+.qpc-device-category-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px}.qpc-device-category-grid.is-secondary{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:10px}
+.qpc-device-category{display:flex;align-items:center;gap:9px;border:1px solid var(--line);border-radius:12px;padding:11px 12px;background:#fff;font-weight:700}.qpc-device-category input{width:18px;height:18px;accent-color:var(--red)}
+.qpc-device-actions{margin-top:16px}.qpc-device-note{display:block;margin-top:12px;color:var(--muted);line-height:1.45}
+@media(max-width:720px){.qpc-device-notification-head{flex-direction:column}.qpc-device-category-grid,.qpc-device-category-grid.is-secondary{grid-template-columns:1fr}.qpc-device-actions{display:grid;grid-template-columns:1fr}.qpc-device-actions .btn{width:100%}}

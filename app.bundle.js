@@ -5973,6 +5973,8 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     else ui.view='home';
     render();
   }
+  window.qpcOpenNotification=openNotification;
+
 
   function subscribeRealtime(){
     const userId=authId(actor());if(!userId||(ns.channel&&ns.channelUserId===userId))return;
@@ -6014,3 +6016,209 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
 })();
 
 /* MAIN V10.1.0 · Fase 22: digest de equipos y filtros del centro de notificaciones. */
+
+/* ================================================================
+   Quality Project Control · MAIN V10.2.0 · Fase 23
+   Notificaciones del dispositivo sincronizadas con la bandeja interna.
+   ================================================================ */
+(()=>{
+  'use strict';
+  const MAIN_MODE=Boolean(window.QPC_SUPABASE_URL&&typeof supabaseClient!=='undefined');
+  if(!MAIN_MODE)return;
+
+  const state={registration:null,subscription:null,preference:null,loading:false};
+  const esc=value=>typeof escapeHtml==='function'?escapeHtml(value):String(value??'');
+  const actor=()=>typeof currentUser==='function'?currentUser():null;
+  const userId=()=>actor()?.authId||actor()?.id||null;
+  const supported=()=>('serviceWorker' in navigator)&&('PushManager' in window)&&('Notification' in window);
+  const categories=['INSPECTION','REPORT','EQUIPMENT','USER','GENERAL'];
+  const categoryLabels={INSPECTION:'Inspecciones',REPORT:'Informes',EQUIPMENT:'Equipos',USER:'Usuarios',GENERAL:'Generales'};
+  const deviceKeyName='qpc-device-label';
+
+  function deviceLabel(){
+    let label=localStorage.getItem(deviceKeyName);
+    if(label)return label;
+    const platform=navigator.userAgentData?.platform||navigator.platform||'Dispositivo';
+    label=`${platform} · ${new Date().toLocaleDateString('es-DO')}`;
+    localStorage.setItem(deviceKeyName,label);
+    return label;
+  }
+  function base64ToUint8Array(value){
+    const padding='='.repeat((4-value.length%4)%4);
+    const base64=(value+padding).replace(/-/g,'+').replace(/_/g,'/');
+    const raw=atob(base64);return Uint8Array.from([...raw].map(char=>char.charCodeAt(0)));
+  }
+  function subscriptionKeys(subscription){
+    const json=subscription.toJSON();
+    return {p256dh:json.keys?.p256dh||'',auth_key:json.keys?.auth||''};
+  }
+  async function registerWorker(){
+    if(!supported())return null;
+    if(state.registration)return state.registration;
+    state.registration=await navigator.serviceWorker.register('/qpc-sw.js?v=10.2.0',{scope:'/'});
+    await navigator.serviceWorker.ready;
+    return state.registration;
+  }
+  async function fetchPublicKey(){
+    const response=await fetch(`${window.QPC_SUPABASE_URL}/functions/v1/web-push-dispatch?action=public-key`,{cache:'no-store'});
+    const body=await response.json().catch(()=>({}));
+    if(!response.ok||!body.publicKey)throw new Error(body.error||'No se pudo obtener la clave pública de notificaciones.');
+    return body.publicKey;
+  }
+  async function loadPreference(){
+    const id=userId();if(!id)return null;
+    const [{data:preference,error},{data:subs,error:subError}]=await Promise.all([
+      supabaseClient.from('qpc_notification_preferences').select('*').eq('user_id',id).maybeSingle(),
+      supabaseClient.from('qpc_push_subscriptions').select('*').eq('user_id',id).eq('enabled',true),
+    ]);
+    if(error)throw error;if(subError)throw subError;
+    state.preference=preference||{user_id:id,enabled:false,categories:Object.fromEntries(categories.map(key=>[key,true])),show_preview:true,sound_enabled:true};
+    if(supported()){
+      const registration=await registerWorker();
+      const existing=await registration?.pushManager.getSubscription();
+      state.subscription=existing||null;
+      if(existing&&!subs?.some(row=>row.endpoint===existing.endpoint))await saveSubscription(existing);
+    }
+    return state.preference;
+  }
+  async function savePreference(patch={}){
+    const id=userId();if(!id)throw new Error('Inicie sesión nuevamente.');
+    state.preference={...(state.preference||{}),user_id:id,...patch,updated_at:new Date().toISOString()};
+    const {error}=await supabaseClient.from('qpc_notification_preferences').upsert(state.preference,{onConflict:'user_id'});
+    if(error)throw error;return state.preference;
+  }
+  async function saveSubscription(subscription){
+    const id=userId();if(!id)throw new Error('Inicie sesión nuevamente.');
+    const keys=subscriptionKeys(subscription);
+    const {error}=await supabaseClient.from('qpc_push_subscriptions').upsert({
+      user_id:id,endpoint:subscription.endpoint,...keys,device_label:deviceLabel(),user_agent:navigator.userAgent,
+      enabled:true,last_seen_at:new Date().toISOString(),updated_at:new Date().toISOString()
+    },{onConflict:'endpoint'});
+    if(error)throw error;state.subscription=subscription;
+  }
+  async function enableDeviceNotifications(){
+    if(!supported())throw new Error('Este navegador no admite notificaciones web.');
+    const permission=await Notification.requestPermission();
+    if(permission!=='granted')throw new Error(permission==='denied'?'Las notificaciones fueron bloqueadas en el navegador.':'No se concedió permiso para enviar notificaciones.');
+    const registration=await registerWorker();
+    let subscription=await registration.pushManager.getSubscription();
+    if(!subscription){
+      const publicKey=await fetchPublicKey();
+      subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:base64ToUint8Array(publicKey)});
+    }
+    await saveSubscription(subscription);
+    await savePreference({enabled:true});
+    return subscription;
+  }
+  async function disableDeviceNotifications(){
+    const id=userId();
+    const subscription=state.subscription||await (await registerWorker())?.pushManager.getSubscription();
+    if(subscription){
+      await supabaseClient.from('qpc_push_subscriptions').delete().eq('user_id',id).eq('endpoint',subscription.endpoint);
+      await subscription.unsubscribe().catch(()=>false);
+    }
+    state.subscription=null;await savePreference({enabled:false});
+  }
+  async function testDeviceNotification(){
+    if(Notification.permission!=='granted')throw new Error('Active primero las notificaciones del dispositivo.');
+    const registration=await registerWorker();
+    await registration.showNotification('Quality Project Control',{body:'Las notificaciones de este dispositivo están funcionando.',icon:'/assets/qpc-icon-192.png',badge:'/assets/favicon-codelpa-c-64.png',tag:'qpc-test',data:{url:'/'}});
+  }
+  function statusInfo(){
+    if(!supported())return ['No compatible','Este navegador no admite notificaciones web.','is-off'];
+    if(Notification.permission==='denied')return ['Bloqueadas','Debe habilitarlas desde la configuración del navegador.','is-blocked'];
+    if(Notification.permission==='granted'&&state.subscription&&state.preference?.enabled)return ['Activadas','Este dispositivo recibe las mismas alertas que la bandeja interna.','is-on'];
+    return ['Desactivadas','Active las notificaciones para recibir alertas del sistema.','is-off'];
+  }
+  function preferencePanel(){
+    const [status,detail,statusClass]=statusInfo();
+    const prefs=state.preference||{categories:Object.fromEntries(categories.map(key=>[key,true])),show_preview:true,sound_enabled:true};
+    return `<section class="card qpc-device-notification-card" id="qpcDeviceNotificationCard">
+      <div class="qpc-device-notification-head"><div><h3>Notificaciones del dispositivo</h3><p>Replican las notificaciones de la bandeja interna en este navegador.</p></div><span class="qpc-device-status ${statusClass}">${esc(status)}</span></div>
+      <p class="qpc-device-notification-detail">${esc(detail)}</p>
+      <div class="qpc-device-category-grid">${categories.map(key=>`<label class="qpc-device-category"><input type="checkbox" data-device-category="${key}" ${prefs.categories?.[key]!==false?'checked':''}><span>${esc(categoryLabels[key])}</span></label>`).join('')}</div>
+      <div class="qpc-device-category-grid is-secondary"><label class="qpc-device-category"><input id="qpcDevicePreview" type="checkbox" ${prefs.show_preview!==false?'checked':''}><span>Mostrar contenido en la alerta</span></label><label class="qpc-device-category"><input id="qpcDeviceSound" type="checkbox" ${prefs.sound_enabled!==false?'checked':''}><span>Permitir sonido</span></label></div>
+      <div class="button-row qpc-device-actions">
+        ${Notification.permission==='granted'&&state.subscription&&prefs.enabled?'<button type="button" class="btn btn-outline" id="qpcDisableDeviceNotifications">Desactivar en este dispositivo</button>':'<button type="button" class="btn btn-primary" id="qpcEnableDeviceNotifications">Activar notificaciones</button>'}
+        <button type="button" class="btn btn-outline" id="qpcSaveDevicePreferences">Guardar preferencias</button>
+        <button type="button" class="btn btn-secondary" id="qpcTestDeviceNotification" ${Notification.permission==='granted'?'':'disabled'}>Enviar prueba</button>
+      </div>
+      <small class="qpc-device-note">En iPhone/iPad, las notificaciones web requieren añadir la aplicación a la pantalla de inicio. El permiso siempre debe concederse mediante una acción del usuario.</small>
+    </section>`;
+  }
+
+  const priorRenderView=window.renderView;
+  window.renderView=function(user){
+    const html=priorRenderView.apply(this,arguments);
+    if(ui?.view==='profile')return String(html)+preferencePanel();
+    return html;
+  };
+
+  async function refreshCard(){
+    if(ui?.view!=='profile')return;
+    const current=document.getElementById('qpcDeviceNotificationCard');
+    if(current)current.outerHTML=preferencePanel();
+  }
+  async function collectAndSavePreferences(){
+    const categoryPrefs={};
+    document.querySelectorAll('[data-device-category]').forEach(input=>{categoryPrefs[input.dataset.deviceCategory]=input.checked;});
+    await savePreference({categories:categoryPrefs,show_preview:document.getElementById('qpcDevicePreview')?.checked!==false,sound_enabled:document.getElementById('qpcDeviceSound')?.checked!==false});
+  }
+  async function openFromPush(notificationId){
+    if(!notificationId||!actor())return;
+    try{
+      if(typeof window.qpcLoadNotifications==='function')await window.qpcLoadNotifications(true);
+      if(typeof window.qpcOpenNotification==='function')await window.qpcOpenNotification(notificationId);
+      else{
+        const {data:rows}=await supabaseClient.rpc('qpc_notification_for_current_user',{p_notification_id:notificationId});
+        const row=Array.isArray(rows)?rows[0]:rows;
+        if(row){
+          if(row.action_view==='detail'&&row.entity_id){ui.selectedId=row.entity_id;ui.view='detail';}
+          else if(row.action_view==='qualityQueue')ui.view='qualityQueue';
+          else if(row.action_view==='report-content')ui.view='report-content';
+          else if(row.action_view==='equipment')ui.view='equipment';
+          else ui.view='home';
+          render();
+        }
+      }
+    }catch(error){console.warn('No se abrió la notificación del dispositivo',error);}
+  }
+
+  navigator.serviceWorker?.addEventListener('message',event=>{
+    if(event.data?.type==='QPC_NOTIFICATION_OPEN')openFromPush(event.data.notification_id);
+  });
+
+  document.addEventListener('click',async event=>{
+    const button=event.target.closest('button');if(!button)return;
+    try{
+      if(button.id==='qpcEnableDeviceNotifications'){button.disabled=true;await enableDeviceNotifications();if(typeof toast==='function')toast('Notificaciones activadas en este dispositivo.');await refreshCard();return;}
+      if(button.id==='qpcDisableDeviceNotifications'){button.disabled=true;await disableDeviceNotifications();if(typeof toast==='function')toast('Notificaciones desactivadas en este dispositivo.');await refreshCard();return;}
+      if(button.id==='qpcSaveDevicePreferences'){button.disabled=true;await collectAndSavePreferences();if(typeof toast==='function')toast('Preferencias guardadas.');button.disabled=false;return;}
+      if(button.id==='qpcTestDeviceNotification'){await testDeviceNotification();return;}
+    }catch(error){console.error(error);if(typeof toast==='function')toast(error.message||'No se pudo configurar el dispositivo.');button.disabled=false;}
+  },true);
+
+  const priorLoadRemote=window.loadRemoteData;
+  window.loadRemoteData=async function(){
+    const result=await priorLoadRemote.apply(this,arguments);
+    try{if(actor())await loadPreference();}catch(error){console.warn('No se cargaron preferencias de notificación',error);}
+    return result;
+  };
+
+  supabaseClient.auth.onAuthStateChange((event)=>{
+    if(event==='SIGNED_OUT'){state.preference=null;state.subscription=null;return;}
+    if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED')setTimeout(()=>loadPreference().then(refreshCard).catch(()=>{}),0);
+  });
+
+  const urlNotification=new URLSearchParams(location.search).get('qpcNotification');
+  if(urlNotification){
+    history.replaceState({},document.title,location.pathname+location.hash);
+    const attempt=()=>actor()?openFromPush(urlNotification):setTimeout(attempt,500);
+    setTimeout(attempt,500);
+  }
+
+  registerWorker().catch(error=>console.warn('No se registró el Service Worker',error));
+  window.qpcDeviceNotifications={enable:enableDeviceNotifications,disable:disableDeviceNotifications,test:testDeviceNotification,load:loadPreference};
+})();
+
+/* MAIN V10.2.0 · Fase 23: notificaciones web por dispositivo. */

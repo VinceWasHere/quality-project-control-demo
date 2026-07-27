@@ -1,3 +1,15 @@
+# V10.2 — Fase 23 · Notificaciones del dispositivo
+
+- El usuario puede aceptar o rechazar notificaciones del navegador desde Mi perfil.
+- Las alertas del dispositivo provienen exactamente de `qpc_notifications`, la misma fuente de la bandeja interna.
+- Preferencias por categoría: inspecciones, informes, equipos, usuarios y generales.
+- Web Push con Service Worker para recibir alertas aun cuando la pestaña no está activa.
+- Al pulsar una alerta, la aplicación abre el mismo registro relacionado.
+- La alerta consolidada de equipos permanece como una sola notificación.
+- Soporte PWA y guía específica para iPhone/iPad.
+
+---
+
 # Quality Project Control MAIN
 
 ## V10.1 — Fase 22 · Notificaciones compactas y resumen de equipos

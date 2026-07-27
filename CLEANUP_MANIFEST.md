@@ -13,6 +13,8 @@ No se reintroducen archivos históricos duplicados ni capas JavaScript separadas
 Se agregó únicamente una migración SQL y se actualizaron los archivos consolidados `app.bundle.js`, `styles.css`, `index.html`, `README.md` y `DEPLOYMENT.md`. No se introdujeron nuevos archivos JavaScript de parche.
 
 
-## V10.1
+## V10.2
 - Se añadió una única migración versionada para consolidar notificaciones de equipos.
 - No se agregaron copias sueltas de SQL ni archivos de parche.
+
+- V10.2 agrega únicamente Service Worker, manifiesto PWA, dos iconos, una migración, una Edge Function y el generador local VAPID.

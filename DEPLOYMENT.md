@@ -1,50 +1,71 @@
-# Despliegue MAIN V10.1 — Fase 22
+# Quality Project Control MAIN V10.2 — Fase 23
 
-## 1. Supabase
+## Objetivo
+Permitir que cada usuario acepte notificaciones del dispositivo. Las alertas web se originan en la misma tabla `qpc_notifications` que alimenta la bandeja interna.
 
-Ejecute en **Supabase → SQL Editor → New query** el archivo completo:
+## 1. Ejecutar SQL
+Ejecute en Supabase SQL Editor:
 
-`supabase/migrations/20260727_021_equipment_notification_digest.sql`
+`supabase/migrations/20260727_022_device_web_notifications.sql`
 
-La migración:
+## 2. Generar claves VAPID
+Abra localmente:
 
-- archiva las alertas individuales de equipos generadas por V10.0;
-- reemplaza `qpc_refresh_due_equipment_notifications()`;
-- crea una sola notificación consolidada por proyecto y destinatario;
-- guarda dentro de `metadata.items` el listado de equipos, fecha exigible y estado;
-- reactiva la notificación solo cuando aún existen alertas;
-- vuelve a marcarla como no leída únicamente cuando cambia el contenido.
+`tools/vapid-key-generator.html`
 
-No requiere crear ni actualizar Edge Functions.
+Pulse **Generar claves** y copie ambos valores. El archivo no envía información a internet.
 
-## 2. GitHub y Vercel
+## 3. Configurar Secrets en Supabase
+En **Edge Functions → Secrets**, agregue:
 
-1. Elimine los archivos actuales del branch `main` o sustitúyalos por esta carpeta.
-2. Confirme el commit.
-3. Espere el despliegue automático de Vercel.
-4. Cierre la pestaña anterior y realice una recarga sin caché.
+- `WEB_PUSH_VAPID_PUBLIC_KEY`: clave pública generada.
+- `WEB_PUSH_VAPID_PRIVATE_KEY`: clave privada generada.
+- `WEB_PUSH_VAPID_SUBJECT`: por ejemplo `mailto:calidad@codelpa.com`.
+- `QPC_PUSH_WEBHOOK_SECRET`: una frase aleatoria larga, distinta de las contraseñas de usuario.
 
-## 3. Resultado esperado
+No suba la clave privada ni el secreto del webhook a GitHub o Vercel.
 
-1. Entre como Calidad, Gerente de Calidad o IT.
-2. Abra la campana de notificaciones.
-3. Debe aparecer una tarjeta **Alertas de equipos** por proyecto, no una tarjeta por cada equipo.
-4. La tarjeta muestra:
-   - cantidad de vencidos;
-   - cantidad de próximos a vencer;
-   - los conteos de vencidos y próximos;
-   - botón **Ver los N equipos** y expansión del listado completo dentro de la misma tarjeta;
-   - botón separado para abrir Verificación de equipos.
-5. Al pulsar la tarjeta, se abre **Verificación de equipos**.
-6. Los filtros superiores permiten mostrar Todas, Inspecciones, Informes o Equipos.
+## 4. Desplegar Edge Function
+Cree o despliegue desde el editor web de Supabase:
 
-## 4. Verificación SQL opcional
+- Nombre: `web-push-dispatch`
+- Código: `supabase/functions/web-push-dispatch/index.ts`
+- Verify JWT: desactivado.
 
-```sql
-select recipient_id, project_id, title, body,
-       jsonb_array_length(metadata->'items') as equipos,
-       read_at, archived_at
-from public.qpc_notifications
-where event_key like 'equipment-summary:%'
-order by created_at desc;
-```
+La función valida el webhook con `x-qpc-push-secret`. El endpoint público solo expone la clave VAPID pública.
+
+## 5. Crear Database Webhook
+En **Database → Webhooks**, cree:
+
+- Nombre: `qpc-web-push-notifications`
+- Tabla: `public.qpc_notifications`
+- Eventos: `INSERT` y `UPDATE`
+- Método: `POST`
+- URL: `https://cwgpuaxjzpzlfusewtrx.supabase.co/functions/v1/web-push-dispatch`
+- Header: `x-qpc-push-secret` con el mismo valor configurado en Secrets.
+- Header: `Content-Type: application/json`
+
+El evento UPDATE permite volver a enviar el resumen consolidado de equipos solamente cuando cambia su contenido.
+
+## 6. Actualizar GitHub/Vercel
+Sustituya el branch `main` por el contenido de esta carpeta y espere el despliegue de Vercel.
+
+## 7. Activación del usuario
+Cada usuario debe:
+
+1. Iniciar sesión.
+2. Abrir **Mi perfil**.
+3. Pulsar **Activar notificaciones**.
+4. Aceptar el permiso del navegador.
+5. Elegir categorías y guardar.
+6. Usar **Enviar prueba** para validar el dispositivo.
+
+## iPhone/iPad
+Safari permite Web Push para aplicaciones web añadidas a la pantalla de inicio. Abra la página en Safari, use **Compartir → Añadir a pantalla de inicio**, abra la aplicación instalada y active las notificaciones desde Mi perfil.
+
+## Validación
+- Crear una solicitud de inspección desde Ejecución.
+- Confirmar que Calidad recibe una alerta en la bandeja y en el dispositivo.
+- Cambiar el estado de una inspección y comprobar la alerta de Ejecución.
+- Actualizar equipos y confirmar que se recibe una sola alerta consolidada.
+- Pulsar la alerta del sistema y confirmar que abre el mismo registro de la bandeja.

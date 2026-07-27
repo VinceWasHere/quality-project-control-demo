@@ -1,0 +1,22 @@
+<!doctype html><html lang="es"><meta charset="utf-8"><title>Generador VAPID — QPC</title>
+<style>body{font-family:system-ui;max-width:760px;margin:40px auto;padding:20px}button{padding:12px 18px}textarea{width:100%;min-height:90px;margin:8px 0 20px}code{background:#eee;padding:2px 5px}</style>
+<h1>Generador local de claves VAPID</h1>
+<p>Este archivo funciona localmente y no envía las claves a internet. Genere las claves, guarde la privada en Supabase Secrets y coloque la pública en el mismo lugar.</p>
+<button id="generate">Generar claves</button>
+<label><strong>WEB_PUSH_VAPID_PUBLIC_KEY</strong></label><textarea id="pub" readonly></textarea>
+<label><strong>WEB_PUSH_VAPID_PRIVATE_KEY</strong></label><textarea id="priv" readonly></textarea>
+<label><strong>QPC_PUSH_WEBHOOK_SECRET</strong></label><textarea id="secret" readonly></textarea>
+<p><strong>No suba la clave privada a GitHub ni Vercel.</strong></p>
+<script>
+const b64=u8=>btoa(String.fromCharCode(...u8)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+document.getElementById('generate').onclick=async()=>{
+ const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+ const jwkPriv=await crypto.subtle.exportKey('jwk',pair.privateKey);
+ const jwkPub=await crypto.subtle.exportKey('jwk',pair.publicKey);
+ const dec=s=>Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')+'==='.slice((s.length+3)%4)),c=>c.charCodeAt(0));
+ const x=dec(jwkPub.x),y=dec(jwkPub.y),raw=new Uint8Array(65);raw[0]=4;raw.set(x,1);raw.set(y,33);
+ document.getElementById('pub').value=b64(raw);
+ document.getElementById('priv').value=jwkPriv.d;
+ const secret=new Uint8Array(32);crypto.getRandomValues(secret);document.getElementById('secret').value=b64(secret);
+};
+</script></html>

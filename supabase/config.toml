@@ -6,3 +6,6 @@ verify_jwt = false
 
 [functions.asset-workflow]
 verify_jwt = false
+
+[functions.web-push-dispatch]
+verify_jwt = false
