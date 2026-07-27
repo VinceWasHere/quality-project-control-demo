@@ -1,22 +1,9 @@
-# Manifiesto de consolidación V9.5
+# Manifiesto de limpieza y estructura — V9.6
 
-## Archivos necesarios en producción
-- `index.html`
-- `styles.css`
-- `app.bundle.js`
-- `supabase-config.js`
-- `assets/`
-- `data/catalogos.js`
+La limpieza de V9.5 se conserva. V9.6 agrega únicamente:
 
-## Archivos necesarios para mantenimiento
-- `supabase/config.toml`
-- `supabase/migrations/`
-- `supabase/functions/`
-- `tests/static-checks.mjs`
-- `README.md`
-- `DEPLOYMENT.md`
+- `supabase/migrations/20260727_017_report_publication_library.sql`
+- Código de la Fase 17 consolidado al final de `app.bundle.js`
+- Estilos de la Fase 17 consolidados en `styles.css`
 
-## Eliminados por duplicidad o desuso
-Las copias de scripts SQL y Edge Functions que estaban en la raíz fueron eliminadas porque su versión canónica ya existe en `supabase/`.
-Los JavaScript históricos de `archive/legacy-js` no eran cargados por `index.html`.
-Los archivos `VERSION_*`, `README_FIX_*` y deployment anteriores fueron sustituidos por el changelog acumulativo del README y la guía vigente.
+No se restauraron archivos históricos, scripts duplicados ni documentos de deployment por fase.

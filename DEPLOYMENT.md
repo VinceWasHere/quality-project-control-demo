@@ -1,33 +1,31 @@
-# Despliegue MAIN V9.5 — Fase 16
+# Despliegue MAIN V9.6 — Fase 17
+
+## Objetivo
+Agregar una biblioteca de informes publicados con snapshots inmutables, detección de cambios posteriores y reutilización controlada del contenido.
 
 ## 1. Supabase
-Ejecute en SQL Editor:
+Ejecutar en SQL Editor:
 
-`supabase/migrations/20260727_016_report_review_publication.sql`
+`supabase/migrations/20260727_017_report_publication_library.sql`
 
-No requiere una Edge Function nueva.
+No requiere Edge Function nueva.
 
 ## 2. GitHub y Vercel
-Suba **únicamente el contenido de esta carpeta limpia** al branch `main`.
-Vercel desplegará automáticamente.
+1. Sustituir el contenido del branch `main` por esta carpeta.
+2. Confirmar el commit.
+3. Esperar el despliegue de Vercel.
+4. Hacer una recarga sin caché.
 
-## 3. Validación
-1. Inicie sesión como Calidad o IT.
-2. Abra `Contenido de informes`.
-3. Verifique el panel `Revisión y publicación`.
-4. Guarde notas, marque listo, apruebe y publique con cuentas que tengan los permisos correspondientes.
-5. Confirme que el número de versión publicada aumenta.
+## 3. Prueba
+1. Abrir **Contenido de informes**.
+2. Aprobar y publicar un informe.
+3. Abrir **Biblioteca de informes publicados**.
+4. Confirmar que aparece la versión oficial.
+5. Editar posteriormente un registro y pulsar **Actualizar**: debe indicar “Cambios posteriores”.
+6. Usar una versión publicada como base de otro periodo y verificar que no modifica el snapshot original.
 
-## Limpieza realizada
-La carpeta anterior tenía alrededor de 76 elementos en la raíz. Esta entrega elimina de la raíz:
-- copias duplicadas de SQL;
-- `VERSION_*.txt`;
-- `README_FIX_*.txt`;
-- deployment históricos separados;
-- archivos TypeScript duplicados fuera de `supabase/functions`;
-- `archive/legacy-js`;
-- validaciones antiguas;
-- `data/planillas.json` no cargado;
-- `data/equipment_seed.js` y su script en `index.html`.
-
-El historial funcional permanece en `README.md`, y el historial técnico de base se conserva en `supabase/migrations`.
+## Seguridad
+- Las publicaciones son inmutables en base de datos.
+- La lectura respeta proyecto y permiso `reports.library.view`.
+- La reutilización exige `reports.library.restore`.
+- IT conserva todos los permisos.

@@ -601,3 +601,17 @@ a{color:inherit;text-decoration:none}
 .p16-event-list li{display:grid;grid-template-columns:1fr auto;gap:4px 12px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#f8fafc}
 .p16-event-list li small{grid-column:1/-1;color:var(--muted)}
 @media(max-width:720px){.p16-review-head{display:grid}.p16-revision{text-align:left}.p16-review-grid{grid-template-columns:1fr}}
+
+/* ================================================================
+   MAIN V9.6 · Fase 17 · Biblioteca de informes publicados
+   ================================================================ */
+.p17-library-card{display:grid;gap:14px;border-left:5px solid #0f4c66}
+.p17-library-head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}
+.p17-library-head h3{margin:8px 0 4px}
+.p17-library-stats{text-align:center;min-width:90px;padding:10px 14px;border:1px solid #d8dee6;border-radius:14px;background:#f8fafc}
+.p17-library-stats strong,.p17-library-stats span{display:block}.p17-library-stats strong{font-size:1.8rem;color:#0f4c66}.p17-library-stats span{font-size:.78rem;color:#64748b}
+.p17-latest{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;border:1px solid #d8dee6;border-radius:14px;background:#fbfdff}
+.p17-latest small,.p17-latest strong,.p17-latest span{display:block}.p17-latest small,.p17-latest span{color:#64748b;font-size:.82rem}.p17-latest strong{margin:3px 0}
+#p17ModalRoot:empty{display:none}.p17-modal{width:min(1100px,100%)}.p17-table{max-height:62vh}.p17-table table{min-width:900px}.p17-table td small{display:block;color:#64748b;margin-top:4px}
+.p17-snapshot-list{display:grid;gap:10px;margin-top:16px}.p17-entry{padding:12px 14px;border:1px solid #d8dee6;border-radius:14px;background:#fff}.p17-entry h4{margin:8px 0 4px}.p17-entry p{margin:0;color:#475569}.p17-entry small{display:block;color:#64748b;margin-top:8px}
+@media(max-width:720px){.p17-library-head,.p17-latest{align-items:stretch;flex-direction:column}.p17-library-stats{text-align:left}.p17-modal{max-height:94vh}}

@@ -5267,3 +5267,105 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   },true);
   document.addEventListener('change',event=>{if(['p10Mode','p10Period','activeProjectSelect','projectSelector'].includes(event.target.id)){review.key='';review.cycle=null;review.events=[];}},true);
 })();
+
+/* Quality Project Control MAIN V9.6 · Fase 17
+   Biblioteca de versiones publicadas, snapshots inmutables y reutilización. */
+(()=>{
+  'use strict';
+  if(!(window.QPC_SUPABASE_URL&&typeof supabaseClient!=='undefined'))return;
+  const state={project:'',rows:[],loading:null,selected:null};
+  const user=()=>typeof currentUser==='function'?currentUser():null;
+  const can=code=>Boolean(user()&&(user().role==='IT'||window.qpcHasPermission?.(user(),code)));
+  const esc=value=>typeof escapeHtml==='function'?escapeHtml(String(value??'')):String(value??'');
+  const project=()=>typeof projectId==='function'?projectId():ui.activeProjectId;
+  const periodLabel=(mode,value)=>mode==='month'?new Date(`${value}-01T12:00:00`).toLocaleDateString('es-DO',{month:'long',year:'numeric'}):`Semana del ${new Date(`${value}T12:00:00`).toLocaleDateString('es-DO')}`;
+
+  async function load(force=false){
+    const current=project();
+    if(!force&&state.project===current&&state.rows.length)return state.rows;
+    if(state.loading)return state.loading;
+    state.project=current;
+    state.loading=(async()=>{
+      const {data,error}=await supabaseClient.rpc('qpc_report_publications_for_project',{p_project_id:current});
+      if(error)throw error;
+      state.rows=Array.isArray(data)?data:[];
+      return state.rows;
+    })().catch(error=>{console.error('Report library',error);state.rows=[];return [];}).finally(()=>{state.loading=null;});
+    return state.loading;
+  }
+  window.qpcLoadReportLibrary=load;
+
+  function summaryPanel(){
+    if(!can('reports.library.view'))return '';
+    if(state.project!==project()&&!state.loading)load().then(()=>window.render?.());
+    const latest=state.rows[0];
+    return `<section class="card p17-library-card"><div class="p17-library-head"><div><span class="badge badge-blue">Histórico oficial</span><h3>Biblioteca de informes publicados</h3><p class="helper">Consulte versiones inmutables, detecte cambios posteriores y reutilice contenido aprobado.</p></div><div class="p17-library-stats"><strong>${state.rows.length}</strong><span>versiones</span></div></div>${latest?`<div class="p17-latest"><div><small>Última publicación</small><strong>${esc(periodLabel(latest.period_mode,latest.period_value))} · V${String(latest.revision_number).padStart(2,'0')}</strong><span>${esc(latest.published_by_name||'Usuario')} · ${esc(formatDateTime(latest.published_at))}</span></div><span class="badge ${latest.has_later_changes?'badge-yellow':'badge-green'}">${latest.has_later_changes?'Cambios posteriores':'Sin cambios posteriores'}</span></div>`:'<div class="helper">Todavía no hay versiones publicadas para este proyecto.</div>'}<div class="button-row"><button type="button" id="p17OpenLibrary" class="btn btn-outline">Abrir biblioteca</button><button type="button" id="p17RefreshLibrary" class="btn btn-secondary">Actualizar</button></div></section>`;
+  }
+
+  const previousRenderView=window.renderView;
+  window.renderView=function(current){
+    let html=previousRenderView(current);
+    if(ui.view==='report-content'&&can('reports.library.view')){
+      const marker='<section class="card p15-report-actions">';
+      html=String(html).includes(marker)?String(html).replace(marker,`${summaryPanel()}${marker}`):`${summaryPanel()}${html}`;
+    }
+    return html;
+  };
+
+  function ensureModal(){
+    let root=document.getElementById('p17ModalRoot');
+    if(!root){root=document.createElement('div');root.id='p17ModalRoot';document.body.appendChild(root);}
+    return root;
+  }
+  function closeModal(){ensureModal().innerHTML='';}
+  function modal(title,body,foot=''){
+    ensureModal().innerHTML=`<div class="p15-modal-backdrop"><section class="p15-modal p17-modal"><header class="qpc-modal-head"><h3>${esc(title)}</h3><button type="button" class="btn btn-secondary" data-p17-close>×</button></header><div class="qpc-modal-body">${body}</div><footer class="qpc-modal-foot">${foot||'<button type="button" class="btn btn-secondary" data-p17-close>Cerrar</button>'}</footer></section></div>`;
+  }
+
+  function libraryTable(){
+    if(!state.rows.length)return '<div class="report-empty-panel"><h3>Sin publicaciones</h3><p>Publique un informe aprobado para crear su primera versión oficial.</p></div>';
+    return `<div class="table-wrap p17-table"><table><thead><tr><th>Periodo</th><th>Versión</th><th>Publicado</th><th>Contenido</th><th>Estado actual</th><th>Acciones</th></tr></thead><tbody>${state.rows.map(row=>`<tr><td><strong>${esc(periodLabel(row.period_mode,row.period_value))}</strong><small>${row.period_mode==='month'?'Mensual · FO-CP-11 V10':'Semanal · FO-CP-10 V07'}</small></td><td>V${String(row.revision_number).padStart(2,'0')}</td><td>${esc(formatDateTime(row.published_at))}<small>${esc(row.published_by_name||'Usuario')}</small></td><td>${row.entries_count||0} registros · ${row.sections_count||0} secciones · ${row.evidence_count||0} evidencias</td><td><span class="badge ${row.has_later_changes?'badge-yellow':'badge-green'}">${row.has_later_changes?'Cambios posteriores':'Coincide con lo publicado'}</span></td><td><div class="button-row"><button type="button" class="btn btn-outline btn-small" data-p17-view="${row.id}">Ver snapshot</button>${can('reports.library.restore')?`<button type="button" class="btn btn-primary btn-small" data-p17-restore="${row.id}">Usar como base</button>`:''}</div></td></tr>`).join('')}</tbody></table></div>`;
+  }
+  async function openLibrary(){await load(true);modal('Biblioteca de informes publicados',libraryTable(),'<button type="button" class="btn btn-secondary" data-p17-close>Cerrar</button>');}
+
+  async function fetchPublication(id){
+    const {data,error}=await supabaseClient.from('qpc_report_publications').select('*').eq('id',id).single();
+    if(error)throw error;return data;
+  }
+  function sectionSummary(entries){
+    const groups={};for(const entry of entries){const code=entry.section_code||'OTROS';groups[code]=(groups[code]||0)+1;}
+    return Object.entries(groups).map(([code,count])=>`<span class="report-chip"><strong>${esc(code)}</strong> ${count}</span>`).join('');
+  }
+  async function viewSnapshot(id){
+    const pub=await fetchPublication(id),entries=Array.isArray(pub.snapshot?.entries)?pub.snapshot.entries:[],evidence=Array.isArray(pub.snapshot?.evidence)?pub.snapshot.evidence:[];
+    const rows=entries.slice(0,100).map(entry=>`<article class="p17-entry"><div><span class="badge badge-gray">${esc(entry.section_code||'SECCIÓN')}</span><h4>${esc(entry.title||entry.description||'Registro')}</h4><p>${esc(entry.description||'')}</p></div><small>${esc(entry.location_text||'')}${entry.responsible?` · ${esc(entry.responsible)}`:''}</small></article>`).join('');
+    modal(`Snapshot V${String(pub.revision_number).padStart(2,'0')}`,`<div class="alert alert-info">Esta versión es inmutable. Contiene ${entries.length} registros y ${evidence.length} evidencias vinculadas.</div><div class="report-chip-row">${sectionSummary(entries)}</div><div class="p17-snapshot-list">${rows||'<p class="helper">Sin registros.</p>'}</div>`,'<button type="button" class="btn btn-secondary" data-p17-close>Cerrar</button>');
+  }
+  function restoreDialog(id){
+    const row=state.rows.find(item=>String(item.id)===String(id));if(!row)return;
+    state.selected=row;
+    modal('Usar versión publicada como base',`<div class="alert alert-warning">Se copiará el contenido de V${String(row.revision_number).padStart(2,'0')} sin modificar la versión publicada.</div><div class="form-grid"><div class="field"><label>Periodo destino</label><input id="p17TargetPeriod" type="${row.period_mode==='month'?'month':'date'}" value="${esc(ui.reportValue||'')}"></div><div class="field"><label class="check-row"><input id="p17IncludeEvidence" type="checkbox" checked><span>Vincular evidencias existentes</span></label></div></div>`,`<button type="button" id="p17ConfirmRestore" class="btn btn-primary">Copiar al borrador</button><button type="button" class="btn btn-secondary" data-p17-close>Cancelar</button>`);
+  }
+  async function restore(button){
+    const target=document.getElementById('p17TargetPeriod')?.value||'',include=document.getElementById('p17IncludeEvidence')?.checked!==false;
+    if(!target)throw new Error('Seleccione el periodo destino.');
+    button.disabled=true;button.textContent='Copiando…';
+    const {data,error}=await supabaseClient.rpc('qpc_restore_report_publication_to_period',{p_publication_id:state.selected.id,p_target_period:target,p_include_evidence:include});
+    if(error)throw error;closeModal();toast(`Se copiaron ${data?.cloned_entries||0} registros y ${data?.linked_evidence||0} evidencias.`);
+    if(ui.reportMode===state.selected.period_mode){ui.reportValue=target;}
+    window.qpcPhase10&&(window.qpcPhase10.key='');window.qpcPhase14&&(window.qpcPhase14.key='');window.render?.();
+  }
+
+  document.addEventListener('click',async event=>{
+    const button=event.target.closest('button');if(!button)return;
+    try{
+      if(button.matches('[data-p17-close]')){event.preventDefault();closeModal();return;}
+      if(button.id==='p17OpenLibrary'){event.preventDefault();await openLibrary();return;}
+      if(button.id==='p17RefreshLibrary'){event.preventDefault();state.project='';state.rows=[];await load(true);window.render?.();return;}
+      if(button.matches('[data-p17-view]')){event.preventDefault();await viewSnapshot(button.dataset.p17View);return;}
+      if(button.matches('[data-p17-restore]')){event.preventDefault();restoreDialog(button.dataset.p17Restore);return;}
+      if(button.id==='p17ConfirmRestore'){event.preventDefault();await restore(button);return;}
+    }catch(error){console.error(error);toast(error.message||'No se pudo completar la operación.');button.disabled=false;}
+  },true);
+  document.addEventListener('change',event=>{if(['activeProjectSelect','projectSelector'].includes(event.target.id)){state.project='';state.rows=[];}},true);
+})();

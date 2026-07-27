@@ -1,5 +1,18 @@
 # Quality Project Control — MAIN
 
+## V9.6 · Fase 17 — Biblioteca de informes publicados
+
+- Cada publicación crea un snapshot inmutable del contenido, evidencias y organización de láminas.
+- Se agregó una biblioteca por proyecto con versiones oficiales, autor, fecha y conteos.
+- La plataforma indica si el contenido actual cambió después de la última publicación.
+- Una versión publicada puede reutilizarse como base de un nuevo periodo sin modificar el histórico.
+- Se conservan vínculos de evidencias sin duplicar archivos físicos.
+- El repositorio mantiene la estructura limpia de V9.5 y solo suma una migración versionada.
+
+---
+
+# Quality Project Control — MAIN
+
 ## V9.5 · Fase 16 — Revisión/publicación y limpieza del repositorio
 
 - Se agregó un flujo formal para los informes: Borrador → Listo para revisión → Aprobado → Publicado.
