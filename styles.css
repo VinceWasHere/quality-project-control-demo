@@ -874,3 +874,20 @@ body.qpc-viewer-open{overflow:hidden}
   .qpc-pdf-page-label input{width:48px;min-height:36px;font-size:15px}
   .qpc-pdf-icon-btn{width:36px}
 }
+
+/* MAIN V10.5 · Fase 26 — rendimiento y respuesta móvil */
+.qpc-route-progress{position:fixed;left:0;right:0;top:0;height:3px;z-index:12000;pointer-events:none;opacity:0;transition:opacity .12s ease;background:transparent}.qpc-route-progress span{display:block;width:42%;height:100%;background:#c8102e;transform:translateX(-110%)}.qpc-route-progress small{position:absolute;right:10px;top:8px;padding:4px 8px;border-radius:999px;background:#10263a;color:#fff;font-size:10px;opacity:0}.qpc-route-progress.is-active{opacity:1}.qpc-route-progress.is-active span{animation:qpc-route-slide .8s ease-in-out infinite}.qpc-route-progress.is-active small{opacity:.9}@keyframes qpc-route-slide{0%{transform:translateX(-110%)}100%{transform:translateX(245%)}}
+button,.btn,.nav-btn,[role="button"]{touch-action:manipulation}.report-entry-card,.doc-card,.mapping-card,.qpc-notification-row{content-visibility:auto;contain-intrinsic-size:140px}.qpc-profile-compatible{min-height:180px}
+@media(max-width:900px){
+  .sidebar{left:0!important;transform:translate3d(-105%,0,0);transition:transform .16s ease!important;will-change:transform;contain:layout paint}
+  .sidebar.open{left:0!important;transform:translate3d(0,0,0)}
+  .drawer-overlay{will-change:opacity}
+  .card{box-shadow:0 2px 8px rgba(15,23,42,.045)}
+  .content{contain:layout style}
+  .qpc-route-progress small{display:none}
+}
+@media(max-width:560px){
+  .card{box-shadow:none}
+  .qpc-notification-panel,.file-viewer,.sidebar{overscroll-behavior:contain}
+}
+@media(prefers-reduced-motion:reduce){.sidebar,.qpc-route-progress{transition:none!important}.qpc-route-progress.is-active span{animation:none;transform:none;width:100%}}

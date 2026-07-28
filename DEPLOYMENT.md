@@ -1,36 +1,41 @@
-# Despliegue MAIN V10.4 — Fase 25
+# Despliegue MAIN V10.5 — Fase 26
 
 ## Alcance
-- Corrección definitiva del acceso móvil a Mi perfil.
-- Restauración de Mi perfil para Tecnología (IT).
-- Visor PDF multipágina con navegación, zoom, ajuste y giro.
+- Corrección de **Mi perfil** en teléfonos donde la API `Notification` no existe o no está disponible en el modo actual del navegador.
+- Modo compatible de perfil para evitar que una función opcional bloquee toda la vista.
+- Navegación móvil escalonada: primero cierra el menú y entrega un frame al navegador, luego renderiza la sección.
+- Cierre de sesión inmediato en la interfaz, sin esperar visualmente la respuesta de red de Supabase.
+- Carga diferida de Chart.js, XLSX, jsPDF, AutoTable, PptxGenJS y PDF.js.
+- Registro del Service Worker y carga de preferencias de notificación fuera de la ruta crítica.
+- Pausa del reloj cuando la pestaña está oculta.
+- Drawer móvil acelerado mediante transformaciones en lugar de cambios de posición.
 
 ## Pasos
 1. Elimina los archivos actuales del branch `main`.
 2. Sube todo el contenido de esta carpeta.
 3. Espera el despliegue automático de Vercel.
-4. Cierra por completo la pestaña anterior. En iPhone, cierra Safari o la PWA desde el selector de aplicaciones.
-5. Abre nuevamente la plataforma y realiza una recarga sin caché cuando el navegador lo permita.
+4. En el teléfono, cierra completamente Safari/Chrome o la PWA.
+5. Abre nuevamente la plataforma y realiza una recarga sin caché.
 
 ## No requiere
 - SQL adicional.
-- Nuevas Edge Functions.
+- Cambios en Edge Functions.
 - Cambios en Database Webhooks.
 
 ## Pruebas mínimas
-### Mi perfil
-1. Inicia sesión con Ejecución, Calidad e IT desde un teléfono.
-2. Abre el menú lateral.
-3. Pulsa Mi perfil.
-4. Confirma que el drawer se cierra y aparece la vista.
-5. Repite pulsando el avatar superior.
+### Perfil móvil
+1. Inicia sesión desde el teléfono.
+2. Abre el menú y pulsa **Mi perfil**.
+3. Repite pulsando el avatar.
+4. Confirma que puede modificar nombre e imagen.
+5. Prueba también en Safari normal y, si aplica, en la PWA instalada.
 
-### PDF
-1. Abre Instructivos.
-2. Visualiza el PDF de Colocación de Pisos.
-3. Usa `Siguiente`, `Anterior` y el campo Página.
-4. Verifica todas las páginas sin descargar.
-5. Prueba zoom, ajuste y giro.
+### Rendimiento
+1. Cambia entre Inicio, Inspecciones, Calificaciones e Instructivos.
+2. Confirma que el drawer se cierra antes de cargar la vista.
+3. Cierra sesión y verifica que el login aparezca inmediatamente.
+4. Abre Calificaciones: Chart.js debe descargarse solo en esa sección.
+5. Abre un PDF: PDF.js debe descargarse solo al usar el visor.
 
-## Dependencia web
-El visor carga la versión fijada `pdf.js 3.11.174` desde cdnjs. Si el CDN no está disponible, la aplicación muestra la vista nativa y conserva el botón Descargar.
+## Nota de caché
+El Service Worker se actualizó a `10.5.0`. En iPhone puede ser necesario cerrar la PWA desde el selector de aplicaciones y abrirla otra vez para retirar la versión anterior.

@@ -1,3 +1,17 @@
+# V10.5 — Fase 26 · Estabilidad de perfil y rendimiento móvil
+
+- Se corrigió el error de **Mi perfil** en teléfonos donde `Notification` no está disponible; las funciones de notificación ya no pueden impedir que el perfil se renderice.
+- Se agregó un modo compatible de perfil como respaldo, manteniendo edición de nombre e imagen.
+- La navegación móvil cierra primero el drawer y entrega un frame al navegador antes de renderizar la nueva sección.
+- El cierre de sesión actualiza la interfaz inmediatamente y completa la salida de Supabase en segundo plano.
+- Chart.js, XLSX, jsPDF, AutoTable, PptxGenJS y PDF.js se cargan únicamente cuando una función los necesita.
+- Las preferencias de notificación y el Service Worker dejan de bloquear el arranque.
+- El reloj se pausa cuando la pestaña está oculta.
+- El menú móvil usa transformaciones aceleradas para reducir tirones.
+- No requiere SQL ni cambios en Edge Functions.
+
+---
+
 # V10.4 — Fase 25 · Perfil móvil y visor PDF multipágina
 
 - Se refuerza el acceso a **Mi perfil** en teléfonos mediante navegación directa por `pointerup`, clic, avatar y reinserción automática de la opción cuando una composición de roles la omite.

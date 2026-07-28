@@ -398,7 +398,7 @@ function bindGlobal(){
   document.querySelectorAll('[data-demo-email]').forEach(b=>b.addEventListener('click',()=>{document.getElementById('loginEmail').value=b.dataset.demoEmail;document.getElementById('loginPassword').value='12345678';}));
   document.getElementById('loginBtn')?.addEventListener('click',login);['loginEmail','loginPassword'].forEach(id=>document.getElementById(id)?.addEventListener('keydown',e=>{if(e.key==='Enter')login();}));
   document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.nav)));
-  document.getElementById('logoutBtn')?.addEventListener('click',async()=>{await supabaseClient.auth.signOut();authenticatedUser=null;ui.view='home';render();});
+  document.getElementById('logoutBtn')?.addEventListener('click',()=>{if(typeof window.qpcFastSignOut==='function')return window.qpcFastSignOut();void (async()=>{await supabaseClient.auth.signOut({scope:'local'});authenticatedUser=null;ui.view='home';render();})();});
   document.getElementById('resetBtn')?.addEventListener('click',()=>{if(confirm('¿Eliminar todas las inspecciones y datos creados? Los usuarios permanecerán.')){const users=data.users;data=initialData();data.users=users;saveData();toast('Datos operativos eliminados');navigate('home');}});
   document.getElementById('menuBtn')?.addEventListener('click',()=>{document.getElementById('sidebar').classList.add('open');document.getElementById('overlay').classList.remove('hidden');});document.getElementById('overlay')?.addEventListener('click',closeDrawer);
 }
@@ -3441,7 +3441,10 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   }
   function parseExcelDateP4(value){if(!value)return null;if(typeof value==='number'&&window.XLSX){const d=XLSX.SSF.parse_date_code(value);return d?`${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`:null;}const text=txt(value);if(/^\d{4}-\d{2}-\d{2}$/.test(text))return text;const date=new Date(text);return Number.isNaN(date.getTime())?null:toISODate(date);}
   async function importEquipmentP4(){
-    const file=document.getElementById('p4EquipmentFile')?.files?.[0];if(!file||!window.XLSX){toast('Seleccione un archivo Excel válido.');return;}
+    const file=document.getElementById('p4EquipmentFile')?.files?.[0];
+    if(!file){toast('Seleccione un archivo Excel válido.');return;}
+    if(!window.XLSX&&window.qpcEnsureLibraries){try{await window.qpcEnsureLibraries(['xlsx']);}catch(error){console.error(error);}}
+    if(!window.XLSX){toast('No se pudo cargar el lector de Excel. Verifique su conexión.');return;}
     const button=document.getElementById('p4ImportEquipment');try{button.disabled=true;button.textContent='Procesando…';const book=XLSX.read(await file.arrayBuffer(),{type:'array'}),sheet=book.Sheets[book.SheetNames[0]],rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});let header=rows.findIndex(row=>norm(row[0]).includes('identificacion')||norm(row[0]).includes('identificación'));if(header<0)header=rows.findIndex(row=>norm(row.join(' ')).includes('identificacion del equipo'));if(header<0)throw new Error('No se encontró el encabezado de identificación del FO-GC-23.');
       const records=rows.slice(header+1).filter(row=>txt(row[0])).map(row=>({equipment_code:txt(row[0]),equipment_type:txt(row[1]),brand_model:txt(row[2]),description:txt(row[3]),location_text:txt(row[4]),responsible:txt(row[5]),frequency_days:Number(row[6])||180,calibration_required:Boolean(parseExcelDateP4(row[7])),verification_required:true,last_calibration_date:parseExcelDateP4(row[7]),last_verification_date:parseExcelDateP4(row[9]),observations:txt(row[11])}));
       if(!records.length)throw new Error('No se encontraron equipos para importar.');await invokeAsset({action:'equipment_bulk_upsert',project_id:projectId(),records});await loadPhase4(true);toast(`${records.length} equipos importados o actualizados`);render();
@@ -3882,11 +3885,13 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     await pptx.writeFile({fileName:`${ui.reportMode==='week'?'FO-CP-10':'FO-CP-11'}_${projectRecord().shortCode||project()}_${ui.reportValue}.pptx`});await logExport('complete','PPTX',rows.inspections.length);toast('PPTX editable generado. Revise las hojas pendientes antes de presentar.');
   }
   async function exportPptxP5(kind){
+    if(window.qpcEnsureLibraries)await window.qpcEnsureLibraries(['pptx']);
     if(kind!=='complete')throw new Error('PPTX disponible para informe completo.');
     await window.qpcLoadReportSlidePlan?.();window.qpcUseSlidePlan=true;
     try{return await buildCompletePptx();}finally{window.qpcUseSlidePlan=false;}
   }
   async function exportPdfP5(kind){
+    if(window.qpcEnsureLibraries)await window.qpcEnsureLibraries(['pdf']);
     if(kind==='complete'){
       await window.qpcLoadReportSlidePlan?.();window.qpcUseSlidePlan=true;
       try{return await buildCompletePdf();}finally{window.qpcUseSlidePlan=false;}
@@ -3916,7 +3921,17 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   },true);
 
   const priorRender=window.render;
-  window.render=function(){const result=priorRender();requestAnimationFrame(()=>{syncTopScrollers();if(ui.view==='ratings')initP5Charts();});return result;};
+  window.render=function(){
+    const result=priorRender();
+    requestAnimationFrame(()=>{
+      syncTopScrollers();
+      if(ui.view==='ratings'){
+        if(typeof Chart!=='undefined')initP5Charts();
+        else window.qpcEnsureLibraries?.(['chart']).then(()=>{if(ui.view==='ratings')initP5Charts();}).catch(error=>console.warn('No se cargaron los gráficos',error));
+      }
+    });
+    return result;
+  };
 })();
 
 /* Quality Project Control MAIN V8.7 · Fase 8
@@ -5432,8 +5447,12 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
       }
     }
     updateClock();
-    if(!clockTimer)clockTimer=window.setInterval(updateClock,1000);
+    if(!document.hidden&&!clockTimer)clockTimer=window.setInterval(updateClock,1000);
   }
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){if(clockTimer){clearInterval(clockTimer);clockTimer=null;}}
+    else{ensureClock();updateClock();}
+  },{passive:true});
 
   const previousRenderClock=window.render;
   window.render=function(){
@@ -6055,7 +6074,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   async function registerWorker(){
     if(!supported())return null;
     if(state.registration)return state.registration;
-    state.registration=await navigator.serviceWorker.register('/qpc-sw.js?v=10.2.0',{scope:'/'});
+    state.registration=await navigator.serviceWorker.register('/qpc-sw.js?v=10.5.0',{scope:'/'});
     await navigator.serviceWorker.ready;
     return state.registration;
   }
@@ -6073,12 +6092,12 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     ]);
     if(error)throw error;if(subError)throw subError;
     state.preference=preference||{user_id:id,enabled:false,categories:Object.fromEntries(categories.map(key=>[key,true])),show_preview:true,sound_enabled:true};
-    if(supported()){
+    if(supported()&&(state.preference?.enabled||subs?.length)){
       const registration=await registerWorker();
       const existing=await registration?.pushManager.getSubscription();
       state.subscription=existing||null;
       if(existing&&!subs?.some(row=>row.endpoint===existing.endpoint))await saveSubscription(existing);
-    }
+    }else state.subscription=null;
     return state.preference;
   }
   async function savePreference(patch={}){
@@ -6120,6 +6139,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     state.subscription=null;await savePreference({enabled:false});
   }
   async function testDeviceNotification(){
+    if(!supported()||typeof Notification==='undefined')throw new Error('Este navegador no admite notificaciones web en este modo.');
     if(Notification.permission!=='granted')throw new Error('Active primero las notificaciones del dispositivo.');
     const registration=await registerWorker();
     await registration.showNotification('Quality Project Control',{body:'Las notificaciones de este dispositivo están funcionando.',icon:'/assets/qpc-icon-192.png',badge:'/assets/favicon-codelpa-c-64.png',tag:'qpc-test',data:{url:'/'}});
@@ -6132,6 +6152,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   }
   function preferencePanel(){
     const [status,detail,statusClass]=statusInfo();
+    const permission=supported()?Notification.permission:'unsupported';
     const prefs=state.preference||{categories:Object.fromEntries(categories.map(key=>[key,true])),show_preview:true,sound_enabled:true};
     return `<section class="card qpc-device-notification-card" id="qpcDeviceNotificationCard">
       <div class="qpc-device-notification-head"><div><h3>Notificaciones del dispositivo</h3><p>Replican las notificaciones de la bandeja interna en este navegador.</p></div><span class="qpc-device-status ${statusClass}">${esc(status)}</span></div>
@@ -6139,9 +6160,9 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
       <div class="qpc-device-category-grid">${categories.map(key=>`<label class="qpc-device-category"><input type="checkbox" data-device-category="${key}" ${prefs.categories?.[key]!==false?'checked':''}><span>${esc(categoryLabels[key])}</span></label>`).join('')}</div>
       <div class="qpc-device-category-grid is-secondary"><label class="qpc-device-category"><input id="qpcDevicePreview" type="checkbox" ${prefs.show_preview!==false?'checked':''}><span>Mostrar contenido en la alerta</span></label><label class="qpc-device-category"><input id="qpcDeviceSound" type="checkbox" ${prefs.sound_enabled!==false?'checked':''}><span>Permitir sonido</span></label></div>
       <div class="button-row qpc-device-actions">
-        ${Notification.permission==='granted'&&state.subscription&&prefs.enabled?'<button type="button" class="btn btn-outline" id="qpcDisableDeviceNotifications">Desactivar en este dispositivo</button>':'<button type="button" class="btn btn-primary" id="qpcEnableDeviceNotifications">Activar notificaciones</button>'}
+        ${permission==='granted'&&state.subscription&&prefs.enabled?'<button type="button" class="btn btn-outline" id="qpcDisableDeviceNotifications">Desactivar en este dispositivo</button>':'<button type="button" class="btn btn-primary" id="qpcEnableDeviceNotifications">Activar notificaciones</button>'}
         <button type="button" class="btn btn-outline" id="qpcSaveDevicePreferences">Guardar preferencias</button>
-        <button type="button" class="btn btn-secondary" id="qpcTestDeviceNotification" ${Notification.permission==='granted'?'':'disabled'}>Enviar prueba</button>
+        <button type="button" class="btn btn-secondary" id="qpcTestDeviceNotification" ${permission==='granted'?'':'disabled'}>Enviar prueba</button>
       </div>
       <small class="qpc-device-note">En iPhone/iPad, las notificaciones web requieren añadir la aplicación a la pantalla de inicio. El permiso siempre debe concederse mediante una acción del usuario.</small>
     </section>`;
@@ -6198,16 +6219,22 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     }catch(error){console.error(error);if(typeof toast==='function')toast(error.message||'No se pudo configurar el dispositivo.');button.disabled=false;}
   },true);
 
+  function schedulePreferenceLoad(){
+    if(!actor())return;
+    const run=()=>loadPreference().then(refreshCard).catch(error=>console.warn('No se cargaron preferencias de notificación',error));
+    if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:3500});
+    else setTimeout(run,900);
+  }
   const priorLoadRemote=window.loadRemoteData;
   window.loadRemoteData=async function(){
     const result=await priorLoadRemote.apply(this,arguments);
-    try{if(actor())await loadPreference();}catch(error){console.warn('No se cargaron preferencias de notificación',error);}
+    schedulePreferenceLoad();
     return result;
   };
 
   supabaseClient.auth.onAuthStateChange((event)=>{
     if(event==='SIGNED_OUT'){state.preference=null;state.subscription=null;return;}
-    if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED')setTimeout(()=>loadPreference().then(refreshCard).catch(()=>{}),0);
+    if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED')schedulePreferenceLoad();
   });
 
   const urlNotification=new URLSearchParams(location.search).get('qpcNotification');
@@ -6217,7 +6244,14 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     setTimeout(attempt,500);
   }
 
-  registerWorker().catch(error=>console.warn('No se registró el Service Worker',error));
+  const scheduleWorkerRegistration=()=>{
+    if(!supported()||typeof Notification==='undefined'||Notification.permission!=='granted')return;
+    const run=()=>registerWorker().catch(error=>console.warn('No se registró el Service Worker',error));
+    if('requestIdleCallback' in window)requestIdleCallback(run,{timeout:5000});
+    else setTimeout(run,2200);
+  };
+  if(document.readyState==='complete')scheduleWorkerRegistration();
+  else window.addEventListener('load',scheduleWorkerRegistration,{once:true,passive:true});
   window.qpcDeviceNotifications={enable:enableDeviceNotifications,disable:disableDeviceNotifications,test:testDeviceNotification,load:loadPreference};
 })();
 
@@ -6272,14 +6306,42 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     requestAnimationFrame(()=>sidebar?.querySelector('.nav-btn.active,.nav-btn')?.focus({preventScroll:true}));
   }
 
+  let navigationToken=0;
+  function routeIndicator(active,label='Cargando sección…'){
+    let bar=document.getElementById('qpcRouteProgress');
+    if(active&&!bar){
+      bar=document.createElement('div');bar.id='qpcRouteProgress';bar.className='qpc-route-progress';
+      bar.innerHTML=`<span></span><small>${label}</small>`;document.body.appendChild(bar);
+    }
+    if(bar){bar.querySelector('small').textContent=label;bar.classList.toggle('is-active',active);if(!active)setTimeout(()=>bar?.remove(),180);}
+    document.body.classList.toggle('qpc-route-pending',active);
+  }
   function goToView(view){
-    if(!view)return;
+    if(!view||ui?.view===view){closeMobileDrawer();return;}
     try{if(ui?.view==='newRequest'&&typeof captureRequestDraft==='function')captureRequestDraft();}catch(_){/* no-op */}
     closeMobileDrawer();
-    ui.view=view;
-    if(!['detail','evaluate'].includes(view))ui.selectedId=null;
-    render();
-    requestAnimationFrame(()=>window.scrollTo({top:0,left:0,behavior:'auto'}));
+    const token=++navigationToken;
+    routeIndicator(true);
+    const commit=()=>{
+      if(token!==navigationToken)return;
+      try{
+        ui.view=view;
+        if(!['detail','evaluate'].includes(view))ui.selectedId=null;
+        render();
+      }catch(error){
+        console.error(`No se pudo abrir la vista ${view}`,error);
+        if(typeof toast==='function')toast(`No se pudo abrir la sección: ${error?.message||'error desconocido'}`);
+      }finally{
+        requestAnimationFrame(()=>{
+          closeMobileDrawer();
+          window.scrollTo({top:0,left:0,behavior:'auto'});
+          routeIndicator(false);
+        });
+      }
+    };
+    // En móvil se cierra el drawer y se entrega un frame al navegador antes del render pesado.
+    if(window.matchMedia('(max-width:900px)').matches)requestAnimationFrame(()=>setTimeout(commit,0));
+    else commit();
   }
 
   const previousBindGlobal=window.bindGlobal||globalThis.bindGlobal;
@@ -6344,13 +6406,9 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   window.qpcOpenProfile=()=>goToView('profile');
 })();
 
-/* MAIN V10.4.0 · Fase 25 — acceso móvil a Mi perfil y visor PDF multipágina */
+/* MAIN V10.5.0 · Fase 26 — estabilidad de Mi perfil y rendimiento móvil */
 ;(()=>{
   const esc=value=>typeof escapeHtml==='function'?escapeHtml(String(value??'')):String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-
-  function signedInUser(){
-    try{return typeof currentUser==='function'?currentUser():null;}catch(_){return null;}
-  }
 
   function closeDrawerNow(){
     document.getElementById('sidebar')?.classList.remove('open');
@@ -6359,77 +6417,23 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     document.body.classList.remove('qpc-mobile-drawer-open');
   }
 
-  function openProfileView(){
-    if(!signedInUser())return;
-    closeDrawerNow();
+  // Respaldo programático. La navegación normal se gestiona en Fase 24.
+  // No registra listeners duplicados ni MutationObserver sobre todo el árbol.
+  window.qpcOpenProfile=function(){
     try{
+      if(typeof currentUser==='function'&&!currentUser())return false;
+      closeDrawerNow();
       ui.view='profile';
       ui.selectedId=null;
       if(typeof render==='function')render();
-      requestAnimationFrame(()=>{
-        closeDrawerNow();
-        window.scrollTo({top:0,left:0,behavior:'auto'});
-        document.querySelector('#profileName')?.focus({preventScroll:true});
-      });
+      requestAnimationFrame(()=>{closeDrawerNow();window.scrollTo({top:0,left:0,behavior:'auto'});});
+      return true;
     }catch(error){
       console.error('No se pudo abrir Mi perfil',error);
-      if(typeof toast==='function')toast('No se pudo abrir Mi perfil. Recargue la página e inténtelo otra vez.');
+      if(typeof toast==='function')toast(`No se pudo abrir Mi perfil: ${error?.message||'error desconocido'}`);
+      return false;
     }
-  }
-
-  function ensureProfileMenuEntry(){
-    const sidebar=document.getElementById('sidebar');
-    if(!sidebar||!signedInUser())return;
-    let button=sidebar.querySelector('.nav-btn[data-nav="profile"]');
-    if(!button){
-      button=document.createElement('button');
-      button.type='button';
-      button.className='nav-btn';
-      button.dataset.nav='profile';
-      button.innerHTML='<span aria-hidden="true">◉</span>Mi perfil';
-      const mappings=sidebar.querySelector('.nav-btn[data-nav="mappings"]');
-      const management=sidebar.querySelector('.nav-btn[data-nav="users"],.nav-btn[data-nav="projects"],.nav-btn[data-nav="audit"],.nav-btn[data-nav="integrity"]');
-      if(mappings?.nextSibling)sidebar.insertBefore(button,mappings.nextSibling);
-      else if(management)sidebar.insertBefore(button,management);
-      else sidebar.querySelector('.sidebar-footer')?.before(button);
-    }
-    button.classList.toggle('active',ui?.view==='profile');
-    button.setAttribute('aria-current',ui?.view==='profile'?'page':'false');
-    button.title='Mi perfil';
-  }
-
-  // Se utiliza pointerup para evitar que listeners heredados del drawer móvil
-  // intercepten el click antes de que se abra la vista.
-  document.addEventListener('pointerup',event=>{
-    const profileButton=event.target.closest('#sidebar .nav-btn[data-nav="profile"]');
-    const avatar=event.target.closest('.top-right .qpc-avatar,.top-right>.avatar');
-    if(!profileButton&&!avatar)return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    openProfileView();
-  },true);
-
-  // Respaldo para navegación por teclado y navegadores sin Pointer Events.
-  document.addEventListener('click',event=>{
-    const target=event.target.closest('#sidebar .nav-btn[data-nav="profile"],.top-right .qpc-avatar,.top-right>.avatar');
-    if(!target)return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    openProfileView();
-  },true);
-
-  const appRoot=document.getElementById('app');
-  if(appRoot){
-    let scheduled=false;
-    const scheduleEnsure=()=>{
-      if(scheduled)return;
-      scheduled=true;
-      requestAnimationFrame(()=>{scheduled=false;ensureProfileMenuEntry();});
-    };
-    new MutationObserver(scheduleEnsure).observe(appRoot,{childList:true,subtree:true});
-    scheduleEnsure();
-  }
-  window.qpcOpenProfile=openProfileView;
+  };
 
   function fileKind(url='',type='',name=''){
     const value=`${type} ${name} ${url}`.toLowerCase().split('?')[0].split('#')[0];
@@ -6544,6 +6548,9 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     }
 
     async function initializePdf(){
+      if(!window.pdfjsLib&&window.qpcEnsureLibraries){
+        try{await window.qpcEnsureLibraries(['pdfjs']);}catch(error){console.warn('No se pudo cargar PDF.js',error);}
+      }
       if(!window.pdfjsLib){
         stage.innerHTML=nativeFallback(url,name,'No se cargó el motor PDF multipágina.');
         return;
@@ -6591,4 +6598,58 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     initializePdf();
   };
   try{showFileViewer=window.showFileViewer;}catch(_){/* binding global no reasignable */}
+})();
+
+
+/* MAIN V10.5.0 · Fase 26 — perfil compatible y cierre de sesión fluido */
+;(()=>{
+  const esc26=value=>typeof escapeHtml==='function'?escapeHtml(String(value??'')):String(value??'');
+  const priorRenderView26=window.renderView;
+  function fallbackProfile(user,error){
+    console.warn('Mi perfil se abrió en modo compatible',error);
+    const avatar=typeof htmlAvatar==='function'?htmlAvatar(user,92):`<div class="avatar profile-avatar-fallback">${typeof initials==='function'?initials(user?.name||'Usuario'):'U'}</div>`;
+    return `<div class="page-head"><div><h2>Mi perfil</h2><p>Actualice su nombre visible y su imagen de perfil.</p></div></div>
+      <div class="card profile-card qpc-profile-compatible"><div class="profile-preview">${avatar}</div><div class="form-grid">
+        <div class="field"><label>Nombre visible</label><input id="profileName" value="${esc26(user?.name||'')}"></div>
+        <div class="field"><label>Correo</label><input value="${esc26(user?.email||'')}" readonly></div>
+        <div class="field"><label>Rol</label><input value="${esc26((typeof ROLE_LABELS!=='undefined'&&ROLE_LABELS[user?.role])||user?.role||'')}" readonly></div>
+        <div class="field"><label>Imagen de perfil</label><input id="profilePhoto" type="file" accept="image/*"></div>
+      </div><div class="button-row profile-actions"><button id="saveProfileBtn" class="btn btn-primary">Guardar perfil</button><button id="removeProfilePhotoBtn" class="btn btn-outline">Restaurar imagen</button></div></div>
+      <div class="alert alert-info" style="margin-top:16px">La sección se abrió en modo compatible porque una función opcional del navegador no está disponible. El nombre y la imagen de perfil continúan funcionando.</div>`;
+  }
+  window.renderView=function(user){
+    if(ui?.view!=='profile')return priorRenderView26.apply(this,arguments);
+    try{return priorRenderView26.apply(this,arguments);}
+    catch(error){return fallbackProfile(user,error);}
+  };
+  try{renderView=window.renderView;}catch(_){/* binding global no reasignable */}
+
+  let signingOut=false;
+  window.qpcFastSignOut=function(){
+    if(signingOut)return;
+    signingOut=true;
+    document.getElementById('sidebar')?.classList.remove('open');
+    document.getElementById('overlay')?.classList.add('hidden');
+    document.body.classList.remove('qpc-mobile-drawer-open');
+    document.body.classList.add('qpc-signing-out');
+    const request=Promise.resolve().then(()=>supabaseClient.auth.signOut({scope:'local'}));
+    authenticatedUser=null;ui.view='home';ui.selectedId=null;
+    requestAnimationFrame(()=>{
+      try{render();}finally{document.body.classList.remove('qpc-signing-out');}
+    });
+    Promise.race([request,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Tiempo de salida agotado')),5000))])
+      .catch(error=>{console.warn('La sesión local se cerró, pero Supabase tardó en responder',error);})
+      .finally(()=>{signingOut=false;});
+  };
+})();
+
+/* MAIN V10.5.0 · Fase 26 — optimizaciones generales de interacción */
+;(()=>{
+  // Evita trabajo visual innecesario cuando la pestaña está oculta.
+  let resizeFrame=0;
+  window.addEventListener('resize',()=>{
+    if(resizeFrame)cancelAnimationFrame(resizeFrame);
+    resizeFrame=requestAnimationFrame(()=>{resizeFrame=0;document.documentElement.style.setProperty('--qpc-vh',`${window.innerHeight*0.01}px`);});
+  },{passive:true});
+  document.documentElement.style.setProperty('--qpc-vh',`${window.innerHeight*0.01}px`);
 })();
