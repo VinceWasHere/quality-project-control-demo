@@ -30,9 +30,30 @@ Documento hermano: [QPC_CURRENT_STATE.md](QPC_CURRENT_STATE.md).
 | 15 | Ciclo de reportes con aprobación | **Construido, nunca ejercitado** | BD |
 | 16 | Comparación de desempeño entre ingenieros | **Parcial** | Frontend |
 | 17 | **Capacidad offline (IndexedDB + cola de sync)** | **Ausente por completo** | — |
-| 18 | **Versionado del esquema** | **Ausente por completo** | — |
-| 19 | **Cabeceras de seguridad** | **Ausente** | — |
+| 18 | **Versionado del esquema** | **Establecido** (baseline + delta registrados) | `supabase/migrations/` |
+| 19 | **Cabeceras de seguridad** | **Código listo, sin desplegar** | `vercel.json` |
 | 20 | Herramientas de integridad de datos | **Completo** | BD |
+
+---
+
+## Seguridad: agujeros cerrados en esta ronda
+
+Comprobados y reverificados contra producción (detalle en
+[QPC_CURRENT_STATE.md §6](QPC_CURRENT_STATE.md)):
+
+| Hallazgo | Gravedad | Estado |
+|---|---|---|
+| Escalada a IT con un `PATCH` a `profiles.role` (los 6 roles) | Crítico | **CERRADO** — grants por columna |
+| 6 cuentas semilla con `12345678` publicada en el login (presidente/IT incluidos) | Crítico | **CERRADO** — rotadas + hint borrado |
+| Vista `qpc_report_content_status` sin `security_invoker` filtraba `project_id` a anónimos | Alto | **CERRADO** — invoker en todas las vistas |
+| 7 tablas demo abiertas a `anon` | Alto | **CERRADO** — políticas y grants revocados |
+| Recuperación de cuenta rota (`site_url`/`allow_list`) | Alto | **CERRADO** |
+| Registro abierto; contraseñas de 6 caracteres | Medio | **CERRADO** — signup off, mínimo 10 |
+| Escritura anónima amplia en tablas y vistas | Medio | **CERRADO** — 0 objetos escribibles por anon |
+
+Pendientes de seguridad: cerrar lectura anónima de `login_directory` (B-6), rotar el secreto
+de push y moverlo a Vault (B-9/§6.10), desplegar `vercel.json` y verificar la CSP (B-10),
+decidir disposición de las 6 cuentas semilla.
 
 ---
 
@@ -125,23 +146,24 @@ Detallado en [QPC_CURRENT_STATE.md §7](QPC_CURRENT_STATE.md). Resumen: la tabla
 `supabase_migrations.schema_migrations` **no existe**; 13 tablas vivas no las crea ninguna
 migración del repositorio; faltan los ficheros 005 y 009–013.
 
-Mitigado parcialmente con el baseline de 236 KB ya generado, pero el baseline **todavía no
-está instalado como migración** ni probado contra una base limpia.
+**Estado: RESUELTO.** Se creó `supabase_migrations.schema_migrations` y se registraron el
+baseline (`00000000000000`) y el delta de seguridad (`20260921000000`) como aplicados.
+Pendiente menor: probar el baseline contra una base limpia (replay-test).
 
 ### B-3 · Siete tablas heredadas abiertas a escritura anónima
 
-Detallado en [QPC_CURRENT_STATE.md §6.1](QPC_CURRENT_STATE.md). El bundle no las usa y
-están vacías, así que la corrección es limpia: respaldo (hecho) y eliminación.
+**Estado: CERRADO.** Las 7 políticas `demo_*_all` eliminadas y los grants revocados; rollback
+en `QPC-work/baseline/rollback-anon-demo.json`. Reverificado desde fuera: 401 en lectura y
+escritura en las siete. Recogido en la migración `20260921000000`.
 
 ### B-4 · La recuperación de cuenta está rota
 
-`site_url` y `uri_allow_list` apuntan al hostname protegido por SSO. Cualquier usuario que
-olvide su contraseña recibe un enlace a una página que no puede abrir. No es solo un
-problema de seguridad: es una avería funcional que hoy afecta a los 7 usuarios.
+**Estado: CERRADO.** `site_url` y `uri_allow_list` corregidos al hostname público real; se
+conservan las variantes anteriores en la lista blanca.
 
 ### B-5 · Registro abierto en herramienta corporativa
 
-`disable_signup = false`.
+**Estado: CERRADO.** `disable_signup = true` y `password_min_length = 10`.
 
 ### B-6 · El directorio de empleados se lee sin autenticar
 
@@ -198,20 +220,24 @@ Funciona con 12 inspecciones; no escalará a 1 200.
 Criterio: primero lo que es a la vez barato y grave, y todo lo destructivo solo con red de
 seguridad ya puesta (que lo está).
 
-| Prioridad | Acción | Coste | Riesgo de no hacerlo |
-|---|---|---|---|
-| **P0** | Instalar el baseline como migración inicial (B-2) | Medio | Pérdida irrecuperable del esquema |
-| **P0** | Eliminar las 7 tablas demo abiertas a `anon` (B-3) | Bajo | Escritura anónima desde Internet |
-| **P0** | Corregir `site_url` / `uri_allow_list` (B-4) | Muy bajo | Nadie puede recuperar su contraseña |
-| **P1** | `disable_signup = true` (B-5) | Muy bajo | Altas no autorizadas |
-| **P1** | `vercel.json` con cabeceras (B-10) | Muy bajo | Clickjacking, XSS |
-| **P1** | Elevar longitud mínima de contraseña (B-5) | Muy bajo | Cuentas débiles |
-| **P2** | Service worker con app shell (B-1, paso 1) | Bajo | La app no abre sin red |
-| **P2** | Cerrar `login_directory` a `anon` (B-6) | Bajo | Fuga de la nómina |
-| **P2** | Rotar el secreto de push y moverlo a Vault (B-9) | Medio | Secreto en claro en la BD |
-| **P3** | IndexedDB de catálogos + cola de sync (B-1, pasos 2-3) | Alto | Inutilizable en obra |
-| **P3** | Ejercitar el ciclo de reportes completo (B-7) | Medio | Código sin probar en producción |
-| **P4** | `qpc_quality_week()` en la BD (B-8) | Bajo | Divergencia de periodos |
-| **P4** | Vistas de ranking en la BD (B-11) | Medio | No escala |
+| Prioridad | Acción | Estado |
+|---|---|---|
+| **P0** | Escalada a IT vía `profiles.role` (§6.7) | ✅ Hecho |
+| **P0** | Cuentas semilla con contraseña publicada (§6.8) | ✅ Hecho |
+| **P0** | Vista sin `security_invoker` (§6.9) | ✅ Hecho |
+| **P0** | Registrar baseline + delta como migraciones (B-2) | ✅ Hecho |
+| **P0** | Eliminar las 7 tablas demo abiertas a `anon` (B-3) | ✅ Hecho |
+| **P0** | Corregir `site_url` / `uri_allow_list` (B-4) | ✅ Hecho |
+| **P1** | `disable_signup = true` + mínimo 10 (B-5) | ✅ Hecho |
+| **P1** | `vercel.json` con cabeceras (B-10) | ⚠️ Escrito, sin desplegar; CSP sin verificar |
+| **P2** | Service worker con app shell (B-1, paso 1) | ⬜ Pendiente |
+| **P2** | Cerrar `login_directory` a `anon` (B-6) | ⬜ Pendiente |
+| **P2** | Rotar el secreto de push y moverlo a Vault (B-9) | ⬜ Pendiente |
+| **P3** | IndexedDB de catálogos + cola de sync (B-1, pasos 2-3) | ⬜ Pendiente |
+| **P3** | Ejercitar el ciclo de reportes completo (B-7) | ⬜ Pendiente |
+| **P4** | `qpc_quality_week()` en la BD (B-8) | ⬜ Pendiente |
+| **P4** | Vistas de ranking en la BD (B-11) | ⬜ Pendiente |
 
-Nada de esto exige gasto: todo cabe en el plan gratuito de Supabase y Vercel.
+Todos los P0 y el grueso de P1 están cerrados y reverificados en producción. Lo que queda:
+desplegar `vercel.json`, la capa offline (la mayor brecha funcional), y el endurecimiento
+restante. Nada de esto exige gasto: todo cabe en el plan gratuito de Supabase y Vercel.

@@ -130,59 +130,97 @@ Conviene decirlo antes de los problemas, porque el trabajo de base es sólido:
 
 ---
 
-## 6. Seguridad — los agujeros reales
+## 6. Seguridad — los agujeros reales y su estado
 
-### 6.1 Siete tablas heredadas abiertas a Internet (crítico)
+Todo lo de esta sección se comprobó empíricamente contra producción. Cada punto lleva su
+estado: **CERRADO** (arreglado y reverificado en vivo) o **ABIERTO** (pendiente).
 
-Estas tablas tienen una política `FOR ALL … USING (true)` concedida al rol **`anon`**:
+### 6.7 Escalada de privilegios a IT con un solo PATCH — CERRADO (era el más grave)
 
-`inspections` · `projects` · `engineers` · `workshops` · `criteria` ·
-`inspection_results` · `inspection_visits`
+La política `authenticated_update_own_profile` permitía a cualquier usuario autenticado
+actualizar su propia fila de `profiles` con `id = auth.uid()`, y el rol `authenticated`
+tenía `UPDATE` sobre **las 11 columnas**, incluida `role`, **sin ningún trigger** que lo
+impidiera. RLS no restringe columnas.
 
-Las políticas se llaman `demo_*_all`. Con la clave publicable —que está en un repositorio
-público de GitHub— **cualquiera en Internet puede leer, insertar, modificar y borrar** en
-ellas.
+Comprobado: **los seis roles** (EJECUCION incluido) hicieron `PATCH profiles?role=IT` con
+respuesta **HTTP 200**. Un ingeniero de obra podía convertirse en IT (administrador) desde
+el navegador. Cada prueba se revirtió en el acto.
 
-Comprobado empíricamente: un `INSERT` anónimo en `public.workshops` **no fue rechazado por
-RLS**, sino por una restricción `NOT NULL` en `project_id`. Es decir, la puerta está abierta;
-solo faltó rellenar un campo.
+Arreglo (migración `20260921000000`):
 
-Atenuante: **el bundle no usa ninguna de las siete.** Son restos del esquema demo original.
-Hoy están vacías. El riesgo no es pérdida de datos actual sino inyección de basura y uso del
-proyecto Supabase como almacenamiento ajeno.
-
-### 6.2 El directorio de empleados es público
-
-`login_directory` tiene `anon_read_login_directory` con `USING (is_active = true)`. Devuelve
-sin autenticación correo, nombre completo y rol de cada empleado activo. Es funcional por
-diseño (el desplegable de inicio de sesión), pero expone la nómina del departamento a
-cualquiera que tenga la URL.
-
-### 6.3 Registro abierto
-
-`disable_signup = false`. Cualquiera puede crearse una cuenta en una herramienta corporativa
-interna.
-
-### 6.4 URLs de redirección apuntan a un sitio inaccesible
-
-```
-site_url       = https://quality-project-control-demo-vincewasheres-projects.vercel.app/
-uri_allow_list = (solo variantes de ese mismo hostname)
+```sql
+revoke all on public.profiles from anon;
+revoke insert, update, delete, truncate on public.profiles from authenticated;
+grant update (full_name, avatar_data_url, updated_at) on public.profiles to authenticated;
 ```
 
-Ese hostname está **detrás de la protección SSO de Vercel**. Los correos de confirmación,
-restablecimiento de contraseña y enlaces mágicos llevan al usuario a una página que no
-puede abrir. La URL pública real, `quality-project-control-demo.vercel.app`, **no está en la
-lista blanca**. Esto no es solo seguridad: es una rotura funcional de la recuperación de cuenta.
+Reverificado: **PATCH role → 403 para los seis roles**, y la edición legítima del nombre
+propio sigue devolviendo **200**. El único vector que queda para cambiar roles es la Edge
+Function `admin-user-management`, que valida sesión y solo responde 200 a PRESIDENTE e IT.
 
-### 6.5 Contraseñas de 6 caracteres
+### 6.8 Seis cuentas semilla con la contraseña publicada en el login — CERRADO (este tramo)
 
-`password_min_length = 6`, sin CAPTCHA.
+La pantalla de login imprimía en texto plano: «para las cuentas `.demo` la contraseña es
+`12345678`». Existían seis cuentas semilla activas cubriendo **todos** los roles —incluidos
+`presidente@codelpa.demo` y `tecnologia@codelpa.demo` (IT)— y **las seis entraban con esa
+contraseña**. Cualquiera en Internet obtenía acceso de presidente o IT sin explotar nada,
+solo leyendo la página.
 
-### 6.6 Faltan cabeceras de seguridad en el despliegue
+Arreglo: contraseñas rotadas a valores fuertes aleatorios vía Admin API (guardadas en
+`~/.qpc-secrets/cuentas-semilla.env`, fuera de Git) y **eliminado el texto que publicaba la
+contraseña** del bundle (dos ocurrencias). Reverificado: **`12345678` ya no entra en ninguna
+de las seis**; las nuevas contraseñas sí. Las cuentas no se borraron — disposición final
+pendiente de decisión de Vincent (ver §9).
 
-La respuesta de producción trae `Strict-Transport-Security` pero **no** `Content-Security-Policy`,
-**ni** `X-Frame-Options`, **ni** `X-Content-Type-Options`. No hay `vercel.json` en el repositorio.
+### 6.9 Vista sin `security_invoker` que filtraba datos de proyecto — CERRADO (este tramo)
+
+`qpc_report_content_status` corría con privilegios del propietario (owner-rights), así que
+**ignoraba el RLS** de las tablas base. Un anónimo sin sesión obtenía 16 filas, 3 con
+`project_id`/`period_value` reales (p. ej. proyecto `LCE`, periodo `2026-07`). Arreglo:
+`security_invoker = on` aplicado a **todas** las vistas de `public`. Reverificado: la vista
+devuelve **0 filas** a un anónimo; las vistas usadas por el frontend siguen sanas.
+
+### 6.1 Siete tablas heredadas abiertas a Internet — CERRADO
+
+Las tablas `inspections` · `projects` · `engineers` · `workshops` · `criteria` ·
+`inspection_results` · `inspection_visits` tenían políticas `demo_*_all` (`FOR ALL … USING
+(true)`) para `anon`. Con la clave publicable del repo público, cualquiera podía leer y
+escribir. Arreglo: las 7 políticas eliminadas y los grants revocados (migración
+`20260921000000`; rollback en `QPC-work/baseline/rollback-anon-demo.json`). Reverificado
+desde fuera con la clave publicable: **401 en lectura y escritura en las siete**.
+
+### 6.2 El directorio de empleados es público — ABIERTO (parcial)
+
+`login_directory` se lee sin autenticar (correo, nombre, rol de cada empleado activo). Es
+funcional por diseño: alimenta el desplegable de login. Sigue expuesta la nómina del
+departamento. Atenuado en parte porque ya no hay contraseñas adivinables asociadas (§6.8).
+Pendiente: decidir si se restringe la lectura o se acepta como diseño.
+
+### 6.3 Registro abierto — CERRADO
+
+`disable_signup = true` (el bundle no tiene ninguna llamada `signUp`, así que es seguro).
+
+### 6.4 URLs de redirección apuntaban a un sitio inaccesible — CERRADO
+
+`site_url` y `uri_allow_list` corregidos al hostname público real
+`quality-project-control-demo.vercel.app` (se conservan las variantes anteriores en la lista
+blanca). La recuperación de cuenta ya no lleva a una página tras el SSO de Vercel.
+
+### 6.5 Contraseñas de 6 caracteres — CERRADO
+
+`password_min_length` subido de 6 a **10**.
+
+### 6.6 Faltan cabeceras de seguridad en el despliegue — ABIERTO (código listo, sin desplegar)
+
+Se creó `vercel.json` con CSP estricta, `X-Frame-Options DENY`, `nosniff`,
+`Referrer-Policy`, `Permissions-Policy`, COOP y HSTS con preload. **No desplegado y CSP no
+verificada en navegador todavía** — se valida tras el primer deploy.
+
+### 6.10 Secreto en texto plano dentro de un trigger — ABIERTO
+
+El trigger `qpc-web-push-notifications` incrusta `QPC_PUSH_WEBHOOK_SECRET` en texto plano en
+su definición. Redactado en los artefactos locales del baseline, pero **sigue en texto plano
+en la base viva**. Pendiente: rotar y mover a Vault.
 
 ---
 
@@ -218,6 +256,18 @@ QPC-work/baseline/datos-2026-09-21.json                    (todas las filas + au
 Contiene 54 `create table`, 114 claves foráneas, 74 índices, 71 funciones, 9 vistas,
 26 triggers, 75 políticas y el estado de RLS de cada tabla. Es la primera representación
 versionada del esquema que existe.
+
+**Versionado ya establecido:** se creó `supabase_migrations.schema_migrations` en la base y
+se registraron dos migraciones como aplicadas:
+
+- `00000000000000_baseline_produccion` — el esquema completo (sanitizado, sin el secreto del
+  trigger), en `supabase/migrations/`.
+- `20260921000000_endurecer_permisos` — el delta de seguridad de §6 (escalada, tablas demo,
+  escritura anónima, `security_invoker`), en `supabase/migrations/`.
+
+Las 16 migraciones históricas irreproducibles se movieron a `supabase/migraciones-historico/`
+con un `LEEME.md`. A partir de aquí, todo cambio de esquema o de permisos va como migración
+nueva, nunca a mano en el panel — que fue justo el origen de estos agujeros.
 
 ---
 
