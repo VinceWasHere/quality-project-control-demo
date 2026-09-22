@@ -52,9 +52,30 @@ Rama: `fix/p0-seguridad-y-versionado`. SW `v10.6.0`.
 - **Verificado en preview con la red cortada** (`navigator.onLine=false`): navegación
   `200`, login renderizado, 17 recursos del shell servidos desde caché.
 
+### Offline — datos (B-1, pasos 2-3) · commit `69c1975`
+
+Enfoque tras auditar la arquitectura: **la app es un único blob** (`app_state.payload`)
+y `saveData()` ya persiste el estado completo en `localStorage` de forma síncrona en
+cada cambio. Por eso NO hizo falta una cola por mutación ni tocar los 45 sitios de
+lectura / 13 de escritura. Cambios (todos en `app.bundle.js` salvo el bump de versión):
+
+- **Arranque offline.** `loadRemoteData`/`loadProfiles` y `qpcBootstrapV613`: sin red,
+  arrancan desde el último estado guardado (incluye usuarios e inspecciones hechas
+  offline aún sin sincronizar) en vez de mandar al login. La sesión local se conserva;
+  ya no se hace `signOut` ante un error de red.
+- **Escritura offline.** `saveData` marca una bandera "pendiente de sincronizar"
+  (persistida) cuando el `upsert` falla; un listener `online` reenvía el blob completo
+  al reconectar y limpia la bandera al subir bien.
+- **Aviso visible.** Banner inferior "Sin conexión — trabajando offline…" / "Cambios
+  pendientes de sincronizar…".
+- Cache-busting a `10.7.0` (index.html, `QPC_VERSION` del SW, registros del SW).
+- Verificado `node --check` en los 3 ficheros. **Verificación en vivo (red cortada +
+  registrar inspección + reconexión) pendiente** tras el deploy del preview.
+
 ### Pendiente tras esta ronda
 
-- Offline **de datos**: IndexedDB de catálogos + cola de sincronización (B-1, pasos 2-3).
+- Verificar en vivo la capa de datos offline (registrar una inspección sin red y
+  confirmar que se sincroniza al reconectar).
 - Cerrar lectura anónima de `login_directory` (B-6).
 - Rotar el secreto de push y moverlo a Vault (B-9).
 - Ejercitar el ciclo de reportes completo (B-7); `qpc_quality_week()` en BD (B-8);

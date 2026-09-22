@@ -44,10 +44,14 @@ usuarios reales · **[SEGUIMIENTO]** puede ir después con riesgo acotado.
 
 ## 4. Offline (requisito del prompt maestro)
 
-- [x] App-shell offline (SW v10.6.0), verificado con red cortada.
-- [ ] **[BLOQUEANTE para el objetivo]** Datos offline: IndexedDB de catálogos +
-      cola de sincronización de escrituras (B-1, pasos 2-3). Sin esto, un ingeniero
-      en obra sin señal abre la app pero no puede registrar inspecciones.
+- [x] App-shell offline (SW v10.7.0), verificado con red cortada.
+- [x] Datos offline **implementados** (commit `69c1975`): arranque desde caché sin red,
+      escritura local persistida y reenvío del estado al reconectar. Aprovecha que la
+      app es un único blob `app_state.payload` ya cacheado en `localStorage`. `node
+      --check` OK.
+- [ ] **[BLOQUEANTE para el objetivo]** Verificar en vivo la capa de datos offline:
+      con red cortada, un ingeniero abre la app, registra una inspección y, al volver
+      la conexión, esa inspección aparece sincronizada en Supabase.
 
 ## 5. Funcional
 
