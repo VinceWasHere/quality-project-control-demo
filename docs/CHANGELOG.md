@@ -5,6 +5,58 @@ Formato: entradas por ronda de trabajo, lo más nuevo arriba. Fechas absolutas.
 
 ---
 
+## 2026-09-22 (tarde) — Offline de datos: alcance mínimo, verificado en vivo
+
+Rama: `fix/p0-seguridad-y-versionado`. SW `v10.8.0`. Verificado en vivo en
+`localhost:8788` + Supabase real (sesión SSO real, cuenta `qa.ejecucion@codelpa.demo`).
+
+Contexto: la corrección de la ronda anterior dejó claro que el offline de datos del
+commit `69c1975` cayó sobre código **legacy** (muerto) y no tenía efecto en la app viva
+(`MAIN_MODE` + "phase3", inspecciones relacionales vía Edge Function). Esta ronda porta
+el fallback offline a las **funciones vivas**, con alcance acotado.
+
+### Qué se implementó (todo en `app.bundle.js` salvo el bump de versión)
+
+- **Arranque offline (lectura desde caché).** El wrapper **más externo** de
+  `window.loadRemoteData` (~L6343 — el que llama `bootstrap`) captura cualquier error de
+  red de toda la cadena e hidrata `data` desde `localStorage[qpc_supabase_v6_cache]` en
+  lugar de mandar al login. `window.loadProfiles` (~L2086) conserva los usuarios cacheados
+  si la recarga de perfiles falla sin red. El `saveData` vivo (phase3, ~L3084) cachea
+  `data` (con `users` e `inspections` conocidas) para poder renderizar offline.
+- **Sin cuelgue de 20 s al arrancar sin red.** El bootstrap vivo (~L1304) omite
+  `refreshSession()` cuando `navigator.onLine===false` (supabase-js reintentaba el
+  `refresh_token` hasta `AUTH_TIMEOUT_MS`); usa la sesión local directamente.
+- **Escritura offline + reconexión.** El `saveData` vivo marca la bandera "pendiente de
+  sincronizar" (persistida) cuando el `upsert` falla por red y muestra el banner; el
+  listener `online` reenvía y limpia la bandera al subir bien. Reutiliza los helpers ya
+  presentes (detección de red, banner, hook de reconexión).
+- Cache-busting a `10.8.0` (index.html, `QPC_VERSION` del SW, registro en runtime-loader).
+
+### Verificado en vivo (ciclo completo)
+
+1. **Arranque sin red desde caché**: `setOffline(true)` + recarga → dashboard completo en
+   ~3 s (`onLine=false`, login NO visible, banner "Sin conexión — trabajando offline…",
+   navegación + 4 proyectos renderizados). No cae al login.
+2. **Escritura offline**: mutación de prueba + `saveData()` → bandera `pendiente="true"`,
+   banner mostrado, cambio persistido en la caché local.
+3. **Reconexión**: `setOffline(false)` + evento `online` → bandera limpiada (`null`),
+   banner retirado (el hook de reconexión hizo *flush*).
+4. **Persistencia remota**: recarga online → el cambio de prueba estaba en
+   `app_state.payload` de Supabase (confirmado leyendo la tabla). Prueba limpiada después
+   de Supabase y de la caché local (`ABSENT`).
+
+`node --check app.bundle.js` OK.
+
+### Sigue pendiente (documentado, fuera de este alcance)
+
+- **Registrar una inspección sin conexión.** Las inspecciones son relacionales y se crean
+  vía Edge Function `inspection-workflow`; exigen un **outbox** que encole esas llamadas y
+  las reenvíe al reconectar. No implementado. El offline actual cubre: arrancar y leer
+  desde caché + resincronizar los módulos que aún viven en el blob (equipos, documentos,
+  mapeos).
+
+---
+
 ## 2026-09-22 — Ronda de endurecimiento P0/P1 + capa offline (app-shell)
 
 Rama: `fix/p0-seguridad-y-versionado`. SW `v10.6.0`.
@@ -71,6 +123,18 @@ lectura / 13 de escritura. Cambios (todos en `app.bundle.js` salvo el bump de ve
 - Cache-busting a `10.7.0` (index.html, `QPC_VERSION` del SW, registros del SW).
 - Verificado `node --check` en los 3 ficheros. **Verificación en vivo (red cortada +
   registrar inspección + reconexión) pendiente** tras el deploy del preview.
+
+> **Corrección — verificación en vivo (2026-09-22, `localhost:8788` + Supabase real).**
+> El offline de datos **no funciona en el código en vivo**. La app corre en `MAIN_MODE` +
+> "phase3": las inspecciones se crean vía Edge Function `inspection-workflow` y se leen de
+> un esquema **relacional** (`loadRelationalInspections`), no del blob `app_state.payload`.
+> Registrar una inspección sin conexión exige un **outbox** de la Edge Function que aún no
+> existe. Además, los edits del commit cayeron sobre copias **legacy** (código muerto) de
+> `loadRemoteData`/`loadProfiles`/`saveData`; las funciones vivas (`window.loadRemoteData`
+> ~L2091, `saveData` phase3 ~L3084) no llevan el fallback offline. El bloque de helpers
+> (detección de red, banner, reconexión) sí quedó en ruta viva, pero nada lo invoca. El
+> app-shell offline (SW 10.7.0) sí funciona. Alcance del offline de datos: pendiente de
+> decidir (ver checklist §4).
 
 ### Pendiente tras esta ronda
 

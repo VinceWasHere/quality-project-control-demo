@@ -53,7 +53,7 @@
   // El flujo de push reutiliza este mismo registro (misma URL ?v=).
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>{
-      navigator.serviceWorker.register('/qpc-sw.js?v=10.7.0',{scope:'/'}).catch(()=>{});
+      navigator.serviceWorker.register('/qpc-sw.js?v=10.8.0',{scope:'/'}).catch(()=>{});
     });
   }
 })();

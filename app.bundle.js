@@ -1301,7 +1301,11 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
       let session=sessionResult.data?.session||null;
 
       if(session){
-        try{
+        if(typeof navigator!=='undefined' && navigator.onLine===false){
+          // Arranque sin conexión: no intentamos renovar (supabase-js reintenta el
+          // refresh_token hasta ~20s); usamos la sesión local directamente.
+          console.warn('Arranque sin conexión: se omite la renovación de sesión y se usa la sesión local.');
+        }else try{
           const refreshed=await withTimeout(supabaseClient.auth.refreshSession(),AUTH_TIMEOUT_MS,'No se pudo renovar la sesión.');
           if(refreshed.error) throw refreshed.error;
           session=refreshed.data?.session||session;
@@ -2084,9 +2088,14 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   };
   if(MAIN_MODE){
     window.loadProfiles=async function(){
-      const {data:profiles,error}=await supabaseClient.from('profiles').select('*').eq('is_active',true);
-      if(error)throw error;
-      data.users=list(profiles).map(profileToUser);
+      try{
+        const {data:profiles,error}=await supabaseClient.from('profiles').select('*').eq('is_active',true);
+        if(error)throw error;
+        data.users=list(profiles).map(profileToUser);
+      }catch(error){
+        if(qpcIsOfflineError(error)&&Array.isArray(data.users)&&data.users.length){console.warn('Perfiles no recargados offline; se conservan los usuarios cacheados.');return;}
+        throw error;
+      }
     };
     window.loadRemoteData=async function(){
       const {data:row,error}=await supabaseClient.from('app_state').select('payload').eq('id',REMOTE_STATE_ID).maybeSingle();
@@ -3076,18 +3085,31 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   window.loadRemoteData=async function(){
     await previousLoadRemoteData();
     phase3.legacyInspectionBackup=JSON.parse(JSON.stringify(list(data.inspections)));
-    try{await loadRelationalInspections(true);}catch(error){toast(`No se cargó el flujo relacional de inspecciones: ${error.message}`);throw error;}
+    // El fallback offline global vive en el último wrapper de loadRemoteData; aquí
+    // dejamos propagar el error de red (salvo que solo fallen las inspecciones online).
+    try{await loadRelationalInspections(true);}catch(error){
+      if(qpcIsOfflineError(error)){console.warn('Inspecciones no disponibles offline; se mantiene lo cacheado.');phase3.loaded=true;}
+      else{toast(`No se cargó el flujo relacional de inspecciones: ${error.message}`);throw error;}
+    }
   };
 
   // app_state continúa guardando temporalmente equipos/documentos/mapeos, pero no
   // vuelve a sobrescribir las inspecciones ya migradas.
   saveData=function(){
     const payload={...data,users:[],inspections:phase3.legacyInspectionBackup};
-    try{localStorage.setItem(STORAGE_KEY,JSON.stringify({...payload,inspections:[]}));}catch(_ignored){}
+    // Caché local: conservamos users e inspecciones conocidas para poder arrancar y
+    // renderizar offline (el payload remoto sí las omite).
+    try{localStorage.setItem(STORAGE_KEY,JSON.stringify({...data,inspections:list(phase3.legacyInspectionBackup)}));}catch(_ignored){}
     clearTimeout(saveTimer);
     saveTimer=setTimeout(async()=>{
-      const {error}=await supabaseClient.from('app_state').upsert({id:REMOTE_STATE_ID,payload,updated_at:new Date().toISOString()});
-      if(error){console.error(error);toast('No se pudieron sincronizar los módulos pendientes de migración');}
+      try{
+        const {error}=await supabaseClient.from('app_state').upsert({id:REMOTE_STATE_ID,payload,updated_at:new Date().toISOString()});
+        if(error)throw error;
+        qpcClearPendingSync();
+      }catch(err){
+        console.error(err);qpcMarkPendingSync();
+        if(!qpcIsOfflineError(err))toast('No se pudieron sincronizar los módulos pendientes de migración');
+      }
     },350);
     if(ui.view==='evaluate')queueVisitDraft();
   };
@@ -6151,7 +6173,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   async function registerWorker(){
     if(!supported())return null;
     if(state.registration)return state.registration;
-    state.registration=await navigator.serviceWorker.register('/qpc-sw.js?v=10.7.0',{scope:'/'});
+    state.registration=await navigator.serviceWorker.register('/qpc-sw.js?v=10.8.0',{scope:'/'});
     await navigator.serviceWorker.ready;
     return state.registration;
   }
@@ -6304,9 +6326,30 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   }
   const priorLoadRemote=window.loadRemoteData;
   window.loadRemoteData=async function(){
-    const result=await priorLoadRemote.apply(this,arguments);
-    schedulePreferenceLoad();
-    return result;
+    try{
+      const result=await priorLoadRemote.apply(this,arguments);
+      schedulePreferenceLoad();
+      qpcInstallOnlineHook();
+      if(qpcPendingSync) qpcSetOfflineBanner(true);
+      return result;
+    }catch(error){
+      // Fallback offline GLOBAL: cualquier fallo de red en toda la cadena de
+      // loadRemoteData (app_state, perfiles, inspecciones, equipos, mapeos,
+      // instructivos, notificaciones…) hidrata el estado desde la caché local
+      // (blob app_state espejado en localStorage) en vez de mandar al login.
+      if(qpcIsOfflineError(error)){
+        const cached=qpcReadJSON(STORAGE_KEY);
+        if(cached && typeof cached==='object'){
+          data=cached;
+          if(!Array.isArray(data.users)) data.users=[];
+          if(!Array.isArray(data.inspections)) data.inspections=[];
+          qpcInstallOnlineHook();qpcSetOfflineBanner(true);
+          console.warn('Modo offline: estado hidratado desde caché local (arranque sin red).');
+          return data;
+        }
+      }
+      throw error;
+    }
   };
 
   supabaseClient.auth.onAuthStateChange((event)=>{

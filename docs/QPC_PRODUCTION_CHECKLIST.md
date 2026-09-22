@@ -44,14 +44,24 @@ usuarios reales · **[SEGUIMIENTO]** puede ir después con riesgo acotado.
 
 ## 4. Offline (requisito del prompt maestro)
 
-- [x] App-shell offline (SW v10.7.0), verificado con red cortada.
-- [x] Datos offline **implementados** (commit `69c1975`): arranque desde caché sin red,
-      escritura local persistida y reenvío del estado al reconectar. Aprovecha que la
-      app es un único blob `app_state.payload` ya cacheado en `localStorage`. `node
-      --check` OK.
-- [ ] **[BLOQUEANTE para el objetivo]** Verificar en vivo la capa de datos offline:
-      con red cortada, un ingeniero abre la app, registra una inspección y, al volver
-      la conexión, esa inspección aparece sincronizada en Supabase.
+- [x] App-shell offline (SW v10.8.0), verificado con red cortada.
+- [x] **Datos offline — alcance mínimo, VERIFICADO en vivo** (2026-09-22, `localhost:8788`
+      + Supabase real, cuenta `qa.ejecucion@codelpa.demo`, SW v10.8.0). Se decidió (b)
+      **alcance mínimo** y se portó a las funciones **vivas** (no a las legacy):
+      - **Arranque + lectura offline desde caché**: el wrapper más externo de
+        `window.loadRemoteData` (~L6343) hidrata `data` desde `localStorage
+        [qpc_supabase_v6_cache]` ante error de red; `loadProfiles` conserva usuarios
+        cacheados; bootstrap omite `refreshSession()` si `navigator.onLine===false` (evita el
+        cuelgue de ~20 s). Verificado: dashboard completo en ~3 s sin red, sin caer al login.
+      - **Escritura offline + reconexión**: `saveData` marca bandera "pendiente" y muestra
+        banner cuando el `upsert` falla; el listener `online` reenvía y limpia la bandera.
+        Verificado ciclo completo, incluida la **persistencia remota** en `app_state.payload`
+        de Supabase tras reconectar (prueba limpiada después).
+- [ ] **[BLOQUEANTE para el objetivo — pendiente]** Registrar una **inspección** sin
+      conexión. Las inspecciones son relacionales (Edge Function `inspection-workflow`), no
+      viven en el blob; exige un **outbox** que encole esas llamadas y las reenvíe al
+      reconectar (no existe). El alcance mínimo cubre arrancar/leer desde caché + resync de
+      los módulos que aún usan el blob (equipos/documentos/mapeos), no crear inspección offline.
 
 ## 5. Funcional
 
