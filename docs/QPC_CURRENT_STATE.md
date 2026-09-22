@@ -210,11 +210,22 @@ blanca). La recuperación de cuenta ya no lleva a una página tras el SSO de Ver
 
 `password_min_length` subido de 6 a **10**.
 
-### 6.6 Faltan cabeceras de seguridad en el despliegue — ABIERTO (código listo, sin desplegar)
+### 6.6 Faltan cabeceras de seguridad en el despliegue — VERIFICADO EN PREVIEW, falta producción
 
 Se creó `vercel.json` con CSP estricta, `X-Frame-Options DENY`, `nosniff`,
-`Referrer-Policy`, `Permissions-Policy`, COOP y HSTS con preload. **No desplegado y CSP no
-verificada en navegador todavía** — se valida tras el primer deploy.
+`Referrer-Policy`, `Permissions-Policy`, COOP y HSTS con preload. Desplegado en el preview de
+la rama `fix/p0-seguridad-y-versionado` y **verificado en navegador**:
+
+- La CSP se sirve por cabecera HTTP (no meta) y **se aplica**.
+- No rompe la app: bundle, estilos y la conexión a Supabase (`connect-src`) cargan y la
+  consulta a `login_directory` devuelve 200 bajo la CSP.
+- Único bloqueo observado: el `manifest.webmanifest`, pero es un **falso positivo del SSO de
+  Vercel** (la puerta SSO reescribe la URL del manifest a `vercel.com`, violando
+  `manifest-src 'self'`). En la URL pública de producción, sin SSO, no ocurre.
+
+Pendiente: verificar `worker-src` (worker de pdf.js desde cdnjs) e `img-src` de Storage con
+una sesión iniciada, y desplegar a producción. El hint de contraseña del login ya no aparece
+en el preview (confirmado).
 
 ### 6.10 Secreto en texto plano dentro de un trigger — ABIERTO
 
