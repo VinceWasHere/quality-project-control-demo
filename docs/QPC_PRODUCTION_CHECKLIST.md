@@ -81,8 +81,20 @@ usuarios reales · **[SEGUIMIENTO]** puede ir después con riesgo acotado.
 - [ ] **[RECOMENDADO]** Ejercitar el ciclo de reportes completo (B-7):
       `qpc_report_cycles` tiene 0 filas; la semana de calidad jueves→miércoles nunca
       se ha probado con datos.
-- [ ] **[RECOMENDADO]** Matriz de roles probada con las 6 cuentas QA: confirmar que
-      cada rol ve y hace solo lo suyo (ver `QPC_ROLE_TEST_MATRIX.md` cuando exista).
+- [~] **[RECOMENDADO]** Matriz de roles: verificados **en vivo** los tres extremos del
+      espectro de privilegios (2026-09-22, `localhost:8788` + Supabase real):
+      - **EJECUCION** (`qa.ejecucion`): sin Bandeja de Calidad en el nav; ve **solo su
+        propia** inspección (RLS, `notMine=0`); navegar a `qualityQueue` a mano se bloquea
+        (la vista vuelve a `home`).
+      - **CALIDAD** (`qa.calidad`): ve la Bandeja con las 13 inspecciones y puede tomar y
+        evaluar todas las ramas de decisión.
+      - **PRESIDENTE** (`qa.presidente`): ve las 13 (lectura total) con nav de supervisión
+        (calificaciones, informes, exportaciones, usuarios, auditoría, integridad); **sin**
+        Bandeja ni acciones de evaluación.
+      Pendiente de repaso en vivo: COORDINADOR_CALIDAD, GERENCIA, IT (siguen el mismo
+      modelo `role_permissions`; verificar cuando toque).
+      - Observación (relacionada con B-6): como EJECUCION, `data.users` trae los 13 perfiles
+        con email y rol (roster completo al cliente). Cerrar junto con `login_directory`.
 - [ ] **[SEGUIMIENTO]** `qpc_quality_week()` en la BD (B-8) y vistas de ranking (B-11),
       hoy solo en el frontend.
 

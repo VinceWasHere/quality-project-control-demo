@@ -5,6 +5,25 @@ Formato: entradas por ronda de trabajo, lo más nuevo arriba. Fechas absolutas.
 
 ---
 
+## 2026-09-22 (tarde-4) — Matriz de roles: verificación en vivo (sin cambios de código)
+
+Rama: `fix/p0-seguridad-y-versionado`. Solo verificación + docs. Comprobados en vivo
+(`localhost:8788` + Supabase real) los tres extremos del espectro de privilegios:
+
+- **EJECUCION** (`qa.ejecucion`): sin Bandeja de Calidad en el nav; ve **solo su propia**
+  inspección (RLS a nivel de BD, `notMine=0`); forzar `navigate('qualityQueue')` no entra
+  (la vista revierte a `home`).
+- **CALIDAD** (`qa.calidad`): ve la Bandeja (13 inspecciones), toma y evalúa todas las ramas.
+- **PRESIDENTE** (`qa.presidente`): ve las 13 (lectura total) con nav de supervisión
+  (calificaciones/informes/exportaciones/usuarios/auditoría/integridad); sin Bandeja ni
+  acciones de evaluación.
+
+Observación (refuerza B-6): como EJECUCION, `data.users` trae los 13 perfiles con email y
+rol al cliente (roster completo). Cerrar junto con la lectura anónima de `login_directory`.
+Pendiente de repaso en vivo: COORDINADOR_CALIDAD, GERENCIA, IT.
+
+---
+
 ## 2026-09-22 (tarde-3) — Máquina de estados de inspección verificada + fix del autoguardado
 
 Rama: `fix/p0-seguridad-y-versionado`. SW `v10.8.2`. Verificado en vivo en
