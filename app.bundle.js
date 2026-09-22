@@ -22,6 +22,39 @@ const ATTACHMENT_BUCKET = 'qpc-attachments';
 const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024; // 50 MB por archivo; configurable en Supabase Storage
 let data = null;
 
+// ── Capa offline de datos (B-1) ─────────────────────────────────────────────
+// La app es un único blob (app_state.payload). saveData ya persiste el estado
+// completo en localStorage de forma síncrona; aquí añadimos: (1) lectura desde
+// esa caché cuando no hay red, (2) reenvío del blob al reconectar. No se cachean
+// respuestas de Supabase de otros usuarios: solo el estado propio ya cargado.
+function qpcReadJSON(key){ try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):null;}catch(e){return null;} }
+function qpcIsOfflineError(err){
+  if(typeof navigator!=='undefined' && navigator.onLine===false) return true;
+  const msg=(err&&(err.message||err.error_description||err.code))||String(err||'');
+  return /failed to fetch|networkerror|network error|load failed|\bfetch\b|err_internet|err_network|no respondió|tardó demasiado|renovar la sesión/i.test(msg);
+}
+let qpcPendingSync = qpcReadJSON('qpc_pending_sync')===true;
+let qpcOnlineHookInstalled=false;
+function qpcMarkPendingSync(){ qpcPendingSync=true; try{localStorage.setItem('qpc_pending_sync','true');}catch(e){} qpcInstallOnlineHook(); qpcSetOfflineBanner(true); }
+function qpcClearPendingSync(){ qpcPendingSync=false; try{localStorage.removeItem('qpc_pending_sync');}catch(e){} qpcSetOfflineBanner(false); }
+function qpcInstallOnlineHook(){
+  if(qpcOnlineHookInstalled||typeof window==='undefined') return;
+  qpcOnlineHookInstalled=true;
+  window.addEventListener('offline',()=>qpcSetOfflineBanner(true));
+  window.addEventListener('online',()=>{
+    if(qpcPendingSync && typeof saveData==='function'){ try{toast('Conexión restablecida: sincronizando…');}catch(e){} saveData(); }
+    else{ qpcSetOfflineBanner(false); }
+  });
+}
+function qpcSetOfflineBanner(show){
+  if(typeof document==='undefined'||!document.body) return;
+  let el=document.getElementById('qpcOfflineBanner');
+  if(show){
+    if(!el){ el=document.createElement('div'); el.id='qpcOfflineBanner'; el.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#b45309;color:#fff;font:600 13px system-ui,sans-serif;text-align:center;padding:8px 12px;box-shadow:0 -2px 8px rgba(0,0,0,.25)'; document.body.appendChild(el); }
+    el.textContent = (typeof navigator!=='undefined'&&navigator.onLine===false) ? 'Sin conexión — trabajando offline. Los cambios se guardan aquí y se enviarán al reconectar.' : 'Cambios pendientes de sincronizar…';
+  }else if(el){ el.remove(); }
+}
+
 const ROLE_LABELS = {
   EJECUCION: 'Ingeniero de Ejecución',
   CALIDAD: 'Ingeniero de Calidad',
@@ -177,29 +210,62 @@ function profileToUser(profile){
   };
 }
 async function loadProfiles(){
-  const {data: profiles,error}=await supabaseClient.from('profiles').select('*').eq('is_active',true);
-  if(error) throw error;
-  data.users=(profiles||[]).map(profileToUser);
+  try{
+    const {data: profiles,error}=await supabaseClient.from('profiles').select('*').eq('is_active',true);
+    if(error) throw error;
+    data.users=(profiles||[]).map(profileToUser);
+  }catch(err){
+    // Sin red: conserva los perfiles ya cargados (vienen del blob cacheado).
+    if(qpcIsOfflineError(err) && Array.isArray(data.users) && data.users.length) return;
+    throw err;
+  }
 }
 async function loadRemoteData(){
-  const {data: row,error}=await supabaseClient.from('app_state').select('payload').eq('id',REMOTE_STATE_ID).maybeSingle();
-  if(error) throw error;
-  const remote=row?.payload;
-  data=remote&&remote.version===6?remote:initialData();
-  await loadProfiles();
-  if(!row){
-    const {error: insertError}=await supabaseClient.from('app_state').insert({id:REMOTE_STATE_ID,payload:data});
-    if(insertError) throw insertError;
+  try{
+    const {data: row,error}=await supabaseClient.from('app_state').select('payload').eq('id',REMOTE_STATE_ID).maybeSingle();
+    if(error) throw error;
+    const remote=row?.payload;
+    data=remote&&remote.version===6?remote:initialData();
+    await loadProfiles();
+    if(!row){
+      const {error: insertError}=await supabaseClient.from('app_state').insert({id:REMOTE_STATE_ID,payload:data});
+      if(insertError) throw insertError;
+    }
+    localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+    qpcInstallOnlineHook();
+    if(qpcPendingSync) qpcSetOfflineBanner(true); // había cambios sin enviar de una sesión previa
+  }catch(err){
+    // Sin red: arranca desde el último estado guardado (incluye users y las
+    // inspecciones hechas offline que aún no se han sincronizado).
+    if(qpcIsOfflineError(err)){
+      const cached=qpcReadJSON(STORAGE_KEY);
+      if(cached && cached.version===6){
+        data=cached;
+        if(!Array.isArray(data.users)) data.users=[];
+        qpcInstallOnlineHook();
+        qpcSetOfflineBanner(true);
+        return;
+      }
+    }
+    throw err;
   }
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
 }
 function saveData(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{
     const payload={...data,users:[]};
-    const {error}=await supabaseClient.from('app_state').upsert({id:REMOTE_STATE_ID,payload,updated_at:new Date().toISOString()});
-    if(error){console.error(error);toast('No se pudo sincronizar con Supabase');}
+    try{
+      const {error}=await supabaseClient.from('app_state').upsert({id:REMOTE_STATE_ID,payload,updated_at:new Date().toISOString()});
+      if(error) throw error;
+      qpcClearPendingSync(); // subió bien: no queda nada pendiente
+    }catch(err){
+      console.error(err);
+      // Offline: el estado ya está en localStorage; se reenviará al reconectar.
+      // Otro error: lo marcamos igual para reintentar y avisamos.
+      qpcMarkPendingSync();
+      if(!qpcIsOfflineError(err)) toast('No se pudo sincronizar con Supabase; se reintentará.');
+    }
   },250);
 }
 data=initialData();
@@ -1240,9 +1306,14 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
           if(refreshed.error) throw refreshed.error;
           session=refreshed.data?.session||session;
         }catch(refreshError){
-          console.warn('Sesión descartada durante el arranque:',refreshError);
-          await supabaseClient.auth.signOut({scope:'local'}).catch(()=>{});
-          session=null;
+          if(qpcIsOfflineError(refreshError)){
+            // Sin red: se mantiene la sesión local para poder trabajar offline.
+            console.warn('Sin conexión al renovar la sesión; se mantiene la sesión local (modo offline).');
+          }else{
+            console.warn('Sesión descartada durante el arranque:',refreshError);
+            await supabaseClient.auth.signOut({scope:'local'}).catch(()=>{});
+            session=null;
+          }
         }
       }
 
@@ -1263,8 +1334,14 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
       render();
     }catch(error){
       console.error('Fallo de arranque V6.13:',error);
-      await supabaseClient.auth.signOut({scope:'local'}).catch(()=>{});
-      resetToLogin('No se pudo conectar con Supabase: '+(error?.message||String(error)));
+      if(qpcIsOfflineError(error)){
+        // Offline y sin datos guardados aún: no destruimos la sesión, solo pedimos
+        // conectarse una vez para poder trabajar offline después.
+        resetToLogin('Sin conexión y sin datos guardados todavía. Conéctate una vez para habilitar el modo offline.');
+      }else{
+        await supabaseClient.auth.signOut({scope:'local'}).catch(()=>{});
+        resetToLogin('No se pudo conectar con Supabase: '+(error?.message||String(error)));
+      }
     }
   };
 
@@ -6074,7 +6151,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   async function registerWorker(){
     if(!supported())return null;
     if(state.registration)return state.registration;
-    state.registration=await navigator.serviceWorker.register('/qpc-sw.js?v=10.6.0',{scope:'/'});
+    state.registration=await navigator.serviceWorker.register('/qpc-sw.js?v=10.7.0',{scope:'/'});
     await navigator.serviceWorker.ready;
     return state.registration;
   }
