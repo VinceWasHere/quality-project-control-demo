@@ -229,8 +229,8 @@ seguridad ya puesta (que lo está).
 | **P0** | Eliminar las 7 tablas demo abiertas a `anon` (B-3) | ✅ Hecho |
 | **P0** | Corregir `site_url` / `uri_allow_list` (B-4) | ✅ Hecho |
 | **P1** | `disable_signup = true` + mínimo 10 (B-5) | ✅ Hecho |
-| **P1** | `vercel.json` con cabeceras (B-10) | ⚠️ Escrito, sin desplegar; CSP sin verificar |
-| **P2** | Service worker con app shell (B-1, paso 1) | ⬜ Pendiente |
+| **P1** | `vercel.json` con cabeceras (B-10) | ✅ Hecho — desplegado y CSP verificada en preview |
+| **P2** | Service worker con app shell (B-1, paso 1) | ✅ Hecho — v10.6.0, offline verificado con red cortada |
 | **P2** | Cerrar `login_directory` a `anon` (B-6) | ⬜ Pendiente |
 | **P2** | Rotar el secreto de push y moverlo a Vault (B-9) | ⬜ Pendiente |
 | **P3** | IndexedDB de catálogos + cola de sync (B-1, pasos 2-3) | ⬜ Pendiente |
