@@ -3224,6 +3224,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
     const buttons=[...document.querySelectorAll('[data-finish]')];
     try{
       buttons.forEach(button=>button.disabled=true);
+      clearTimeout(phase3.draftTimer);phase3.draftPending=false;
       const answers=answerPayload(template,visit);
       await workflow({action:'finish_visit',visit_id:visit.id,payload:{decision,answers,answers_by_id:visit.answers||{},notes_by_id:visit.notes||{},general_observation:visit.generalObservation||''}});
       phase3.loaded=false;await loadRelationalInspections(true);const updated=data.inspections.find(item=>item.id===inspection.id);

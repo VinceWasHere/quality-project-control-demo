@@ -5,6 +5,43 @@ Formato: entradas por ronda de trabajo, lo más nuevo arriba. Fechas absolutas.
 
 ---
 
+## 2026-09-22 (tarde-3) — Máquina de estados de inspección verificada + fix del autoguardado
+
+Rama: `fix/p0-seguridad-y-versionado`. SW `v10.8.2`. Verificado en vivo en
+`localhost:8788` + Supabase real (`qa.calidad@codelpa.demo`, rol CALIDAD).
+
+### Verificado — todas las ramas de decisión del flujo (relacional, persistido)
+
+Se ejercitó la máquina de estados completa y se confirmó la persistencia tras **recarga
+completa desde el servidor** (no solo caché local):
+
+| Rama | Resultado |
+| --- | --- |
+| LIBERACION → *Liberada* | `LIBERADA` (100%) |
+| LIBERACION → *Con observaciones* | `CON_OBSERVACIONES` (89,4%) |
+| CON_OBSERVACIONES → SEGUIMIENTO → *Liberada* | `LIBERADA` (2 visitas) |
+| CON_OBSERVACIONES → CIERRE → *Liberada* | `CERRADA`, `closure_code=QQ0001` (2 visitas) |
+| LIBERACION → *No liberada* | `NO_LIBERADA` (0%) |
+
+Las visitas de seguimiento y cierre se lanzan desde el detalle
+(`data-p3-start-followup` / `data-p3-start-closure`, plantillas `p3FollowTemplate` /
+`p3CloseTemplate`) y pasan por `workflow('start_visit')` + `workflow('finish_visit')`.
+
+### Corregido — toast falso "Borrador pendiente" tras finalizar una visita
+
+Al finalizar una visita justo después de responder el último criterio, el autoguardado de
+borrador (`queueVisitDraft`, debounce 650 ms) podía dispararse **después** de que
+`finish_visit` ya había cerrado la visita, mostrando un toast de error alarmante
+(`Borrador pendiente: La visita ya fue finalizada [save_visit_draft]`) pese a que todo se
+guardó bien. `finishEvaluation` ahora **cancela el timer de borrador pendiente**
+(`clearTimeout(phase3.draftTimer); phase3.draftPending=false;`) antes de llamar a
+`finish_visit`. Verificado en el bundle en vivo.
+
+- Cache-busting a `10.8.2` (index.html, `QPC_VERSION` del SW, runtime-loader).
+- `node --check app.bundle.js` OK.
+
+---
+
 ## 2026-09-22 (tarde-2) — Flujo de inspección E2E: bug de bandeja corregido + refinamientos
 
 Rama: `fix/p0-seguridad-y-versionado`. SW `v10.8.1`. Verificado en vivo en

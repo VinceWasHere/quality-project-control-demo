@@ -1,4 +1,4 @@
-const QPC_VERSION = '10.8.1';
+const QPC_VERSION = '10.8.2';
 const SHELL_CACHE = `qpc-shell-${QPC_VERSION}`;
 
 // App shell mínimo: lo imprescindible para que la app ARRANQUE sin red.

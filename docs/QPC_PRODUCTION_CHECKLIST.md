@@ -65,10 +65,13 @@ usuarios reales · **[SEGUIMIENTO]** puede ir después con riesgo acotado.
 
 ## 5. Funcional
 
-- [x] **Ciclo central de inspección verificado E2E** (2026-09-22, `localhost:8788` + Supabase
-      real). Solicitar → Bandeja de Calidad → Tomar → Planilla digital (13 criterios) →
-      "Guardar y liberar" → estado `LIBERADA`, visita `FINALIZADA`, 100%, persistido
-      relacionalmente (confirmado tras recarga desde el servidor).
+- [x] **Máquina de estados de inspección verificada E2E** (2026-09-22, `localhost:8788` +
+      Supabase real, persistido tras recarga desde el servidor). Ramas comprobadas:
+      LIBERADA (100%), CON_OBSERVACIONES (89,4%), CON_OBSERVACIONES→SEGUIMIENTO→LIBERADA,
+      CON_OBSERVACIONES→CIERRE→CERRADA (`closure_code=QQ0001`), y NO_LIBERADA (0%). Flujo:
+      Solicitar → Bandeja → Tomar → Planilla → decisión, todo relacional vía Edge Function.
+- [x] **Corregido** el toast falso "Borrador pendiente" tras finalizar una visita
+      (`finishEvaluation` cancela el timer de autoguardado de borrador antes de cerrar).
 - [x] **Bug de la Bandeja de Calidad corregido** (severidad alta): CALIDAD veía 0
       inspecciones porque las cuentas QA semilla no tenían filas en `project_members`
       (RLS resuelve el acceso al proyecto por esa tabla, no por `profiles.project_ids`).
