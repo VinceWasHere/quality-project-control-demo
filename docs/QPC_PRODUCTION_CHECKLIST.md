@@ -65,6 +65,16 @@ usuarios reales · **[SEGUIMIENTO]** puede ir después con riesgo acotado.
 
 ## 5. Funcional
 
+- [x] **Ciclo central de inspección verificado E2E** (2026-09-22, `localhost:8788` + Supabase
+      real). Solicitar → Bandeja de Calidad → Tomar → Planilla digital (13 criterios) →
+      "Guardar y liberar" → estado `LIBERADA`, visita `FINALIZADA`, 100%, persistido
+      relacionalmente (confirmado tras recarga desde el servidor).
+- [x] **Bug de la Bandeja de Calidad corregido** (severidad alta): CALIDAD veía 0
+      inspecciones porque las cuentas QA semilla no tenían filas en `project_members`
+      (RLS resuelve el acceso al proyecto por esa tabla, no por `profiles.project_ids`).
+      Backfill idempotente aplicado; la ruta viva (`admin-user-management`) ya lo sincroniza.
+- [ ] **[SEGUIMIENTO]** Confirmar que la Edge Function huérfana `admin-create-user`
+      (escribe `profiles.project_ids` pero no `project_members`) es borrable / no se usa.
 - [ ] **[RECOMENDADO]** Ejercitar el ciclo de reportes completo (B-7):
       `qpc_report_cycles` tiene 0 filas; la semana de calidad jueves→miércoles nunca
       se ha probado con datos.

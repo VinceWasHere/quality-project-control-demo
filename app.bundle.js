@@ -271,7 +271,7 @@ function saveData(){
 data=initialData();
 let ui={
   view:'home',selectedId:null,queueTab:'DISPONIBLES',reportMode:'month',reportValue:'2026-07',docSearch:'',mapSearch:'',templateFilter:'',
-  requestDraft:{templateId:'',mappingId:MAPEOS[0]?.id||'',contractor:'Contratista Terminación Demo',date:'2026-07-24',time:'08:00',scope:'Área completa según el mapeo seleccionado.',ready:true,annotationData:null},
+  requestDraft:{templateId:'',mappingId:MAPEOS[0]?.id||'',contractor:'Contratista Terminación Demo',date:toISODate(new Date()),time:'08:00',scope:'Área completa según el mapeo seleccionado.',ready:true,annotationData:null},
   activeVisitId:null,annotator:{drawing:false,color:'#ef4444',size:8,eraser:false}
 };
 function render(){

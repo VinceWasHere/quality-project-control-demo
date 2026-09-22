@@ -5,6 +5,66 @@ Formato: entradas por ronda de trabajo, lo más nuevo arriba. Fechas absolutas.
 
 ---
 
+## 2026-09-22 (tarde-2) — Flujo de inspección E2E: bug de bandeja corregido + refinamientos
+
+Rama: `fix/p0-seguridad-y-versionado`. SW `v10.8.1`. Verificado en vivo en
+`localhost:8788` + Supabase real (sesión SSO real, `qa.calidad@codelpa.demo`, rol CALIDAD).
+
+Foco: **completar y refinar el flujo funcional** (no seguridad/infra, diferido). Se
+ejercitó el ciclo central de punta a punta y se corrigió lo que lo rompía.
+
+### Corregido — la Bandeja de Calidad no mostraba inspecciones (severidad alta)
+
+Síntoma: un usuario CALIDAD veía **0 inspecciones** en la bandeja pese a haber
+solicitudes `SOLICITADA_LIBERACION`; el bucle central (solicitar → tomar → evaluar)
+quedaba roto para Calidad.
+
+Causa raíz: **deriva de datos de prueba**, no un bug del código en producción. RLS de
+`qpc_inspections` pasa por `qpc_actor_can_view_inspection` → `qpc_user_can_access_project`,
+que resuelve el acceso al proyecto contra la tabla **`project_members`** (no contra
+`profiles.project_ids`). Las 5 cuentas QA tenían `project_ids` en su perfil pero **sin
+filas en `project_members`** (el sembrado antiguo no las escribió). La ruta viva de
+administración de usuarios (Edge Function `admin-user-management`) sí sincroniza
+`project_members`, así que producción crea usuarios bien; el hueco era solo en los datos
+semilla.
+
+Arreglo: **backfill idempotente y auto-sanador** de `project_members` a partir de
+`profiles.project_ids` (script Node con la `service_role` leída en runtime, nunca impresa;
+15 filas insertadas vía PostgREST `on_conflict=project_id,user_id`). No se tocó el esquema.
+
+Verificado: `qa.calidad` pasa a `canView=true`, ve 13 inspecciones, la bandeja se puebla
+con las 5 `SOLICITADA_LIBERACION` y sus botones "Tomar".
+
+> Nota de higiene: la Edge Function huérfana `admin-create-user` escribe `profiles.project_ids`
+> pero **no** `project_members`; no es la ruta viva (lo es `admin-user-management`). Marcada
+> para limpieza/confirmación de que es borrable.
+
+### Verificado — ciclo de liberación E2E completo (relacional)
+
+Solicitar → **Bandeja de Calidad** → **Tomar** (`workflow('take')`, estado `TOMADA`,
+asignada al inspector) → **Planilla digital** (`openEvaluation` → `workflow('start_visit')`,
+estado `EN_EVALUACION`) → 13 criterios respondidos → **"Guardar y liberar"**
+(`finishEvaluation` → `workflow('finish_visit')`). Resultado: estado **`LIBERADA`**, visita
+`FINALIZADA`, puntaje **100%**. Persistencia relacional confirmada tras **recarga completa**
+desde el servidor (no solo caché local).
+
+### Refinado — fecha propuesta por defecto ya no está caducada
+
+`ui.requestDraft.date` estaba **fija en `2026-07-24`** (2 meses en el pasado). Como el
+código de solicitud se genera server-side con `to_char(requested_date,'YYMMDD')`
+(`qpc_next_request_code`), toda solicitud nueva nacía con un código y una fecha caducados
+(p. ej. `I-LLC-260724-…`). Cambiado a `toISODate(new Date())` (fecha **local**, helper ya
+existente). Verificado en vivo: el borrador arranca en `2026-09-22`.
+
+> Se dejó **a propósito** el `'2026-07'` por defecto de los periodos de reporte/dashboard:
+> ancla a la era de los datos semilla (julio 2026); ponerlo en el mes actual vaciaría los
+> paneles del demo. Es decisión, no bug.
+
+- Cache-busting a `10.8.1` (index.html, `QPC_VERSION` del SW, registro en runtime-loader).
+- `node --check app.bundle.js` OK.
+
+---
+
 ## 2026-09-22 (tarde) — Offline de datos: alcance mínimo, verificado en vivo
 
 Rama: `fix/p0-seguridad-y-versionado`. SW `v10.8.0`. Verificado en vivo en
