@@ -6074,7 +6074,7 @@ openAttachment=async function(inspectionId,index){const i=data.inspections.find(
   async function registerWorker(){
     if(!supported())return null;
     if(state.registration)return state.registration;
-    state.registration=await navigator.serviceWorker.register('/qpc-sw.js?v=10.5.0',{scope:'/'});
+    state.registration=await navigator.serviceWorker.register('/qpc-sw.js?v=10.6.0',{scope:'/'});
     await navigator.serviceWorker.ready;
     return state.registration;
   }

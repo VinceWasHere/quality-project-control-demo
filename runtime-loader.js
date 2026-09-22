@@ -46,4 +46,14 @@
   }
   window.qpcEnsureLibraries=ensure;
   window.qpcLoadLibrary=load;
+
+  // Registro incondicional del service worker para la capa OFFLINE (app shell).
+  // Independiente del flujo de push: aunque el navegador no soporte Notification/
+  // PushManager, el SW se registra igual para poder abrir la app sin red.
+  // El flujo de push reutiliza este mismo registro (misma URL ?v=).
+  if('serviceWorker' in navigator){
+    window.addEventListener('load',()=>{
+      navigator.serviceWorker.register('/qpc-sw.js?v=10.6.0',{scope:'/'}).catch(()=>{});
+    });
+  }
 })();
