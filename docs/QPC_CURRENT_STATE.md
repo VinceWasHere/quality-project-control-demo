@@ -48,7 +48,7 @@ index.html
   └─ runtime-loader.js?v=10.5.0
   └─ app.bundle.js?v=10.5.0   ← 736 KB, un solo fichero acumulado a lo largo de 26 fases
 styles.css   86 KB
-qpc-sw.js    service worker, versión 10.5.0
+qpc-sw.js    service worker, versión 10.6.0 (push + offline app-shell)
 manifest.webmanifest
 ```
 
@@ -62,7 +62,14 @@ está diseñada para ir en el navegador. **No hay fuga de secreto en el reposito
 - **5 de las 6 Edge Functions** por `functions.invoke()` (`web-push-dispatch` se llama por `fetch` directo)
 - **0 llamadas a `storage.from()`** — toda la subida de ficheros pasa por la Edge Function `asset-workflow`, que es el patrón correcto
 - **8 llamadas a `localStorage`/`sessionStorage`** — el estado vive en la tabla `app_state`, no en localStorage
-- **IndexedDB: ausente. Cola de sincronización offline: ausente.**
+- **Offline — app-shell: PRESENTE y VERIFICADO (v10.6.0).** El service worker precachea
+  el shell (index, estáticos, iconos) y sirve las navegaciones desde caché sin red.
+  Verificado en preview con la red cortada (`navigator.onLine=false` → navegación 200,
+  login renderizado). El SW se registra de forma incondicional en `runtime-loader.js`,
+  sin depender del soporte de Push/Notification.
+- **Offline — datos: AÚN AUSENTE.** No hay IndexedDB de catálogos ni cola de
+  sincronización de escrituras. La app abre offline pero todavía no muestra ni encola
+  datos sin red (Supabase se llama siempre contra la red). Es el siguiente paso.
 
 ---
 
@@ -315,9 +322,11 @@ por integración Git.
 
 Verificado por ausencia en el código, no supuesto:
 
-- **Estrategia offline**: no hay IndexedDB ni cola de sincronización. El requisito explícito
-  del prompt maestro (§ offline con IndexedDB, nunca localStorage como base de datos falsa)
-  está sin empezar.
+- **Estrategia offline (datos)**: el app-shell offline ya está hecho y verificado (SW
+  v10.6.0, ver §3), pero la capa de **datos** sigue pendiente: falta IndexedDB de catálogos
+  y cola de sincronización de escrituras. El requisito del prompt maestro (§ offline con
+  IndexedDB, nunca localStorage como base de datos falsa) está a medias: la app abre sin
+  red, pero aún no lee ni encola datos sin red.
 - **Ciclos de reporte**: `qpc_report_cycles` tiene 0 filas pese a existir toda la maquinaria
   de reportes (`qpc_report_publications`, `qpc_report_cycle_events`, 15 RPC de reporte).
   La semana de calidad jueves→miércoles nunca se ha ejercitado con datos.
