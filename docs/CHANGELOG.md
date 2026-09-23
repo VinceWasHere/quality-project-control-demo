@@ -5,6 +5,16 @@ Formato: entradas por ronda de trabajo, lo más nuevo arriba. Fechas absolutas.
 
 ---
 
+## 2026-09-23 — PAUSA del proyecto (Vincent pasa a otro trabajo)
+
+Se pausa QPC en un punto limpio. **El bucle funcional central está completo, verificado
+en vivo y desplegado** en la rama `fix/p0-seguridad-y-versionado` (bundle/SW `v10.8.2`).
+Nada queda a medias en código. Lo pendiente son bloqueantes de seguridad/infra y mejoras
+funcionales acotadas, todos listados en `docs/RETOMAR-QPC.md` y en
+`docs/QPC_PRODUCTION_CHECKLIST.md`. Punto de retoma sugerido: ciclo de reportes (B-7).
+
+---
+
 ## 2026-09-22 (tarde-4) — Matriz de roles: verificación en vivo (sin cambios de código)
 
 Rama: `fix/p0-seguridad-y-versionado`. Solo verificación + docs. Comprobados en vivo
